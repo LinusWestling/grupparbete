@@ -1,0 +1,27 @@
+-- Skapa tabeller
+CREATE TABLE kategori(
+	kategoriId INT NOT NULL AUTO_INCREMENT,
+	kategoriNamn VARCHAR(50) NOT NULL,
+	PRIMARY KEY (kategoriId)
+);
+CREATE TABLE bok(
+	bokId INT NOT NULL AUTO_INCREMENT,
+	bokTitel VARCHAR(50) NOT NULL,
+	bokForfattare VARCHAR(50) NOT NULL,
+	bokBeskrivn VARCHAR(50),
+	bokIsbn VARCHAR(50) NOT NULL,
+	bokPris INT NOT NULL,
+    bokKategoriId INT NOT NULL,
+	PRIMARY KEY (bokId),
+    FOREIGN KEY (bokKategoriId) REFERENCES kategori(kategoriId)
+);
+
+-- Unikt index
+CREATE UNIQUE INDEX index_isbn ON bok(bokIsbn);
+
+-- Fyll tabellerna med lite data
+INSERT INTO kategori(kategoriNamn) VALUES('Roman'),('Barnbok'),('Sci-fi');
+
+INSERT INTO bok (bokTitel,bokForfattare,bokIsbn,bokPris,bokKategoriId)
+VALUES('Röda rummet','August Strindberg','1234-5',120,1),
+       ('Karlsson på taket','Astrid Lindgren','2345-6',80,2);

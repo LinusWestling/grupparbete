@@ -1,0 +1,14 @@
+För att kunna använda ett Vue Vite-projekt som frontend och en Node-Express-applikation som backend,
+behöver man ha igång två terminaler samtidigt (en för backend och en för frontend).
+
+I backend skriver vi node app.js i terminalen för att starta igång Node-applikationen.
+
+För att skapa Frontend med Vue Vite kör du i terminalen rotmappen:
+npm create vue@latest
+
+(Namnge projektet till frontend, då skapas en mapp som heter frontend i rotmappen)
+
+I frontend skriver vi i terminalen:
+npm install
+npm run dev
+

@@ -1,0 +1,28 @@
+Detta är samma kod som i exemplet node-connectionMySQL-ver1 förutom att vi har gjort en egen module med mySQL till MySQL-databasen.
+Har du redan skapat databasen kan du hoppa till Node-applikationen
+
+Databasen:
+Skapa en ny databas i MySQL med Datagrip. du ska sedan ha samma namn i din connectionMySQL i app.js.
+Skapa tabellerna bok och kategori, skapa ett unikt index för ISBN, samt några rader data med INSERT INTO. Se filen bok-MySQL.txt
+
+--
+
+Node-applikationen:
+Installera först med npm, öppna terminlafönstret i samma mapp som du ska köra filerna.
+
+1. Skapa package.json fil
+npm init
+
+2. Installera Express (lokalt i den mapp du har filerna)
+npm install express
+
+3. Installera MySQL
+npm install mysql2
+
+4. Installera cors (Behövs inte i nuläget men om man använder Vue Vite då man startar upp en lokal webbserver på ett annat port-nummer behöver man ha stöd för cors-request)
+(https://expressjs.com/en/resources/middleware/cors.html)
+npm install cors
+-----
+
+Kör koden i ett terminalfönster i samma katalog
+node app.js

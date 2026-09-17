@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Set-Location \"C:\\\\Users\\\\westl\\\\Programmering\\\\javawebb\\\\Grupparbete\\\\frontend\"; $p = Start-Process \"cmd.exe\" -ArgumentList \"/c\",\"npm run dev\" -PassThru -RedirectStandardOutput \"$env:TEMP\\\\fe.log\" -RedirectStandardError \"$env:TEMP\\\\fe.err\" -NoNewWindow; Start-Sleep -Seconds 12; \"--- out ---\"; Get-Content \"$env:TEMP\\\\fe.log\" -ErrorAction SilentlyContinue | Out-String; \"--- err ---\"; Get-Content \"$env:TEMP\\\\fe.err\" -ErrorAction SilentlyContinue | Select-Object -First 5 | Out-String; try { $r = Invoke-WebRequest \"http://localhost:5173/\" -TimeoutSec 8 -UseBasicParsing; \"HTTP \" + $r.StatusCode + \" | title match: \" + \\($r.Content -match 'id=\"app\"'\\) } catch { \"ERR: \" + $_.Exception.Message }; Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue)"
+    ]
+  }
+}
