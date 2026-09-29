@@ -1,0 +1,234 @@
+/*
+ * SkillSwap — Base / global styles
+ * ------------------------------------------------------------
+ * Laddas efter reset.css och variables.css.
+ *
+ * Här ska sådant ligga som gäller hela applikationen:
+ * body, länkar, fokus, rubriker, text, selection och
+ * enkla återanvändbara layoutklasser.
+ *
+ * Komponent-specifik styling bör ligga i egna filer.
+ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+
+/* ============================================================
+   TYPOGRAFI
+   ============================================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+}
+
+h3 {
+  font-size: var(--font-size-h3);
+}
+
+p {
+  max-width: var(--text-max-width);
+}
+
+small {
+  font-size: var(--font-size-xs);
+}
+
+strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+
+/* ============================================================
+   LÄNKAR
+   ============================================================ */
+
+a {
+  transition:
+    color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+
+/* ============================================================
+   FORMULÄR / INTERAKTIVA ELEMENT
+   ============================================================ */
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  min-height: var(--control-min-height);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+input,
+textarea {
+  padding: var(--space-3) var(--space-4);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-subtle);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+
+/* ============================================================
+   HJÄLPKLASSER FÖR VANLIG LAYOUT
+   ============================================================ */
+
+.container {
+  width: min(100% - (var(--space-8) * 2), var(--content-max-width));
+  margin-inline: auto;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--content-gap);
+}
+
+.stack-lg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--component-gap);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--content-gap);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-subtle {
+  color: var(--color-text-subtle);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* ============================================================
+   VANLIGA SKILLSWAP-YTOR
+   ============================================================ */
+
+.surface {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.surface-dark {
+  background: var(--color-primary);
+  color: var(--color-text-on-dark);
+  border-radius: var(--radius-xl);
+}
+
+.surface-accent {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  border-radius: var(--radius-lg);
+}
+
+
+/* ============================================================
+   RESPONSIVITET
+   ============================================================ */
+
+@media (max-width: 48rem) {
+  .container {
+    width: min(100% - (var(--space-4) * 2), var(--content-max-width));
+  }
+}
+
+
+/* ============================================================
+   REDUCED MOTION
+   Respekterar användare som vill minimera animationer.
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
