@@ -1,3 +1,5 @@
+## Database build and migration
+
 Run migrations with `npm run migrate`. Uses the same environment variables and
 Aiven CA certificate as the backend. Local development reads `backend/.env`.
 
@@ -20,3 +22,27 @@ recorded as successful. MySQL schema changes can commit immediately: a failed
 file or interrupted run can leave partial changes. Inspect and repair these
 before retrying; migrations are not automatically rolled back. Keep deployed
 schema changes compatible with the previous app version during deployment.
+
+ 
+----------
+
+## Local deployment in Docker to 'see' database
+
+Follow these instructions:
+
+1. docker compose up -d (in root)
+2. Open your browser and navigate to: http://localhost:8080
+3. Fill in the login form with these details:
+   - System: MySQL
+   - Server: db
+   - Username: root (or devuser)
+   - Password: rootpassword (or devpassword)
+   - Database: skillswap
+4. Clock login to visually inspect tables, schema structure, data and run test queries.
+
+## If new code has been added to e.g. 002_init.sql
+
+You need to remove the volume and rebuild it:
+
+1. docker compose down -v
+2. docker compose up -d
