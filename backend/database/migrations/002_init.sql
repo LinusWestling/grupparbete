@@ -1,8 +1,5 @@
-CREATE DATABASE IF NOT EXISTS skillswap
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE skillswap;
+-- Use the database selected by the connection (DB_NAME=defaultdb on Render).
+-- Do not create or switch databases inside application migrations.
 
 -- ------------------------------------------------------------
 -- USERS
