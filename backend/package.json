@@ -5,6 +5,7 @@
   "main": "app.js",
   "scripts": {
     "migrate": "node scripts/migrate.js",
+    "migrate:status": "node scripts/migration-status.js",
     "start": "node app.js"
   },
   "keywords": [],
