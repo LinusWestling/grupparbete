@@ -1,0 +1,13 @@
+{
+  "name": "skillswap-tooling",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "9.1.7",
+    "prettier": "3.9.9"
+  }
+}

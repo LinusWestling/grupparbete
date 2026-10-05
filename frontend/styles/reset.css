@@ -5,7 +5,9 @@
  * styling så att komponenterna börjar från samma grund.
  */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -15,7 +17,8 @@ html {
   text-size-adjust: 100%;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
 }
@@ -24,12 +27,20 @@ body {
   min-height: 100vh;
 }
 
-h1, h2, h3, h4, h5, h6,
-p, figure, blockquote {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote {
   margin: 0;
 }
 
-ul, ol {
+ul,
+ol {
   margin: 0;
   padding: 0;
   list-style: none;

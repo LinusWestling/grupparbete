@@ -11,9 +11,9 @@
  * @import url("./components/card.css");
  */
 
-@import url("./reset.css");
-@import url("./variables.css");
-@import url("./base.css");
+@import url('./reset.css');
+@import url('./variables.css');
+@import url('./base.css');
 
 /*
  * Komponenter kan läggas här när projektet växer:
