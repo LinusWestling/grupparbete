@@ -1,3 +1,5 @@
+## Database build and migration
+
 Run migrations with `npm run migrate`. Uses the same environment variables and
 Aiven CA certificate as the backend. Local development reads `backend/.env`.
 
@@ -20,42 +22,26 @@ file or interrupted run can leave partial changes. Inspect and repair these
 before retrying; migrations are not automatically rolled back. Keep deployed
 schema changes compatible with the previous app version during deployment.
 
-## Inspect a failed deployment
+ 
+----------
 
-Run `npm run migrate:status` from `backend` with the same database environment
-variables as Render. This is read-only: it lists tables and migration history
-in both the configured database and `skillswap`.
+## Local deployment in Docker to 'see' database
 
-A migration is recorded only after its SQL succeeds and its tracking row is
-inserted. No history row does not mean no tables or seed data were created.
+Follow these instructions:
 
-The original `002_init.sql` contained `USE skillswap`. If `DB_NAME` was different,
-the migration switched databases after the runner created its tracking table.
-Recording success could then fail with a missing `schema_migrations` table.
-The pending-file correction removes database creation and switching; configure
-`DB_NAME=defaultdb` on Render. Inspection still reads the old `skillswap` schema
-to help identify leftovers; it does not write to either schema.
+1. docker compose up -d (in root)
+2. Open your browser and navigate to: http://localhost:8080
+3. Fill in the login form with these details:
+   - System: MySQL
+   - Server: db
+   - Username: root (or devuser)
+   - Password: rootpassword (or devpassword)
+   - Database: skillswap
+4. Clock login to visually inspect tables, schema structure, data and run test queries.
 
-Temporarily use this Render Start Command to print status before migrating:
+## If new code has been added to e.g. 002_init.sql
 
-```sh
-npm run migrate:status && npm run migrate && npm start
-```
+You need to remove the volume and rebuild it:
 
-For inspection without retrying a migration, run only `npm run migrate:status`
-in a shell. If 002 appears in the history, restore its exact applied version
-before deploying: a new 003 does not bypass the checksum check on an edited 002.
-If 002 is absent and defaultdb has no application tables, the corrected 002
-can initialize it. If defaultdb already has some application tables, inspect
-their definitions and data before retrying; this file is not fully idempotent.
-
-Do not copy the file to 003 expecting it to recover a pending 002: migrations
-run in order and stop at the first failure. Do not mark 002 applied until all
-of its tables, indexes, and seed data have been verified. Do not edit an
-already recorded migration: the runner checks its checksum.
-
-`IF NOT EXISTS` on tables alone does not make the entire file safe to retry.
-Standalone index creation can encounter existing indexes; seed inserts can
-encounter duplicate usernames/topic names or create duplicate questions.
-The seed data also assumes IDs start at 1. A recovery must account for these
-as well as which database contains the partially applied schema.
+1. docker compose down -v
+2. docker compose up -d
