@@ -27,6 +27,8 @@ schema changes compatible with the previous app version during deployment.
 
 ## Local deployment in Docker to 'see' database
 
+Follow these instructions:
+
 1. docker compose up -d (in root)
 2. Open your browser and navigate to: http://localhost:8080
 3. Fill in the login form with these details:
@@ -36,3 +38,10 @@ schema changes compatible with the previous app version during deployment.
    - Password: rootpassword (or devpassword)
    - Database: skillswap
 4. Clock login to visually inspect tables, schema structure, data and run test queries.
+
+## If new code has been added to e.g. 002_init.sql
+
+You need to remove the volume and rebuild it:
+
+1. docker compose down -v
+2. docker compose up -d
