@@ -2,6 +2,7 @@ Run migrations with `npm run migrate`. Uses the same environment variables and
 Aiven CA certificate as the backend. Local development reads `backend/.env`.
 
 Render settings (Root Directory: `backend`):
+
 - Build Command: `npm install`
 - Start Command: `npm run migrate && npm start`
 

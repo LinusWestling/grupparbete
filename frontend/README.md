@@ -15,13 +15,13 @@ Node.js requirement: `^22.18.0 || >=24.12.0`.
 
 ## Team routes
 
-| URL | View |
-| --- | --- |
-| `/#/` | `src/views/HomeView.vue` — dashboard |
-| `/#/explore` | `src/views/ExploreView.vue` |
-| `/#/my-skills` | `src/views/MySkillsView.vue` |
-| `/#/messages` | `src/views/MessagesView.vue` |
-| `/#/profile` | `src/views/ProfileView.vue` |
+| URL            | View                                 |
+| -------------- | ------------------------------------ |
+| `/#/`          | `src/views/HomeView.vue` — dashboard |
+| `/#/explore`   | `src/views/ExploreView.vue`          |
+| `/#/my-skills` | `src/views/MySkillsView.vue`         |
+| `/#/messages`  | `src/views/MessagesView.vue`         |
+| `/#/profile`   | `src/views/ProfileView.vue`          |
 
 Each teammate can replace their view's `RoutePlaceholder` with the feature implementation. Non-home pages show Coming soon. The homepage works without a database and displays no fabricated user data.
 
