@@ -1,10 +1,3 @@
--- ============================================================
--- SkillSwap — Database Initialization Script
--- ============================================================
--- Run with: mysql -u <user> -p < init.sql
--- or inside a MySQL client: SOURCE init.sql;
--- ============================================================
-
 CREATE DATABASE IF NOT EXISTS skillswap
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
