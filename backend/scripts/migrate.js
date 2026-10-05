@@ -85,14 +85,14 @@ async function main() {
 }
 
 if (require.main === module) {
-    main().catch(error => {
-        console.error(error.message);
-        if (error.cause) {
-            console.error(error.cause.code || 'SQL execution failed.');
-            console.error(error.cause.sqlMessage || error.cause.message);
-        }
-        process.exitCode = 1;
-    });
+  main().catch((error) => {
+    console.error(error.message)
+    if (error.cause) {
+      console.error(error.cause.code || 'SQL execution failed.')
+      console.error(error.cause.sqlMessage || error.cause.message)
+    }
+    process.exitCode = 1
+  })
 }
 
 module.exports = { runMigrations }

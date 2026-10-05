@@ -9,7 +9,7 @@ services:
       MYSQL_USER: devuser
       MYSQL_PASSWORD: devpassword
     ports:
-      - "127.0.0.1:3307:3306"
+      - '127.0.0.1:3307:3306'
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/database/migrations:/docker-entrypoint-initdb.d:ro
@@ -19,7 +19,7 @@ services:
     container_name: grupparbete_adminer
     restart: always
     ports:
-      - "127.0.0.1:8080:8080"
+      - '127.0.0.1:8080:8080'
     depends_on:
       - db
 

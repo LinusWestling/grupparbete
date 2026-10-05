@@ -23,8 +23,7 @@ file or interrupted run can leave partial changes. Inspect and repair these
 before retrying; migrations are not automatically rolled back. Keep deployed
 schema changes compatible with the previous app version during deployment.
 
- 
-----------
+---
 
 ## Local deployment in Docker to 'see' database
 
