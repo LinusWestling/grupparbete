@@ -1,44 +1,32 @@
-# frontend
+# SkillSwap frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 + Vite with Vue Router and shared design tokens in `styles/`.
 
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Run locally
 
 ```sh
+cd frontend
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
+Use `npm run build` for production and `npm run preview` to preview the build.
+Node.js requirement: `^22.18.0 || >=24.12.0`.
 
-```sh
-npm run build
-```
+## Team routes
 
-### Lint with [ESLint](https://eslint.org/)
+| URL | View |
+| --- | --- |
+| `/#/` | `src/views/HomeView.vue` — dashboard |
+| `/#/explore` | `src/views/ExploreView.vue` |
+| `/#/my-skills` | `src/views/MySkillsView.vue` |
+| `/#/messages` | `src/views/MessagesView.vue` |
+| `/#/profile` | `src/views/ProfileView.vue` |
 
-```sh
-npm run lint
-```
+Each teammate can replace their view's `RoutePlaceholder` with the feature implementation. Non-home pages show Coming soon. The homepage works without a database and displays no fabricated user data.
+
+`src/main.js` installs the router and global styles. `src/App.vue` owns the shared shell. Register routes and navigation in `src/router/index.js`. Use `RouterLink` for internal links. Hash routing supports direct links and refreshes on static hosting without server rewrites. Unknown URLs show a 404 page.
+
+Reuse `styles/variables.css` for design tokens. `styles/dashboard.css` styles the shell and homepage; use scoped styles for feature views. Old Vue starter components and asset styles are unused.
+
+Connect each feature to backend endpoints when they are ready.
