@@ -20,13 +20,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && github.event.pull_request.head.sha || github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run format
+      - name: Apply formatting fixes
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        run: npm run format
       - run: npm run format:check
       - name: Commit formatting fixes
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
