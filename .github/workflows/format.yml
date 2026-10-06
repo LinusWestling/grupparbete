@@ -5,7 +5,11 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: formatting-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   prettier:
@@ -15,9 +19,23 @@ jobs:
       HUSKY: '0'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - run: npm run format
       - run: npm run format:check
+      - name: Commit formatting fixes
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "style: format files with Prettier"
+          git push
