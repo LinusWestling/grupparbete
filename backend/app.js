@@ -15,8 +15,10 @@ app.use(express.static('public'))
 
 const bookRoutes = require('./routes/bookRoutes')
 const categoryRoutes = require('./routes/categoryRoutes')
+const exampleRoutes = require('./routes/exampleRoutes')
 
 app.use(bookRoutes)
 app.use(categoryRoutes)
+app.use(exampleRoutes)
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
