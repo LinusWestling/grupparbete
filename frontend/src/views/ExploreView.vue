@@ -77,7 +77,8 @@ function exitQuiz() {
         <p class="eyebrow">EXPLORE SKILLS & KNOWLEDGE</p>
         <h1>Quiz & Knowledge Center</h1>
         <p class="heading-description">
-          Choose a difficulty level (1–5) and test your knowledge across Anatomy, Exercise Science, and Physiology.
+          Choose a difficulty level (1–5) and test your knowledge across Anatomy, Exercise Science,
+          and Physiology.
         </p>
       </div>
     </div>
@@ -94,7 +95,9 @@ function exitQuiz() {
         >
           ⭐ Level {{ lvl }}
           <span class="diff-desc">
-            {{ lvl === 1 ? 'Beginner' : lvl === 3 ? 'Intermediate' : lvl === 5 ? 'PT Candidate' : '' }}
+            {{
+              lvl === 1 ? 'Beginner' : lvl === 3 ? 'Intermediate' : lvl === 5 ? 'PT Candidate' : ''
+            }}
           </span>
         </button>
       </div>
@@ -109,13 +112,16 @@ function exitQuiz() {
           <span class="badge">{{ activeTopicName }}</span>
           <span class="chip margin-left">⭐ Level {{ activeQuizSession.difficulty }}</span>
         </div>
-        <span>Question {{ currentQuestionIndex + 1 }} of {{ activeQuizSession.questions.length }}</span>
+        <span
+          >Question {{ currentQuestionIndex + 1 }} of {{ activeQuizSession.questions.length }}</span
+        >
         <button @click="exitQuiz" class="button-text">✕ Exit Quiz</button>
       </div>
 
       <div v-if="activeQuizSession.questions[currentQuestionIndex]" class="question-card">
         <p class="meta">
-          Type: {{ activeQuizSession.questions[currentQuestionIndex].question_type }} | Difficulty: Level
+          Type: {{ activeQuizSession.questions[currentQuestionIndex].question_type }} | Difficulty:
+          Level
           {{ activeQuizSession.questions[currentQuestionIndex].difficulty_level }}
         </p>
         <h2>{{ activeQuizSession.questions[currentQuestionIndex].question_text }}</h2>
@@ -131,7 +137,10 @@ function exitQuiz() {
             :key="ans.id"
             :class="[
               'option-button',
-              { selected: selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id] === ans.id },
+              {
+                selected:
+                  selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id] === ans.id,
+              },
             ]"
             @click="selectAnswer(activeQuizSession.questions[currentQuestionIndex].id, ans.id)"
           >
@@ -150,7 +159,10 @@ function exitQuiz() {
         </div>
 
         <!-- Sources / Citations -->
-        <div v-if="activeQuizSession.questions[currentQuestionIndex].sources.length > 0" class="source-box">
+        <div
+          v-if="activeQuizSession.questions[currentQuestionIndex].sources.length > 0"
+          class="source-box"
+        >
           <span class="source-label">📖 Reference Source:</span>
           <a
             v-for="src in activeQuizSession.questions[currentQuestionIndex].sources"
@@ -197,7 +209,9 @@ function exitQuiz() {
       <h2>🎉 Quiz Complete!</h2>
       <div class="score-summary">
         <div class="stat">
-          <span class="stat-value">{{ quizResult.correct_count }} / {{ quizResult.total_questions }}</span>
+          <span class="stat-value"
+            >{{ quizResult.correct_count }} / {{ quizResult.total_questions }}</span
+          >
           <span class="stat-label">Correct Answers</span>
         </div>
         <div class="stat">
@@ -245,34 +259,192 @@ function exitQuiz() {
 </template>
 
 <style scoped>
-.explore-page { display: flex; flex-direction: column; gap: 1.5rem; }
-.difficulty-bar { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
-.diff-label { font-weight: 600; color: #374151; font-size: 0.95rem; }
-.difficulty-options { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.diff-btn { padding: 0.6rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
-.diff-btn.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; box-shadow: 0 0 0 1px #2563eb; }
-.diff-desc { font-size: 0.75rem; color: #6b7280; font-weight: normal; }
-.error-banner { background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; font-weight: 500; }
-.topics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
-.topic-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.5rem; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; }
-.topic-header { display: flex; justify-content: space-between; align-items: center; }
-.chip { background: #f3f4f6; color: #374151; font-size: 0.85rem; padding: 0.25rem 0.6rem; border-radius: 999px; font-weight: 500; }
-.margin-left { margin-left: 0.5rem; }
-.quiz-container { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
-.quiz-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f3f4f6; padding-bottom: 1rem; }
-.question-card h2 { margin: 0.5rem 0 1.5rem 0; font-size: 1.35rem; }
-.options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-.option-button { padding: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: #fff; text-align: left; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
-.option-button:hover { border-color: #3b82f6; background: #eff6ff; }
-.option-button.selected { border-color: #2563eb; background: #dbeafe; font-weight: 600; }
-.free-text-box { margin: 1rem 0; }
-.text-input { width: 100%; padding: 1rem; font-size: 1.1rem; border: 2px solid #3b82f6; border-radius: 8px; }
-.quiz-nav { display: flex; justify-content: space-between; border-top: 1px solid #f3f4f6; padding-top: 1rem; }
-.source-box { margin-top: 1.5rem; font-size: 0.9rem; background: #f9fafb; padding: 0.75rem; border-radius: 6px; }
-.results-card { background: #fff; padding: 2rem; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center; }
-.score-summary { display: flex; justify-content: center; gap: 3rem; margin: 1.5rem 0; }
-.stat-value { font-size: 2rem; font-weight: bold; color: #2563eb; display: block; }
-.result-item { display: flex; gap: 1rem; text-align: left; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; }
-.result-item.correct { background: #f0fdf4; border: 1px solid #bbf7d0; }
-.result-item.incorrect { background: #fef2f2; border: 1px solid #fecaca; }
+.explore-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.difficulty-bar {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.diff-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
+.difficulty-options {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.diff-btn {
+  padding: 0.6rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.diff-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+.diff-desc {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: normal;
+}
+.error-banner {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.topics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+.topic-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chip {
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.margin-left {
+  margin-left: 0.5rem;
+}
+.quiz-container {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 1rem;
+}
+.question-card h2 {
+  margin: 0.5rem 0 1.5rem 0;
+  font-size: 1.35rem;
+}
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.option-button {
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.option-button:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+.option-button.selected {
+  border-color: #2563eb;
+  background: #dbeafe;
+  font-weight: 600;
+}
+.free-text-box {
+  margin: 1rem 0;
+}
+.text-input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+}
+.quiz-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 1rem;
+}
+.source-box {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  background: #f9fafb;
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+.results-card {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+}
+.score-summary {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin: 1.5rem 0;
+}
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2563eb;
+  display: block;
+}
+.result-item {
+  display: flex;
+  gap: 1rem;
+  text-align: left;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+.result-item.correct {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.result-item.incorrect {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
 </style>
