@@ -6,12 +6,14 @@ const topics = ref([])
 const loading = ref(true)
 const error = ref(null)
 
-// Quiz session state
-const activeQuiz = ref(null)
+// Difficulty selection (1-5)
+const selectedDifficulty = ref(1)
+
+// Active quiz session state
+const activeQuizSession = ref(null)
 const activeTopicName = ref('')
 const currentQuestionIndex = ref(0)
 const selectedAnswers = ref({})
-const freeTextInput = ref('')
 const quizResult = ref(null)
 const submitting = ref(false)
 
@@ -19,41 +21,24 @@ onMounted(async () => {
   try {
     topics.value = await api.getTopics()
   } catch (err) {
-    error.value = 'Failed to load topics from database backend.'
+    console.error('Failed to load topics:', err)
+    error.value = 'Failed to load topics from database backend: ' + err.message
   } finally {
     loading.value = false
   }
 })
 
-async function startQuiz(topic) {
+async function startQuizSession(topic) {
   try {
     loading.value = true
     error.value = null
-    activeTopicName.value = topic ? topic.name : 'All Topics'
-    activeQuiz.value = await api.getPracticeQuiz(topic ? topic.id : null)
+    activeTopicName.value = topic.name
+    activeQuizSession.value = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
     currentQuestionIndex.value = 0
     selectedAnswers.value = {}
-    freeTextInput.value = ''
     quizResult.value = null
   } catch (err) {
-    error.value = 'Failed to generate quiz. Make sure backend is running.'
-  } finally {
-    loading.value = false
-  }
-}
-
-async function startSpeedrun() {
-  try {
-    loading.value = true
-    error.value = null
-    activeTopicName.value = 'Speed Run Challenge'
-    activeQuiz.value = await api.getSpeedrunQuiz()
-    currentQuestionIndex.value = 0
-    selectedAnswers.value = {}
-    freeTextInput.value = ''
-    quizResult.value = null
-  } catch (err) {
-    error.value = 'Failed to start Speed Run.'
+    error.value = 'Failed to generate quiz: ' + err.message
   } finally {
     loading.value = false
   }
@@ -63,18 +48,15 @@ function selectAnswer(questionId, answerVal) {
   selectedAnswers.value[questionId] = answerVal
 }
 
-function updateFreeText(questionId) {
-  selectedAnswers.value[questionId] = freeTextInput.value
-}
-
 async function handleSubmitQuiz() {
+  if (!activeQuizSession.value) return
   submitting.value = true
   try {
     const submissions = Object.entries(selectedAnswers.value).map(([qId, ans]) => ({
       question_id: Number(qId),
       answer: ans,
     }))
-    quizResult.value = await api.submitQuiz(submissions)
+    quizResult.value = await api.submitQuizSession(activeQuizSession.value.quiz_id, submissions)
   } catch (err) {
     error.value = 'Failed to submit quiz results.'
   } finally {
@@ -83,7 +65,7 @@ async function handleSubmitQuiz() {
 }
 
 function exitQuiz() {
-  activeQuiz.value = null
+  activeQuizSession.value = null
   quizResult.value = null
 }
 </script>
@@ -95,43 +77,63 @@ function exitQuiz() {
         <p class="eyebrow">EXPLORE SKILLS & KNOWLEDGE</p>
         <h1>Quiz & Knowledge Center</h1>
         <p class="heading-description">
-          Select a topic to test your knowledge or try a Speed Run across all domains.
+          Choose a difficulty level (1–5) and test your knowledge across Anatomy, Exercise Science, and Physiology.
         </p>
       </div>
-      <button @click="startSpeedrun" class="button button-accent">⚡ Start Speed Run</button>
+    </div>
+
+    <!-- Difficulty Level Selector Bar -->
+    <div v-if="!activeQuizSession" class="difficulty-bar">
+      <span class="diff-label">Select Difficulty Level for Quiz:</span>
+      <div class="difficulty-options">
+        <button
+          v-for="lvl in [1, 2, 3, 4, 5]"
+          :key="lvl"
+          :class="['diff-btn', { active: selectedDifficulty === lvl }]"
+          @click="selectedDifficulty = lvl"
+        >
+          ⭐ Level {{ lvl }}
+          <span class="diff-desc">
+            {{ lvl === 1 ? 'Beginner' : lvl === 3 ? 'Intermediate' : lvl === 5 ? 'PT Candidate' : '' }}
+          </span>
+        </button>
+      </div>
     </div>
 
     <div v-if="error" class="error-banner">⚠️ {{ error }}</div>
 
     <!-- Active Quiz Playing View -->
-    <div v-if="activeQuiz && !quizResult" class="quiz-container">
+    <div v-if="activeQuizSession && !quizResult" class="quiz-container">
       <div class="quiz-header">
-        <span class="badge">{{ activeTopicName }}</span>
-        <span>Question {{ currentQuestionIndex + 1 }} of {{ activeQuiz.length }}</span>
+        <div>
+          <span class="badge">{{ activeTopicName }}</span>
+          <span class="chip margin-left">⭐ Level {{ activeQuizSession.difficulty }}</span>
+        </div>
+        <span>Question {{ currentQuestionIndex + 1 }} of {{ activeQuizSession.questions.length }}</span>
         <button @click="exitQuiz" class="button-text">✕ Exit Quiz</button>
       </div>
 
-      <div v-if="activeQuiz[currentQuestionIndex]" class="question-card">
+      <div v-if="activeQuizSession.questions[currentQuestionIndex]" class="question-card">
         <p class="meta">
-          Type: {{ activeQuiz[currentQuestionIndex].question_type }} | Difficulty: Level
-          {{ activeQuiz[currentQuestionIndex].difficulty_level }}
+          Type: {{ activeQuizSession.questions[currentQuestionIndex].question_type }} | Difficulty: Level
+          {{ activeQuizSession.questions[currentQuestionIndex].difficulty_level }}
         </p>
-        <h2>{{ activeQuiz[currentQuestionIndex].question_text }}</h2>
+        <h2>{{ activeQuizSession.questions[currentQuestionIndex].question_text }}</h2>
 
         <!-- Answer Rendering by Type -->
         <!-- 1. Multiple Choice & Yes/No -->
         <div
-          v-if="activeQuiz[currentQuestionIndex].question_type !== 'free_text'"
+          v-if="activeQuizSession.questions[currentQuestionIndex].question_type !== 'free_text'"
           class="options-grid"
         >
           <button
-            v-for="ans in activeQuiz[currentQuestionIndex].answers"
+            v-for="ans in activeQuizSession.questions[currentQuestionIndex].answers"
             :key="ans.id"
             :class="[
               'option-button',
-              { selected: selectedAnswers[activeQuiz[currentQuestionIndex].id] === ans.id },
+              { selected: selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id] === ans.id },
             ]"
-            @click="selectAnswer(activeQuiz[currentQuestionIndex].id, ans.id)"
+            @click="selectAnswer(activeQuizSession.questions[currentQuestionIndex].id, ans.id)"
           >
             {{ ans.answer_text }}
           </button>
@@ -141,17 +143,17 @@ function exitQuiz() {
         <div v-else class="free-text-box">
           <input
             type="text"
-            v-model="selectedAnswers[activeQuiz[currentQuestionIndex].id]"
+            v-model="selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id]"
             placeholder="Type your answer here..."
             class="text-input"
           />
         </div>
 
         <!-- Sources / Citations -->
-        <div v-if="activeQuiz[currentQuestionIndex].sources.length > 0" class="source-box">
+        <div v-if="activeQuizSession.questions[currentQuestionIndex].sources.length > 0" class="source-box">
           <span class="source-label">📖 Reference Source:</span>
           <a
-            v-for="src in activeQuiz[currentQuestionIndex].sources"
+            v-for="src in activeQuizSession.questions[currentQuestionIndex].sources"
             :key="src.id"
             :href="src.url"
             target="_blank"
@@ -172,7 +174,7 @@ function exitQuiz() {
         </button>
 
         <button
-          v-if="currentQuestionIndex < activeQuiz.length - 1"
+          v-if="currentQuestionIndex < activeQuizSession.questions.length - 1"
           @click="currentQuestionIndex++"
           class="button button-accent"
         >
@@ -185,7 +187,7 @@ function exitQuiz() {
           :disabled="submitting"
           class="button button-accent"
         >
-          {{ submitting ? 'Grading...' : 'Submit Quiz 🚀' }}
+          {{ submitting ? 'Grading & Saving...' : 'Submit Quiz 🚀' }}
         </button>
       </div>
     </div>
@@ -195,14 +197,12 @@ function exitQuiz() {
       <h2>🎉 Quiz Complete!</h2>
       <div class="score-summary">
         <div class="stat">
-          <span class="stat-value"
-            >{{ quizResult.correct_count }} / {{ quizResult.total_questions }}</span
-          >
+          <span class="stat-value">{{ quizResult.correct_count }} / {{ quizResult.total_questions }}</span>
           <span class="stat-label">Correct Answers</span>
         </div>
         <div class="stat">
           <span class="stat-value">+{{ quizResult.xp_earned }} XP</span>
-          <span class="stat-label">XP Earned</span>
+          <span class="stat-label">XP Earned (Level {{ selectedDifficulty }})</span>
         </div>
       </div>
 
@@ -235,8 +235,8 @@ function exitQuiz() {
             <span class="chip">{{ topic.question_count }} Questions</span>
           </div>
           <p>{{ topic.description || 'Explore and master key concepts in ' + topic.name }}</p>
-          <button @click="startQuiz(topic)" class="button button-outline">
-            Start {{ topic.name }} Quiz ↗
+          <button @click="startQuizSession(topic)" class="button button-outline">
+            Start Level {{ selectedDifficulty }} {{ topic.name }} Quiz ↗
           </button>
         </article>
       </div>
@@ -245,146 +245,34 @@ function exitQuiz() {
 </template>
 
 <style scoped>
-.explore-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.error-banner {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 1rem;
-  border-radius: 8px;
-  font-weight: 500;
-}
-.topics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-.topic-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.5rem;
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.topic-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.chip {
-  background: #f3f4f6;
-  color: #374151;
-  font-size: 0.85rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  font-weight: 500;
-}
-.quiz-container {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.quiz-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #f3f4f6;
-  padding-bottom: 1rem;
-}
-.question-card h2 {
-  margin: 0.5rem 0 1.5rem 0;
-  font-size: 1.35rem;
-}
-.options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-}
-.option-button {
-  padding: 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fff;
-  text-align: left;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.option-button:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
-}
-.option-button.selected {
-  border-color: #2563eb;
-  background: #dbeafe;
-  font-weight: 600;
-}
-.free-text-box {
-  margin: 1rem 0;
-}
-.text-input {
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.1rem;
-  border: 2px solid #3b82f6;
-  border-radius: 8px;
-}
-.quiz-nav {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid #f3f4f6;
-  padding-top: 1rem;
-}
-.source-box {
-  margin-top: 1.5rem;
-  font-size: 0.9rem;
-  background: #f9fafb;
-  padding: 0.75rem;
-  border-radius: 6px;
-}
-.results-card {
-  background: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  text-align: center;
-}
-.score-summary {
-  display: flex;
-  justify-content: center;
-  gap: 3rem;
-  margin: 1.5rem 0;
-}
-.stat-value {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #2563eb;
-  display: block;
-}
-.result-item {
-  display: flex;
-  gap: 1rem;
-  text-align: left;
-  padding: 0.75rem;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-}
-.result-item.correct {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-}
-.result-item.incorrect {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-}
+.explore-page { display: flex; flex-direction: column; gap: 1.5rem; }
+.difficulty-bar { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.diff-label { font-weight: 600; color: #374151; font-size: 0.95rem; }
+.difficulty-options { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.diff-btn { padding: 0.6rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+.diff-btn.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; box-shadow: 0 0 0 1px #2563eb; }
+.diff-desc { font-size: 0.75rem; color: #6b7280; font-weight: normal; }
+.error-banner { background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; font-weight: 500; }
+.topics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+.topic-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.5rem; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; }
+.topic-header { display: flex; justify-content: space-between; align-items: center; }
+.chip { background: #f3f4f6; color: #374151; font-size: 0.85rem; padding: 0.25rem 0.6rem; border-radius: 999px; font-weight: 500; }
+.margin-left { margin-left: 0.5rem; }
+.quiz-container { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+.quiz-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f3f4f6; padding-bottom: 1rem; }
+.question-card h2 { margin: 0.5rem 0 1.5rem 0; font-size: 1.35rem; }
+.options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+.option-button { padding: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: #fff; text-align: left; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+.option-button:hover { border-color: #3b82f6; background: #eff6ff; }
+.option-button.selected { border-color: #2563eb; background: #dbeafe; font-weight: 600; }
+.free-text-box { margin: 1rem 0; }
+.text-input { width: 100%; padding: 1rem; font-size: 1.1rem; border: 2px solid #3b82f6; border-radius: 8px; }
+.quiz-nav { display: flex; justify-content: space-between; border-top: 1px solid #f3f4f6; padding-top: 1rem; }
+.source-box { margin-top: 1.5rem; font-size: 0.9rem; background: #f9fafb; padding: 0.75rem; border-radius: 6px; }
+.results-card { background: #fff; padding: 2rem; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center; }
+.score-summary { display: flex; justify-content: center; gap: 3rem; margin: 1.5rem 0; }
+.stat-value { font-size: 2rem; font-weight: bold; color: #2563eb; display: block; }
+.result-item { display: flex; gap: 1rem; text-align: left; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; }
+.result-item.correct { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.result-item.incorrect { background: #fef2f2; border: 1px solid #fecaca; }
 </style>

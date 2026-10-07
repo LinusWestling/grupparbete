@@ -1,6 +1,30 @@
-import { createApiService } from './apiFactory.js'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
-const { request } = createApiService('')
+async function request(endpoint, options = {}) {
+  const config = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    credentials: 'include',
+    ...options,
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, config)
+  const text = await response.text()
+  let data
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    throw new Error(`Server returned non-JSON response (${response.status} ${response.statusText})`)
+  }
+
+  if (!response.ok || data?.status === 'error') {
+    throw new Error(data?.message || `API request failed (${response.status})`)
+  }
+
+  return data?.data !== undefined ? data.data : data
+}
 
 export const api = {
   // Topics
@@ -27,19 +51,19 @@ export const api = {
       method: 'DELETE',
     }),
 
-  // Quizzes & Game Modes
-  getPracticeQuiz: (topicId, difficulty) => {
-    const params = new URLSearchParams()
-    if (topicId) params.append('topicId', topicId)
-    if (difficulty) params.append('difficulty', difficulty)
-    return request(`/quizzes/practice?${params.toString()}`)
-  },
-  getSpeedrunQuiz: () => request('/quizzes/speedrun'),
-  submitQuiz: (submissions) =>
-    request('/quizzes/submit', {
+  // Quizzes & Game Modes with Difficulty Selection & History
+  startQuiz: (topicId, difficulty = 1, limit = 10) =>
+    request('/quizzes/start', {
+      method: 'POST',
+      body: JSON.stringify({ topicId, difficulty, limit }),
+    }),
+  submitQuizSession: (quizId, submissions) =>
+    request(`/quizzes/${quizId}/submit`, {
       method: 'POST',
       body: JSON.stringify({ submissions }),
     }),
+  getQuizHistory: () => request('/quizzes/history'),
+  getQuizDetails: (quizId) => request(`/quizzes/${quizId}`),
 
   // User & Stats
   getDashboardStats: () => request('/dashboard/stats'),
