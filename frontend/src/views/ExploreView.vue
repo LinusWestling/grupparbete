@@ -201,15 +201,25 @@ function exitQuiz() {
 
     <!-- Quiz Results View -->
     <div v-else-if="quizResult" class="results-card">
-      <div v-if="qualificationStatus" :class="['qualification-banner', qualificationStatus.isQualified ? 'success' : 'retry']">
+      <div
+        v-if="qualificationStatus"
+        :class="['qualification-banner', qualificationStatus.isQualified ? 'success' : 'retry']"
+      >
         <span class="banner-icon">{{ qualificationStatus.isQualified ? '🎉' : '📚' }}</span>
         <div class="banner-content">
-          <h4>{{ qualificationStatus.isQualified ? 'Kvalificerad för PT-utbildning!' : 'Inte riktigt där än' }}</h4>
+          <h4>
+            {{
+              qualificationStatus.isQualified
+                ? 'Kvalificerad för PT-utbildning!'
+                : 'Inte riktigt där än'
+            }}
+          </h4>
           <p>
             Du fick {{ qualificationStatus.percentage }}% rätt.
-            {{ qualificationStatus.isQualified
-              ? 'Bra jobbat! Du har uppnått gränsen på 80%.'
-              : 'Du behöver 80% rätt för att kvalificera dig. Försök igen!'
+            {{
+              qualificationStatus.isQualified
+                ? 'Bra jobbat! Du har uppnått gränsen på 80%.'
+                : 'Du behöver 80% rätt för att kvalificera dig. Försök igen!'
             }}
           </p>
         </div>
