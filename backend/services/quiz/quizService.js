@@ -82,7 +82,9 @@ async function submitQuizSession(quizId, userId, submissions) {
   }
 
   // Load allowed question IDs for this quiz session
-  const [qqRows] = await pool.query('SELECT question_id FROM quiz_questions WHERE quiz_id = ?', [quizId])
+  const [qqRows] = await pool.query('SELECT question_id FROM quiz_questions WHERE quiz_id = ?', [
+    quizId,
+  ])
   const allowedQuestionIds = new Set(qqRows.map((row) => row.question_id))
 
   let correctCnt = 0

@@ -139,7 +139,8 @@ async function inspectQuizDetails(quizId) {
                 <td>
                   <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
                   <span class="text-muted">
-                    ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%) +{{ q.total_score }} XP
+                    ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
+                    +{{ q.total_score }} XP
                   </span>
                 </td>
                 <td>{{ new Date(q.completed_at).toLocaleString() }}</td>

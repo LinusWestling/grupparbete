@@ -217,7 +217,8 @@ function exitQuiz() {
         <div class="stat">
           <span class="stat-value">+{{ quizResult.xp_earned }} XP</span>
           <span class="stat-label">
-            XP Earned (Level {{ activeQuizSession ? activeQuizSession.difficulty : selectedDifficulty }})
+            XP Earned (Level
+            {{ activeQuizSession ? activeQuizSession.difficulty : selectedDifficulty }})
           </span>
         </div>
       </div>
