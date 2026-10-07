@@ -84,11 +84,9 @@ const questionRoutes = require('./routes/questionRoutes')
 const quizRoutes = require('./routes/quizRoutes')
 const userRoutes = require('./routes/userRoutes')
 const authRoutes = require('./routes/authRoutes')
-const categoryRoutes = require('./routes/categoryRoutes')
 const exampleRoutes = require('./routes/exampleRoutes')
 
 // Mount API routes
-app.use(categoryRoutes)
 app.use(exampleRoutes)
 app.use(topicRoutes)
 app.use(questionRoutes)
