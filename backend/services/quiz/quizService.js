@@ -119,8 +119,7 @@ async function submitQuizSession(quizId, userId, submissions) {
     // Update quiz_questions record
     const chosenAnswerId =
       typeof evaluation.chosen_answer_id === 'number' ? evaluation.chosen_answer_id : null
-    const freeTextAns =
-      question.question_type === 'free_text' ? String(item.answer || '') : null
+    const freeTextAns = question.question_type === 'free_text' ? String(item.answer || '') : null
 
     await pool.execute(
       `UPDATE quiz_questions 
