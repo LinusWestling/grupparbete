@@ -135,7 +135,9 @@ async function inspectQuizDetails(quizId) {
                 <td>⭐ Level {{ q.difficulty }}</td>
                 <td>
                   <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
-                  <span class="text-muted"> ({{ Math.round((q.correct_cnt / q.total_cnt) * 100) }}%) +{{ q.total_score }} XP</span>
+                  <span class="text-muted">
+                    ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%) +{{ q.total_score }} XP
+                  </span>
                 </td>
                 <td>{{ new Date(q.completed_at).toLocaleString() }}</td>
                 <td>

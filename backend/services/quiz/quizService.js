@@ -23,21 +23,35 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     throw new Error('No questions found for the selected topic and difficulty level')
   }
 
-  // Insert quiz session into database
-  const [qResult] = await pool.execute(
-    `INSERT INTO quizzes (user_id, topic_id, difficulty, total_cnt, status)
-     VALUES (?, ?, ?, ?, 'in_progress')`,
-    [userId || null, topicId || questions[0].topic_id, Number(difficulty) || 1, questions.length],
-  )
-  const quizId = qResult.insertId
+  const connection = await pool.getConnection()
+  let quizId
 
-  // Link questions to quiz session
-  for (let i = 0; i < questions.length; i++) {
-    await pool.execute(
-      `INSERT INTO quiz_questions (quiz_id, question_id, position)
-       VALUES (?, ?, ?)`,
-      [quizId, questions[i].id, i + 1],
+  try {
+    await connection.beginTransaction()
+
+    // Insert quiz session into database
+    const [qResult] = await connection.execute(
+      `INSERT INTO quizzes (user_id, topic_id, difficulty, total_cnt, status)
+       VALUES (?, ?, ?, ?, 'in_progress')`,
+      [userId || null, topicId || questions[0].topic_id, Number(difficulty) || 1, questions.length],
     )
+    quizId = qResult.insertId
+
+    // Link questions to quiz session
+    for (let i = 0; i < questions.length; i++) {
+      await connection.execute(
+        `INSERT INTO quiz_questions (quiz_id, question_id, position)
+         VALUES (?, ?, ?)`,
+        [quizId, questions[i].id, i + 1],
+      )
+    }
+
+    await connection.commit()
+  } catch (err) {
+    await connection.rollback()
+    throw err
+  } finally {
+    connection.release()
   }
 
   return {
@@ -57,11 +71,28 @@ async function submitQuizSession(quizId, userId, submissions) {
   }
   const quiz = qRows[0]
 
+  // Verify status is in_progress
+  if (quiz.status !== 'in_progress') {
+    throw new Error('Quiz session is not in progress')
+  }
+
+  // Verify ownership if quiz has an owner
+  if (quiz.user_id !== null && quiz.user_id !== userId) {
+    throw new Error('Forbidden')
+  }
+
+  // Load allowed question IDs for this quiz session
+  const [qqRows] = await pool.query('SELECT question_id FROM quiz_questions WHERE quiz_id = ?', [quizId])
+  const allowedQuestionIds = new Set(qqRows.map((row) => row.question_id))
+
   let correctCnt = 0
   let totalScore = 0
   const results = []
 
   for (const item of submissions) {
+    // Skip any submission for a question not belonging to this quiz session
+    if (!allowedQuestionIds.has(item.question_id)) continue
+
     const question = await questionService.getQuestionForEvaluation(item.question_id)
     if (!question) continue
 
@@ -175,8 +206,8 @@ async function getQuizDetails(quizId, userId) {
   if (qRows.length === 0) return null
   const quiz = qRows[0]
 
-  // Verify ownership or public
-  if (userId && quiz.user_id && quiz.user_id !== userId) {
+  // Deny access if quiz has an owner and that owner differs from caller (including when userId is null)
+  if (quiz.user_id !== null && quiz.user_id !== userId) {
     throw new Error('Forbidden')
   }
 
