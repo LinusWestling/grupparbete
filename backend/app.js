@@ -60,14 +60,14 @@ app.use((error, req, res, next) => {
   if (res.headersSent) {
     return next(error)
   }
-  
+
   const status =
-  Number.isInteger(error.status) && error.status >= 400 && error.status < 500 ? error.status : 500
-  
+    Number.isInteger(error.status) && error.status >= 400 && error.status < 500 ? error.status : 500
+
   if (status === 500) {
     console.error(error.message)
   }
-  
+
   res.status(status).json({
     message: status === 500 ? 'Ett serverfel uppstod' : error.message,
   })
