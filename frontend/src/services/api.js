@@ -1,24 +1,6 @@
-const API_BASE = '/api'
+import { createApiService } from './apiFactory.js'
 
-async function request(endpoint, options = {}) {
-  const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include',
-    ...options,
-  }
-
-  const response = await fetch(`${API_BASE}${endpoint}`, config)
-  const data = await response.json()
-
-  if (!response.ok || data.status === 'error') {
-    throw new Error(data.message || 'API request failed')
-  }
-
-  return data.data !== undefined ? data.data : data
-}
+const { request } = createApiService('')
 
 export const api = {
   // Topics
