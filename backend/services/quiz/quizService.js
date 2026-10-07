@@ -65,106 +65,124 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
 }
 
 async function submitQuizSession(quizId, userId, submissions) {
-  const [qRows] = await pool.query('SELECT * FROM quizzes WHERE id = ?', [quizId])
-  if (qRows.length === 0) {
-    throw new Error('Quiz session not found')
-  }
-  const quiz = qRows[0]
+  const connection = await pool.getConnection()
 
-  // Verify status is in_progress
-  if (quiz.status !== 'in_progress') {
-    throw new Error('Quiz session is not in progress')
-  }
+  try {
+    await connection.beginTransaction()
 
-  // Verify ownership if quiz has an owner
-  if (quiz.user_id !== null && quiz.user_id !== userId) {
-    throw new Error('Forbidden')
-  }
+    // Lock the quiz row in a transaction to prevent race conditions & duplicate submissions
+    const [qRows] = await connection.query('SELECT * FROM quizzes WHERE id = ? FOR UPDATE', [
+      quizId,
+    ])
+    if (qRows.length === 0) {
+      throw new Error('Quiz session not found')
+    }
+    const quiz = qRows[0]
 
-  // Load allowed question IDs for this quiz session
-  const [qqRows] = await pool.query('SELECT question_id FROM quiz_questions WHERE quiz_id = ?', [
-    quizId,
-  ])
-  const allowedQuestionIds = new Set(qqRows.map((row) => row.question_id))
-
-  let correctCnt = 0
-  let totalScore = 0
-  const results = []
-
-  for (const item of submissions) {
-    // Skip any submission for a question not belonging to this quiz session
-    if (!allowedQuestionIds.has(item.question_id)) continue
-
-    const question = await questionService.getQuestionForEvaluation(item.question_id)
-    if (!question) continue
-
-    let evaluation
-    switch (question.question_type) {
-      case 'yes_no':
-        evaluation = yesNoEngine.evaluate(question, item.answer)
-        break
-      case 'free_text':
-        evaluation = freeTextEngine.evaluate(question, item.answer)
-        break
-      case 'multiple_choice':
-      default:
-        evaluation = multipleChoiceEngine.evaluate(question, item.answer)
-        break
+    // Verify status is in_progress
+    if (quiz.status !== 'in_progress') {
+      throw new Error('Quiz session is not in progress')
     }
 
-    if (evaluation.is_correct) {
-      correctCnt++
-      totalScore += 10 * quiz.difficulty // Scale XP with difficulty level 1-5
+    // Verify ownership if quiz has an owner
+    if (quiz.user_id !== null && quiz.user_id !== userId) {
+      throw new Error('Forbidden')
     }
-    results.push(evaluation)
 
-    // Update quiz_questions record
-    const chosenAnswerId =
-      typeof evaluation.chosen_answer_id === 'number' ? evaluation.chosen_answer_id : null
-    const freeTextAns = question.question_type === 'free_text' ? String(item.answer || '') : null
+    // Load allowed question IDs for this quiz session
+    const [qqRows] = await connection.query(
+      'SELECT question_id FROM quiz_questions WHERE quiz_id = ?',
+      [quizId],
+    )
+    const allowedQuestionIds = new Set(qqRows.map((row) => row.question_id))
 
-    await pool.execute(
-      `UPDATE quiz_questions 
-       SET chosen_answer_id = ?, free_text_answer = ?, is_correct = ?
-       WHERE quiz_id = ? AND question_id = ?`,
-      [chosenAnswerId, freeTextAns, evaluation.is_correct ? 1 : 0, quizId, question.id],
+    let correctCnt = 0
+    let totalScore = 0
+    const results = []
+
+    for (const item of submissions) {
+      // Skip any submission for a question not belonging to this quiz session
+      if (!allowedQuestionIds.has(item.question_id)) continue
+
+      const question = await questionService.getQuestionForEvaluation(item.question_id)
+      if (!question) continue
+
+      let evaluation
+      switch (question.question_type) {
+        case 'yes_no':
+          evaluation = yesNoEngine.evaluate(question, item.answer)
+          break
+        case 'free_text':
+          evaluation = freeTextEngine.evaluate(question, item.answer)
+          break
+        case 'multiple_choice':
+        default:
+          evaluation = multipleChoiceEngine.evaluate(question, item.answer)
+          break
+      }
+
+      if (evaluation.is_correct) {
+        correctCnt++
+        totalScore += 10 * quiz.difficulty // Scale XP with difficulty level 1-5
+      }
+      results.push(evaluation)
+
+      // Update quiz_questions record
+      const chosenAnswerId =
+        typeof evaluation.chosen_answer_id === 'number' ? evaluation.chosen_answer_id : null
+      const freeTextAns = question.question_type === 'free_text' ? String(item.answer || '') : null
+
+      await connection.execute(
+        `UPDATE quiz_questions 
+         SET chosen_answer_id = ?, free_text_answer = ?, is_correct = ?
+         WHERE quiz_id = ? AND question_id = ?`,
+        [chosenAnswerId, freeTextAns, evaluation.is_correct ? 1 : 0, quizId, question.id],
+      )
+
+      // Log in user_answers history as well
+      if (userId) {
+        await connection.execute(
+          `INSERT INTO user_answers (user_id, question_id, answer_id, is_correct)
+           VALUES (?, ?, ?, ?)`,
+          [userId, question.id, chosenAnswerId, evaluation.is_correct ? 1 : 0],
+        )
+      }
+    }
+
+    // Update quiz session completion
+    await connection.execute(
+      `UPDATE quizzes 
+       SET total_score = ?, correct_cnt = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [totalScore, correctCnt, quizId],
     )
 
-    // Log in user_answers history as well
-    if (userId) {
-      await pool.execute(
-        `INSERT INTO user_answers (user_id, question_id, answer_id, is_correct)
-         VALUES (?, ?, ?, ?)`,
-        [userId, question.id, chosenAnswerId, evaluation.is_correct ? 1 : 0],
-      )
+    // Update User Progress XP and Level per (user_id, topic_id)
+    const actualUserId = userId || quiz.user_id
+    if (actualUserId && totalScore > 0) {
+      await updateUserXP(connection, actualUserId, quiz.topic_id, totalScore)
     }
-  }
 
-  // Update quiz session completion
-  await pool.execute(
-    `UPDATE quizzes 
-     SET total_score = ?, correct_cnt = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    [totalScore, correctCnt, quizId],
-  )
+    await connection.commit()
 
-  // Update User Progress XP and Level per (user_id, topic_id)
-  const actualUserId = userId || quiz.user_id
-  if (actualUserId && totalScore > 0) {
-    await updateUserXP(actualUserId, quiz.topic_id, totalScore)
-  }
-
-  return {
-    quiz_id: quizId,
-    total_questions: results.length,
-    correct_count: correctCnt,
-    xp_earned: totalScore,
-    results: results,
+    return {
+      quiz_id: quizId,
+      total_questions: quiz.total_cnt || allowedQuestionIds.size,
+      correct_count: correctCnt,
+      xp_earned: totalScore,
+      results: results,
+    }
+  } catch (err) {
+    await connection.rollback()
+    throw err
+  } finally {
+    connection.release()
   }
 }
 
-async function updateUserXP(userId, topicId, xpEarned) {
-  await pool.execute(
+async function updateUserXP(connection, userId, topicId, xpEarned) {
+  const db = connection || pool
+  await db.execute(
     `INSERT INTO user_progress (user_id, topic_id, level, xp_points)
      VALUES (?, ?, 1, ?)
      ON DUPLICATE KEY UPDATE 
