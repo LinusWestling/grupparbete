@@ -1,17 +1,28 @@
 const fs = require('fs')
 const path = require('path')
+const dotenv = require('dotenv')
 
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
+// Load environment variables from process.cwd() .env, backend/.env, or root .env
+dotenv.config() // Loads .env from current working directory
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') }) // backend/.env
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') }) // root .env
+
+const caPath = path.resolve(__dirname, '..', 'ca.pem')
+const hasCaFile = fs.existsSync(caPath)
+
+if (process.env.DB_SSL === 'true' && !hasCaFile) {
+  throw new Error('DB_SSL=true require ca.pem cert file')
+}
 
 module.exports = {
-  host: process.env.DB_HOST,
+  host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'skillswap',
   ...(process.env.DB_SSL === 'true' && {
     ssl: {
-      ca: fs.readFileSync(path.join(__dirname, '..', 'ca.pem')),
+      ca: fs.readFileSync(caPath),
       rejectUnauthorized: true,
     },
   }),
