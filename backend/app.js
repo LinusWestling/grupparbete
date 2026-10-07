@@ -1,22 +1,30 @@
-const express = require('express')
-const cors = require('cors')
+const express = require('express');
+const cors = require('cors');
 
-const app = express()
-const port = process.env.PORT || 3000
+const app = express();
+const port = process.env.PORT || 3000;
 
-// Parse JSON bodies
-app.use(express.json())
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(express.static('public'));
 
-// For parsing application/x-www-form-urlencoded
-app.use(express.urlencoded({ extended: true }))
+// Import domain routes
+const topicRoutes = require('./routes/topicRoutes');
+const questionRoutes = require('./routes/questionRoutes');
+const quizRoutes = require('./routes/quizRoutes');
+const userRoutes = require('./routes/userRoutes');
+const authRoutes = require('./routes/authRoutes');
 
-app.use(cors())
-app.use(express.static('public'))
+// Mount API routes
+app.use(topicRoutes);
+app.use(questionRoutes);
+app.use(quizRoutes);
+app.use(userRoutes);
+app.use(authRoutes);
 
-const bookRoutes = require('./routes/bookRoutes')
-const categoryRoutes = require('./routes/categoryRoutes')
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'SkillSwap API Server Running' });
+});
 
-app.use(bookRoutes)
-app.use(categoryRoutes)
-
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+app.listen(port, () => console.log(`SkillSwap backend listening on port ${port}!`));

@@ -1,17 +1,35 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { api } from '../services/api'
+
+const stats = ref({
+  total_topics: 3,
+  total_questions: 312,
+  total_quiz_attempts: 0
+})
+
+onMounted(async () => {
+  try {
+    const liveStats = await api.getDashboardStats()
+    stats.value = liveStats
+  } catch (err) {
+    // Keep defaults if backend offline
+  }
+})
+
 const steps = [
   {
     number: '01',
     title: 'Bring what you know',
-    description: 'From coding to cooking, your everyday skills could make someone’s day.',
+    description: 'Add custom quiz questions to our live MySQL database directly.',
     path: '/my-skills',
     action: 'Add a skill',
   },
   {
     number: '02',
     title: 'Find your next curiosity',
-    description: 'Discover something you’ve always wanted to try and people to learn from.',
+    description: 'Test your knowledge across Anatomy, Exercise Science, and Physiology.',
     path: '/explore',
     action: 'Explore skills',
   },
@@ -24,6 +42,7 @@ const steps = [
   },
 ]
 </script>
+
 <template>
   <div class="page-heading">
     <div>
@@ -35,6 +54,7 @@ const steps = [
     </div>
     <span class="welcome-tag">Let’s grow together ↗</span>
   </div>
+
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
       <span class="hero-label"><span class="status-dot"></span> KNOWLEDGE IS BETTER SHARED</span>
@@ -42,6 +62,20 @@ const steps = [
       <p>
         Teach what you love. Learn what you’re curious about. Find your people, one skill at a time.
       </p>
+      <div class="live-stats-bar">
+        <div class="stat-box">
+          <span class="num">{{ stats.total_topics }}</span>
+          <span class="lbl">Topics</span>
+        </div>
+        <div class="stat-box">
+          <span class="num">{{ stats.total_questions }}</span>
+          <span class="lbl">Researched Questions</span>
+        </div>
+        <div class="stat-box">
+          <span class="num">{{ stats.total_quiz_attempts }}</span>
+          <span class="lbl">Quiz Attempts</span>
+        </div>
+      </div>
       <RouterLink to="/explore" class="button button-accent"
         >Find a skill to learn <span aria-hidden="true">↗</span></RouterLink
       >
@@ -56,6 +90,7 @@ const steps = [
       <span class="art-caption">Different skills. Shared possibilities.</span>
     </div>
   </section>
+
   <section aria-labelledby="start-title">
     <div class="section-heading">
       <div>
@@ -73,6 +108,7 @@ const steps = [
       </article>
     </div>
   </section>
+
   <section class="community-banner" aria-labelledby="community-title">
     <span class="community-symbol" aria-hidden="true">✳</span>
     <div>
@@ -82,3 +118,10 @@ const steps = [
     <RouterLink to="/profile" class="button button-outline">Set up your profile ↗</RouterLink>
   </section>
 </template>
+
+<style scoped>
+.live-stats-bar { display: flex; gap: 1.5rem; margin: 1rem 0 1.5rem 0; }
+.stat-box { background: rgba(255, 255, 255, 0.8); border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem 1.25rem; display: flex; flex-direction: column; }
+.stat-box .num { font-size: 1.5rem; font-weight: bold; color: #2563eb; }
+.stat-box .lbl { font-size: 0.8rem; color: #6b7280; text-transform: uppercase; }
+</style>
