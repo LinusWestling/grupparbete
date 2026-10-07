@@ -9,6 +9,12 @@ const isProduction = process.env.NODE_ENV === 'production'
 
 const app = express()
 const port = process.env.PORT || 3000
+const isProduction = process.env.NODE_ENV === 'production'
+
+// Render terminates HTTPS at its reverse proxy.
+if (isProduction) {
+  app.set('trust proxy', 1)
+}
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))

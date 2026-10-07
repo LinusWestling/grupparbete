@@ -1,59 +1,51 @@
+const { promisify } = require('node:util')
 const authService = require('../services/authService')
 
 async function register(req, res) {
-  try {
-    const { username, email, password } = req.body
-    if (!username || !email || !password) {
-      return res
-        .status(400)
-        .json({ status: 'error', message: 'username, email, and password required' })
-    }
-    const existing = await authService.findUserByEmail(email)
-    if (existing) {
-      return res
-        .status(409)
-        .json({ status: 'error', message: 'User with this email already exists' })
-    }
-    const user = await authService.createUser(username, email, password) // Note: bcrypt hashing to be added by auth feature owner
-    res.status(201).json({ status: 'success', data: user })
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
-  }
+  const { username, email, password } = req.body || {}
+
+  const user = await authService.register({
+    username,
+    email,
+    password,
+  })
+
+  res.status(201).json({
+    id: user.id,
+    message: 'Kontot har skapats. Du kan nu logga in.',
+  })
 }
 
 async function login(req, res) {
-  try {
-    const { email, password } = req.body
-    const user = await authService.findUserByEmail(email)
-    if (!user || user.password_hash !== password) {
-      return res.status(401).json({ status: 'error', message: 'Invalid credentials' })
-    }
-    res.json({
-      status: 'success',
-      data: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
-    })
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
-  }
+  const { email, password } = req.body || {}
+
+  const user = await authService.login({
+    email,
+    password,
+  })
+
+  // Byt session-ID efter lyckan lösenkontroll.
+  await promisify(req.session.regenerate).call(req.session)
+
+  req.session.userId = user.id
+
+  // Spara session innan svaret skickas.
+  await promisify(req.session.save).call(req.session)
+
+  res.json(user)
 }
 
-async function getMe(req, res) {
-  try {
-    // Demo placeholder returning user 1
-    const user = await authService.findUserById(1)
-    res.json({ status: 'success', data: user })
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
-  }
+async function me(req, res) {
+  const user = await authService.getCurrentUser(req.session.userId)
+
+  res.json(user)
 }
 
-module.exports = {
-  register,
-  login,
-  getMe,
+async function logout(req, res) {
+  await promisify(req.session.destroy).call(req.session)
+
+  res.clearCookie('skillswap.sid', { path: '/' })
+  res.sendStatus(204)
 }
+
+module.exports = { register, login, me, logout }
