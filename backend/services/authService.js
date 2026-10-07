@@ -66,7 +66,7 @@ async function login({ email, password } = {}) {
   }
 
   // Hämta kontot från databasen.
-  const user = await userRepository.findByEmail(email.trim().toLocaleLowerCase())
+  const user = await userRepository.findByEmail(email.trim().toLowerCase())
 
   // Kontrollera lösenordet mot den spareade hashen.
   const correctPassword = await argon2.verify(user ? user.password_hash : await dummyHash, password)

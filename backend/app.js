@@ -3,9 +3,16 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const session = require('express-session')
+const MySQLStore = require('express-mysql-session')(session)
 
 const app = express()
 const port = process.env.PORT || 3000
+const isProduction = process.env.NODE_ENV === 'production'
+
+// Render terminates HTTPS at its reverse proxy.
+if (isProduction) {
+  app.set('trust proxy', 1)
+}
 
 // Parse JSON bodies
 app.use(express.json())
@@ -28,12 +35,21 @@ app.use(
   session({
     name: 'skillswap.sid',
     secret: process.env.SESSION_SECRET,
+    ...(isProduction && {
+      store: new MySQLStore(
+        {
+          createDatabaseTable: false,
+          expiration: 1000 * 60 * 60 * 8,
+        },
+        require('mysql2/promise').createPool(require('./database/config')),
+      ),
+    }),
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction,
       maxAge: 1000 * 60 * 60 * 8,
     },
   }),
