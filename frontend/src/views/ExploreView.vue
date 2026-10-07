@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { api } from '../services/api'
 
 const topics = ref([])
@@ -14,6 +14,15 @@ const selectedAnswers = ref({})
 const freeTextInput = ref('')
 const quizResult = ref(null)
 const submitting = ref(false)
+
+const qualificationStatus = computed(() => {
+  if (!quizResult.value) return null
+  const percentage = (quizResult.value.correct_count / quizResult.value.total_questions) * 100
+  return {
+    percentage: Math.round(percentage),
+    isQualified: percentage >= 80,
+  }
+})
 
 onMounted(async () => {
   try {
@@ -192,7 +201,21 @@ function exitQuiz() {
 
     <!-- Quiz Results View -->
     <div v-else-if="quizResult" class="results-card">
-      <h2>🎉 Quiz Complete!</h2>
+      <div v-if="qualificationStatus" :class="['qualification-banner', qualificationStatus.isQualified ? 'success' : 'retry']">
+        <span class="banner-icon">{{ qualificationStatus.isQualified ? '🎉' : '📚' }}</span>
+        <div class="banner-content">
+          <h4>{{ qualificationStatus.isQualified ? 'Kvalificerad för PT-utbildning!' : 'Inte riktigt där än' }}</h4>
+          <p>
+            Du fick {{ qualificationStatus.percentage }}% rätt.
+            {{ qualificationStatus.isQualified
+              ? 'Bra jobbat! Du har uppnått gränsen på 80%.'
+              : 'Du behöver 80% rätt för att kvalificera dig. Försök igen!'
+            }}
+          </p>
+        </div>
+      </div>
+
+      <h2>Quiz Complete!</h2>
       <div class="score-summary">
         <div class="stat">
           <span class="stat-value"
@@ -386,5 +409,36 @@ function exitQuiz() {
 .result-item.incorrect {
   background: #fef2f2;
   border: 1px solid #fecaca;
+}
+
+.qualification-banner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+.qualification-banner.success {
+  background: #f0fdf4;
+  border: 2px solid #22c55e;
+  color: #166534;
+}
+.qualification-banner.retry {
+  background: #fffbeb;
+  border: 2px solid #f59e0b;
+  color: #92400e;
+}
+.banner-icon {
+  font-size: 2.5rem;
+}
+.banner-content h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+}
+.banner-content p {
+  margin: 0;
+  opacity: 0.9;
 }
 </style>
