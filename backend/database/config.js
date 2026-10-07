@@ -10,6 +10,10 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') }) // root .en
 const caPath = path.resolve(__dirname, '..', 'ca.pem')
 const hasCaFile = fs.existsSync(caPath)
 
+if (process.env.DB_SSL === 'true' && !hasCaFile) {
+  throw new Error('DB_SSL=true require ca.pem cert file')
+}
+
 module.exports = {
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT || 3306),
@@ -17,13 +21,9 @@ module.exports = {
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'skillswap',
   ...(process.env.DB_SSL === 'true' && {
-    ssl: hasCaFile
-      ? {
-          ca: fs.readFileSync(caPath),
-          rejectUnauthorized: true,
-        }
-      : {
-          rejectUnauthorized: false,
-        },
+    ssl: {
+      ca: fs.readFileSync(caPath),
+      rejectUnauthorized: true,
+    },
   }),
 }

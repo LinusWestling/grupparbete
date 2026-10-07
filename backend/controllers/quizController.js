@@ -22,11 +22,12 @@ async function getSpeedrunQuiz(req, res) {
 
 async function submitQuiz(req, res) {
   try {
-    const { userId, submissions } = req.body
+    const { submissions } = req.body || {}
     if (!submissions || !Array.isArray(submissions)) {
       return res.status(400).json({ status: 'error', message: 'submissions array is required' })
     }
-    const result = await quizService.submitQuiz(userId || null, submissions)
+    const userId = req.session?.userId || null
+    const result = await quizService.submitQuiz(userId, submissions)
     res.json({ status: 'success', data: result })
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message })

@@ -30,11 +30,14 @@ async function loadData() {
   try {
     loading.value = true
     error.value = null
-    const [qData, tData] = await Promise.all([api.getQuestions({ limit: 50 }), api.getTopics()])
+    const [qData, tData] = await Promise.all([api.getQuestions(), api.getTopics()])
     questions.value = qData
     topics.value = tData
     if (tData.length > 0) {
-      formData.value.topic_id = tData[0].id
+      const hasValidTopic = tData.some((t) => t.id === formData.value.topic_id)
+      if (!hasValidTopic) {
+        formData.value.topic_id = tData[0].id
+      }
     }
   } catch (err) {
     error.value = 'Failed to load questions from backend.'

@@ -5,8 +5,8 @@ import { api } from '../services/api'
 const user = ref(null)
 const progress = ref(null)
 const loading = ref(true)
-const loginEmail = ref('admin@skillswap.se')
-const loginPassword = ref('password')
+const loginEmail = ref('')
+const loginPassword = ref('')
 const loginError = ref(null)
 
 onMounted(async () => {

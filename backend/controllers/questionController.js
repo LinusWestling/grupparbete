@@ -28,7 +28,8 @@ async function getQuestionById(req, res) {
 
 async function createQuestion(req, res) {
   try {
-    const { topic_id, question_text, question_type, difficulty_level, answers, sources } = req.body
+    const { topic_id, question_text, question_type, difficulty_level, answers, sources } =
+      req.body || {}
     if (!topic_id || !question_text) {
       return res
         .status(400)
@@ -36,6 +37,7 @@ async function createQuestion(req, res) {
     }
     const newQuestion = await questionService.createQuestion({
       topic_id,
+      created_by: req.session?.userId || null,
       question_text,
       question_type,
       difficulty_level,
@@ -50,7 +52,16 @@ async function createQuestion(req, res) {
 
 async function updateQuestion(req, res) {
   try {
+    const { topic_id, question_text } = req.body || {}
+    if (!topic_id || !question_text) {
+      return res
+        .status(400)
+        .json({ status: 'error', message: 'topic_id and question_text are required' })
+    }
     const updated = await questionService.updateQuestion(req.params.id, req.body)
+    if (!updated) {
+      return res.status(404).json({ status: 'error', message: 'Question not found' })
+    }
     res.json({ status: 'success', data: updated })
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message })

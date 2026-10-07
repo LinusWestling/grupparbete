@@ -7,8 +7,7 @@ function evaluate(question, userResponse) {
   let isCorrect = false
   if (correctAnswer) {
     const expected = String(correctAnswer.answer_text).trim().toLowerCase()
-    isCorrect =
-      userInput.length > 0 && (expected.includes(userInput) || userInput.includes(expected))
+    isCorrect = userInput.length > 0 && userInput === expected
   }
 
   return {

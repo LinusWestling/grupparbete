@@ -29,7 +29,7 @@ async function getUserProgress(userId) {
   return {
     progress_by_topic: progress,
     total_answered: historyCount.total || 0,
-    total_correct: historyCount.correct || 0,
+    total_correct: Number(historyCount.correct) || 0,
   }
 }
 

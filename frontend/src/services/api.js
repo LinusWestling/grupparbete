@@ -6,6 +6,7 @@ async function request(endpoint, options = {}) {
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    credentials: 'include',
     ...options,
   }
 
@@ -16,7 +17,7 @@ async function request(endpoint, options = {}) {
     throw new Error(data.message || 'API request failed')
   }
 
-  return data.data
+  return data.data !== undefined ? data.data : data
 }
 
 export const api = {
@@ -27,7 +28,7 @@ export const api = {
   // Questions (CRUD)
   getQuestions: (params = {}) => {
     const query = new URLSearchParams(params).toString()
-    return request(`/questions?${query}`)
+    return request(`/questions${query ? `?${query}` : ''}`)
   },
   createQuestion: (questionData) =>
     request('/questions', {
@@ -52,15 +53,15 @@ export const api = {
     return request(`/quizzes/practice?${params.toString()}`)
   },
   getSpeedrunQuiz: () => request('/quizzes/speedrun'),
-  submitQuiz: (submissions, userId = 1) =>
+  submitQuiz: (submissions) =>
     request('/quizzes/submit', {
       method: 'POST',
-      body: JSON.stringify({ userId, submissions }),
+      body: JSON.stringify({ submissions }),
     }),
 
   // User & Stats
   getDashboardStats: () => request('/dashboard/stats'),
-  getUserProgress: (userId = 1) => request(`/users/${userId}/progress`),
+  getUserProgress: (userId) => request(userId ? `/users/${userId}/progress` : '/users/me/progress'),
 
   // Auth
   login: (email, password) =>

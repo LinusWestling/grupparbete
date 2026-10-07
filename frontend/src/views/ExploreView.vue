@@ -141,8 +141,7 @@ function exitQuiz() {
         <div v-else class="free-text-box">
           <input
             type="text"
-            v-model="freeTextInput"
-            @input="updateFreeText(activeQuiz[currentQuestionIndex].id)"
+            v-model="selectedAnswers[activeQuiz[currentQuestionIndex].id]"
             placeholder="Type your answer here..."
             class="text-input"
           />

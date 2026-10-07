@@ -19,11 +19,11 @@ async function getSpeedrunQuiz(limit = 15) {
 }
 
 async function submitQuiz(userId, submissions) {
-  let score = 0
+  const xpPerTopic = new Map()
   const results = []
 
   for (const item of submissions) {
-    const question = await questionService.getQuestionById(item.question_id)
+    const question = await questionService.getQuestionForEvaluation(item.question_id)
     if (!question) continue
 
     let evaluation
@@ -41,7 +41,8 @@ async function submitQuiz(userId, submissions) {
     }
 
     if (evaluation.is_correct) {
-      score += 10 // 10 XP per correct answer
+      const currentXp = xpPerTopic.get(question.topic_id) || 0
+      xpPerTopic.set(question.topic_id, currentXp + 10) // 10 XP per correct answer
     }
     results.push(evaluation)
 
@@ -57,36 +58,32 @@ async function submitQuiz(userId, submissions) {
     }
   }
 
-  // Update User Progress XP and Level if user logged in
-  if (userId && score > 0) {
-    await updateUserXP(userId, score)
+  // Update User Progress XP and Level per (user_id, topic_id) if user logged in
+  if (userId && xpPerTopic.size > 0) {
+    for (const [topicId, xpEarned] of xpPerTopic.entries()) {
+      await updateUserXP(userId, topicId, xpEarned)
+    }
   }
+
+  const totalXpEarned = Array.from(xpPerTopic.values()).reduce((sum, val) => sum + val, 0)
 
   return {
     total_questions: results.length,
     correct_count: results.filter((r) => r.is_correct).length,
-    xp_earned: score,
+    xp_earned: totalXpEarned,
     results: results,
   }
 }
 
-async function updateUserXP(userId, xpEarned) {
-  const [rows] = await pool.query('SELECT * FROM user_progress WHERE user_id = ? LIMIT 1', [userId])
-
-  if (rows.length === 0) {
-    await pool.execute(
-      'INSERT INTO user_progress (user_id, topic_id, level, xp_points) VALUES (?, 1, 1, ?)',
-      [userId, xpEarned],
-    )
-  } else {
-    const currentXp = (rows[0].xp_points || 0) + xpEarned
-    const newLevel = Math.floor(currentXp / 100) + 1
-    await pool.execute('UPDATE user_progress SET xp_points = ?, level = ? WHERE id = ?', [
-      currentXp,
-      newLevel,
-      rows[0].id,
-    ])
-  }
+async function updateUserXP(userId, topicId, xpEarned) {
+  await pool.execute(
+    `INSERT INTO user_progress (user_id, topic_id, level, xp_points)
+     VALUES (?, ?, 1, ?)
+     ON DUPLICATE KEY UPDATE 
+       xp_points = xp_points + VALUES(xp_points),
+       level = FLOOR((xp_points + VALUES(xp_points)) / 100) + 1`,
+    [userId, topicId, xpEarned],
+  )
 }
 
 module.exports = {
