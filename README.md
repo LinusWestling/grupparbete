@@ -6,7 +6,7 @@ See their setup notes for running each application.
 ## Formatting
 
 Run `npm install` **in the repository root** once after cloning to install
-Prettier and activate the Husky pre-push hook. Frontend/backend dependencies
+Prettier. Frontend/backend dependencies
 are installed separately in their respective directories.
 
 ```sh
@@ -14,11 +14,12 @@ npm run format
 npm run format:check
 ```
 
-The pre-push hook checks formatting and stops a push if files need formatting.
-Run `npm run format`, review and commit the formatting changes, then push again.
-GitHub Actions runs the same check on every push and pull request.
-To prevent merging unformatted code, require the `Prettier` check in GitHub's
-branch protection/ruleset for `main` after the first workflow run.
+Formatting does not block local pushes. The commands above are optional local tools.
+GitHub Actions runs Prettier on every push and pull request and commits formatting
+fixes back to branches in this repository. After an automatic formatting commit,
+run `git pull --ff-only` before continuing locally. Pull requests from forks are
+formatted in CI, but the workflow cannot push fixes back to those forks.
+Repository rules must allow GitHub Actions to push formatting commits to the branch.
 
 Formatting covers supported frontend/backend source, CSS, JSON, Markdown, and
 workflow files. Dependencies, builds, lockfiles, credentials, and SQL migrations
