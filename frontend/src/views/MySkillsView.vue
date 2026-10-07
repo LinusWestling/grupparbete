@@ -19,7 +19,7 @@ const formData = ref({
     { answer_text: '', is_correct: true },
     { answer_text: '', is_correct: false },
   ],
-  sources: [{ source_text: '', url: '' }]
+  sources: [{ source_text: '', url: '' }],
 })
 
 onMounted(async () => {
@@ -30,10 +30,7 @@ async function loadData() {
   try {
     loading.value = true
     error.value = null
-    const [qData, tData] = await Promise.all([
-      api.getQuestions({ limit: 50 }),
-      api.getTopics()
-    ])
+    const [qData, tData] = await Promise.all([api.getQuestions({ limit: 50 }), api.getTopics()])
     questions.value = qData
     topics.value = tData
     if (tData.length > 0) {
@@ -132,7 +129,12 @@ async function handleDeleteQuestion(id) {
 
         <div class="form-group">
           <label>Question Text:</label>
-          <textarea v-model="formData.question_text" placeholder="Enter question..." required rows="3"></textarea>
+          <textarea
+            v-model="formData.question_text"
+            placeholder="Enter question..."
+            required
+            rows="3"
+          ></textarea>
         </div>
 
         <!-- Answers Builder -->
@@ -143,7 +145,7 @@ async function handleDeleteQuestion(id) {
               type="radio"
               name="correct_answer"
               :checked="ans.is_correct"
-              @change="formData.answers.forEach((a, i) => a.is_correct = (i === idx))"
+              @change="formData.answers.forEach((a, i) => (a.is_correct = i === idx))"
               title="Mark as correct answer"
             />
             <input
@@ -155,15 +157,25 @@ async function handleDeleteQuestion(id) {
             />
             <button type="button" @click="removeAnswerOption(idx)" class="button-icon">🗑️</button>
           </div>
-          <button type="button" @click="addAnswerOption" class="button button-outline button-sm">+ Add Choice</button>
+          <button type="button" @click="addAnswerOption" class="button button-outline button-sm">
+            + Add Choice
+          </button>
         </div>
 
         <!-- Source Citation Builder -->
         <div class="form-section">
           <h3>Reference Source</h3>
           <div class="form-group">
-            <input type="text" v-model="formData.sources[0].source_text" placeholder="Source title / citation..." />
-            <input type="url" v-model="formData.sources[0].url" placeholder="Source URL (optional)" />
+            <input
+              type="text"
+              v-model="formData.sources[0].source_text"
+              placeholder="Source title / citation..."
+            />
+            <input
+              type="url"
+              v-model="formData.sources[0].url"
+              placeholder="Source URL (optional)"
+            />
           </div>
         </div>
 
@@ -189,13 +201,19 @@ async function handleDeleteQuestion(id) {
         <tbody>
           <tr v-for="q in questions" :key="q.id">
             <td>#{{ q.id }}</td>
-            <td><span class="badge">{{ q.topic_name }}</span></td>
+            <td>
+              <span class="badge">{{ q.topic_name }}</span>
+            </td>
             <td class="question-col">{{ q.question_text }}</td>
-            <td><code>{{ q.question_type }}</code></td>
+            <td>
+              <code>{{ q.question_type }}</code>
+            </td>
             <td>⭐ Level {{ q.difficulty_level }}</td>
             <td>{{ q.answers ? q.answers.length : 0 }} options</td>
             <td>
-              <button @click="handleDeleteQuestion(q.id)" class="button-danger button-sm">Delete</button>
+              <button @click="handleDeleteQuestion(q.id)" class="button-danger button-sm">
+                Delete
+              </button>
             </td>
           </tr>
         </tbody>
@@ -205,22 +223,95 @@ async function handleDeleteQuestion(id) {
 </template>
 
 <style scoped>
-.my-skills-page { display: flex; flex-direction: column; gap: 1.5rem; }
-.banner { padding: 1rem; border-radius: 8px; font-weight: 500; }
-.error-banner { background: #fee2e2; color: #991b1b; }
-.success-banner { background: #dcfce7; color: #166534; }
-.form-card { background: #ffffff; border: 1px solid #e5e7eb; padding: 2rem; border-radius: 12px; }
-.question-form { display: flex; flex-direction: column; gap: 1.25rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.5rem; }
-.form-group input, .form-group select, .form-group textarea { padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; }
-.form-section { border-top: 1px solid #f3f4f6; padding-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
-.answer-row { display: flex; align-items: center; gap: 0.75rem; }
-.flex-1 { flex: 1; }
-.table-container { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; text-align: left; }
-.data-table th, .data-table td { padding: 1rem; border-bottom: 1px solid #f3f4f6; }
-.data-table th { background: #f9fafb; font-weight: 600; }
-.question-col { max-width: 350px; }
-.button-danger { background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0.4rem 0.8rem; cursor: pointer; }
-.button-danger:hover { background: #dc2626; }
+.my-skills-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.banner {
+  padding: 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.error-banner {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.success-banner {
+  background: #dcfce7;
+  color: #166534;
+}
+.form-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 2rem;
+  border-radius: 12px;
+}
+.question-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+.form-section {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.answer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.flex-1 {
+  flex: 1;
+}
+.table-container {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.data-table th,
+.data-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.data-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+.question-col {
+  max-width: 350px;
+}
+.button-danger {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+.button-danger:hover {
+  background: #dc2626;
+}
 </style>

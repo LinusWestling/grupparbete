@@ -1,4 +1,4 @@
-const pool = require('../database/pool');
+const pool = require('../database/pool')
 
 async function getAllTopics() {
   const sql = `
@@ -11,18 +11,18 @@ async function getAllTopics() {
     LEFT JOIN questions q ON t.id = q.topic_id
     GROUP BY t.id
     ORDER BY t.name ASC
-  `;
-  const [rows] = await pool.query(sql);
-  return rows;
+  `
+  const [rows] = await pool.query(sql)
+  return rows
 }
 
 async function getTopicById(id) {
-  const sql = 'SELECT id, name, description FROM topics WHERE id = ?';
-  const [rows] = await pool.query(sql, [id]);
-  return rows[0] || null;
+  const sql = 'SELECT id, name, description FROM topics WHERE id = ?'
+  const [rows] = await pool.query(sql, [id])
+  return rows[0] || null
 }
 
 module.exports = {
   getAllTopics,
   getTopicById,
-};
+}

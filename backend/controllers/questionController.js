@@ -1,4 +1,4 @@
-const questionService = require('../services/questionService');
+const questionService = require('../services/questionService')
 
 async function getQuestions(req, res) {
   try {
@@ -7,30 +7,32 @@ async function getQuestions(req, res) {
       question_type: req.query.type,
       difficulty: req.query.difficulty,
       limit: req.query.limit,
-    });
-    res.json({ status: 'success', data: questions });
+    })
+    res.json({ status: 'success', data: questions })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    res.status(500).json({ status: 'error', message: err.message })
   }
 }
 
 async function getQuestionById(req, res) {
   try {
-    const question = await questionService.getQuestionById(req.params.id);
+    const question = await questionService.getQuestionById(req.params.id)
     if (!question) {
-      return res.status(404).json({ status: 'error', message: 'Question not found' });
+      return res.status(404).json({ status: 'error', message: 'Question not found' })
     }
-    res.json({ status: 'success', data: question });
+    res.json({ status: 'success', data: question })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    res.status(500).json({ status: 'error', message: err.message })
   }
 }
 
 async function createQuestion(req, res) {
   try {
-    const { topic_id, question_text, question_type, difficulty_level, answers, sources } = req.body;
+    const { topic_id, question_text, question_type, difficulty_level, answers, sources } = req.body
     if (!topic_id || !question_text) {
-      return res.status(400).json({ status: 'error', message: 'topic_id and question_text are required' });
+      return res
+        .status(400)
+        .json({ status: 'error', message: 'topic_id and question_text are required' })
     }
     const newQuestion = await questionService.createQuestion({
       topic_id,
@@ -39,31 +41,33 @@ async function createQuestion(req, res) {
       difficulty_level,
       answers,
       sources,
-    });
-    res.status(201).json({ status: 'success', data: newQuestion });
+    })
+    res.status(201).json({ status: 'success', data: newQuestion })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    res.status(500).json({ status: 'error', message: err.message })
   }
 }
 
 async function updateQuestion(req, res) {
   try {
-    const updated = await questionService.updateQuestion(req.params.id, req.body);
-    res.json({ status: 'success', data: updated });
+    const updated = await questionService.updateQuestion(req.params.id, req.body)
+    res.json({ status: 'success', data: updated })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    res.status(500).json({ status: 'error', message: err.message })
   }
 }
 
 async function deleteQuestion(req, res) {
   try {
-    const success = await questionService.deleteQuestion(req.params.id);
+    const success = await questionService.deleteQuestion(req.params.id)
     if (!success) {
-      return res.status(404).json({ status: 'error', message: 'Question not found or already deleted' });
+      return res
+        .status(404)
+        .json({ status: 'error', message: 'Question not found or already deleted' })
     }
-    res.json({ status: 'success', message: 'Question deleted successfully' });
+    res.json({ status: 'success', message: 'Question deleted successfully' })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    res.status(500).json({ status: 'error', message: err.message })
   }
 }
 
@@ -73,4 +77,4 @@ module.exports = {
   createQuestion,
   updateQuestion,
   deleteQuestion,
-};
+}

@@ -44,7 +44,9 @@ async function handleLogin() {
       <div>
         <p class="eyebrow">USER PROFILE & PROGRESS</p>
         <h1>My Account & Achievements</h1>
-        <p class="heading-description">Track your earned XP, quiz level, and progress across all learning topics.</p>
+        <p class="heading-description">
+          Track your earned XP, quiz level, and progress across all learning topics.
+        </p>
       </div>
     </div>
 
@@ -69,7 +71,11 @@ async function handleLogin() {
         </div>
         <div class="stat-card">
           <span class="value">
-            {{ progress.total_answered > 0 ? Math.round((progress.total_correct / progress.total_answered) * 100) : 0 }}%
+            {{
+              progress.total_answered > 0
+                ? Math.round((progress.total_correct / progress.total_answered) * 100)
+                : 0
+            }}%
           </span>
           <span class="label">Accuracy</span>
         </div>
@@ -115,20 +121,100 @@ async function handleLogin() {
 </template>
 
 <style scoped>
-.profile-page { display: flex; flex-direction: column; gap: 1.5rem; }
-.profile-card, .login-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
-.user-header { display: flex; align-items: center; gap: 1.25rem; }
-.avatar-large { width: 60px; height: 60px; background: #2563eb; color: #fff; font-size: 1.75rem; font-weight: bold; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.progress-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
-.stat-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; text-align: center; }
-.stat-card .value { font-size: 1.75rem; font-weight: bold; color: #2563eb; display: block; }
-.stat-card .label { font-size: 0.85rem; color: #6b7280; }
-.progress-bar { background: #e5e7eb; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 0.5rem; }
-.progress-fill { background: #2563eb; height: 100%; transition: width 0.3s ease; }
-.tp-item { margin-bottom: 1rem; }
-.tp-info { display: flex; justify-content: space-between; font-size: 0.95rem; }
-.login-form { display: flex; flex-direction: column; gap: 1rem; max-width: 400px; }
-.form-group { display: flex; flex-direction: column; gap: 0.5rem; }
-.form-group input { padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; }
-.error-banner { background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 6px; }
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.profile-card,
+.login-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.user-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.avatar-large {
+  width: 60px;
+  height: 60px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: bold;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+.stat-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+.stat-card .value {
+  font-size: 1.75rem;
+  font-weight: bold;
+  color: #2563eb;
+  display: block;
+}
+.stat-card .label {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.progress-bar {
+  background: #e5e7eb;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+.progress-fill {
+  background: #2563eb;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.tp-item {
+  margin-bottom: 1rem;
+}
+.tp-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.form-group input {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+.error-banner {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.75rem;
+  border-radius: 6px;
+}
 </style>

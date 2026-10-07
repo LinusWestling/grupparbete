@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = '/api'
 
 async function request(endpoint, options = {}) {
   const config = {
@@ -7,16 +7,16 @@ async function request(endpoint, options = {}) {
       ...options.headers,
     },
     ...options,
-  };
-
-  const response = await fetch(`${API_BASE}${endpoint}`, config);
-  const data = await response.json();
-
-  if (!response.ok || data.status === 'error') {
-    throw new Error(data.message || 'API request failed');
   }
 
-  return data.data;
+  const response = await fetch(`${API_BASE}${endpoint}`, config)
+  const data = await response.json()
+
+  if (!response.ok || data.status === 'error') {
+    throw new Error(data.message || 'API request failed')
+  }
+
+  return data.data
 }
 
 export const api = {
@@ -26,42 +26,47 @@ export const api = {
 
   // Questions (CRUD)
   getQuestions: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return request(`/questions?${query}`);
+    const query = new URLSearchParams(params).toString()
+    return request(`/questions?${query}`)
   },
-  createQuestion: (questionData) => request('/questions', {
-    method: 'POST',
-    body: JSON.stringify(questionData),
-  }),
-  updateQuestion: (id, questionData) => request(`/questions/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(questionData),
-  }),
-  deleteQuestion: (id) => request(`/questions/${id}`, {
-    method: 'DELETE',
-  }),
+  createQuestion: (questionData) =>
+    request('/questions', {
+      method: 'POST',
+      body: JSON.stringify(questionData),
+    }),
+  updateQuestion: (id, questionData) =>
+    request(`/questions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(questionData),
+    }),
+  deleteQuestion: (id) =>
+    request(`/questions/${id}`, {
+      method: 'DELETE',
+    }),
 
   // Quizzes & Game Modes
   getPracticeQuiz: (topicId, difficulty) => {
-    const params = new URLSearchParams();
-    if (topicId) params.append('topicId', topicId);
-    if (difficulty) params.append('difficulty', difficulty);
-    return request(`/quizzes/practice?${params.toString()}`);
+    const params = new URLSearchParams()
+    if (topicId) params.append('topicId', topicId)
+    if (difficulty) params.append('difficulty', difficulty)
+    return request(`/quizzes/practice?${params.toString()}`)
   },
   getSpeedrunQuiz: () => request('/quizzes/speedrun'),
-  submitQuiz: (submissions, userId = 1) => request('/quizzes/submit', {
-    method: 'POST',
-    body: JSON.stringify({ userId, submissions }),
-  }),
+  submitQuiz: (submissions, userId = 1) =>
+    request('/quizzes/submit', {
+      method: 'POST',
+      body: JSON.stringify({ userId, submissions }),
+    }),
 
   // User & Stats
   getDashboardStats: () => request('/dashboard/stats'),
   getUserProgress: (userId = 1) => request(`/users/${userId}/progress`),
 
   // Auth
-  login: (email, password) => request('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  }),
+  login: (email, password) =>
+    request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
   getMe: () => request('/auth/me'),
-};
+}
