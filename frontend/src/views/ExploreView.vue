@@ -89,7 +89,16 @@ async function navigateQuestion(direction, skip = false) {
   const question = activeQuizSession.value.questions[currentQuestionIndex.value]
   const hasAnswer =
     selectedAnswers.value[question.id] !== undefined && selectedAnswers.value[question.id] !== ''
+
+  // Stoppa NEXT om ingen svar har valats.
+  if (direction > 0 && !skip && !hasAnswer) {
+    error.value = 'Välj ett svar eller hoppa över frågan'
+    return
+  }
   if ((hasAnswer || skip) && !(await saveCurrentQuestion(skip))) return
+
+  error.value = null
+
   currentQuestionIndex.value = Math.max(
     0,
     Math.min(activeQuizSession.value.questions.length - 1, currentQuestionIndex.value + direction),
