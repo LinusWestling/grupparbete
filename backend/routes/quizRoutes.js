@@ -9,9 +9,15 @@ function requireAuth(req, res, next) {
   next()
 }
 
-router.post('/api/quizzes/start', quizController.startQuiz)
+router.post('/api/quizzes/start', requireAuth, quizController.startQuiz)
 router.post('/api/quizzes/:quizId/submit', quizController.submitQuizSession)
 router.get('/api/quizzes/history', requireAuth, quizController.getHistory)
+router.get('/api/quizzes/unfinished', requireAuth, quizController.getUnfinishedQuizzes)
+router.put(
+  '/api/quizzes/:quizId/questions/:questionId/progress',
+  requireAuth,
+  quizController.saveQuestionProgress,
+)
 router.get('/api/quizzes/:quizId', quizController.getQuizDetails)
 
 module.exports = router

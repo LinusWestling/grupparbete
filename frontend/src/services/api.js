@@ -1,30 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+import { createApiService } from './apiFactory.js'
 
-async function request(endpoint, options = {}) {
-  const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include',
-    ...options,
-  }
-
-  const response = await fetch(`${API_BASE}${endpoint}`, config)
-  const text = await response.text()
-  let data
-  try {
-    data = text ? JSON.parse(text) : null
-  } catch {
-    throw new Error(`Server returned non-JSON response (${response.status} ${response.statusText})`)
-  }
-
-  if (!response.ok || data?.status === 'error') {
-    throw new Error(data?.message || `API request failed (${response.status})`)
-  }
-
-  return data?.data !== undefined ? data.data : data
-}
+const { request } = createApiService('')
 
 export const api = {
   // Topics
@@ -64,6 +40,12 @@ export const api = {
     }),
   getQuizHistory: () => request('/quizzes/history'),
   getQuizDetails: (quizId) => request(`/quizzes/${quizId}`),
+  getUnfinishedQuizzes: () => request('/quizzes/unfinished'),
+  saveQuestionProgress: (quizId, questionId, progress) =>
+    request(`/quizzes/${quizId}/questions/${questionId}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify(progress),
+    }),
 
   // User & Stats
   getDashboardStats: () => request('/dashboard/stats'),

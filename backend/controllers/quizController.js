@@ -23,7 +23,7 @@ async function submitQuizSession(req, res) {
   try {
     const quizId = Number(req.params.quizId)
     const { submissions } = req.body || {}
-    if (!submissions || !Array.isArray(submissions)) {
+    if (submissions !== undefined && !Array.isArray(submissions)) {
       return res.status(400).json({ status: 'error', message: 'submissions array is required' })
     }
     const userId = req.session?.userId || null
@@ -67,4 +67,35 @@ module.exports = {
   submitQuizSession,
   getHistory,
   getQuizDetails,
+  async getUnfinishedQuizzes(req, res) {
+    try {
+      const quizzes = await quizService.getUnfinishedQuizzes(req.session.userId)
+      res.json({ status: 'success', data: quizzes })
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message })
+    }
+  },
+  async saveQuestionProgress(req, res) {
+    try {
+      const quizId = Number(req.params.quizId)
+      const questionId = Number(req.params.questionId)
+      if (
+        !Number.isInteger(quizId) ||
+        quizId < 1 ||
+        !Number.isInteger(questionId) ||
+        questionId < 1
+      ) {
+        return res.status(400).json({ status: 'error', message: 'Invalid quiz or question ID' })
+      }
+      const progress = await quizService.saveQuestionProgress(
+        quizId,
+        req.session.userId,
+        questionId,
+        req.body || {},
+      )
+      res.json({ status: 'success', data: progress })
+    } catch (error) {
+      res.status(error.status || 500).json({ status: 'error', message: error.message })
+    }
+  },
 }

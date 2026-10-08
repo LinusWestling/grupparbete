@@ -1,5 +1,18 @@
 ## Database build and migration
 
+Quiz progress is stored per attempt in `quiz_questions`, using `is_answered`
+and `is_skipped`. Both are false for an untouched question; skipping clears its
+saved answer and sets only `is_skipped`. Saving an answer sets only `is_answered`.
+Migration `007_quiz_question_progress.sql` adds these flags without changing
+existing migration files. Run `npm run migrate` before deploying this feature.
+
+New quiz attempts require login. The frontend saves choice answers when selected
+and text answers on blur, Save answer, or navigation. Only server-confirmed saves
+survive a browser crash or device change. Failed saves remain visible and block
+navigation away from that answer; text still being typed has not yet been saved.
+Explore lists unfinished quizzes for the logged-in account. Final submission
+grades saved answers and awards XP once; saving and skipping do not award XP.
+
 Run migrations with `npm run migrate`. Uses the same environment variables and
 Aiven CA certificate as the backend. Local development reads `backend/.env`.
 
