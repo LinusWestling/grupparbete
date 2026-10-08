@@ -69,14 +69,16 @@ const totalXp = computed(() => {
 })
 
 const overallLevel = computed(() => {
-  return Math.floor(totalXp.value / 100) + 1
+  return Math.min(5, Math.floor(totalXp.value / 100) + 1)
 })
 
 const xpInCurrentLevel = computed(() => {
+  if (overallLevel.value >= 5) return 100
   return totalXp.value % 100
 })
 
 const xpToNextLevel = computed(() => {
+  if (overallLevel.value >= 5) return 0
   return 100 - (totalXp.value % 100)
 })
 
@@ -194,8 +196,11 @@ function getSourceUrl(url) {
         <div class="xp-header-row">
           <span class="xp-title">Platform XP Progression</span>
           <span class="xp-value">
-            <strong>{{ totalXp }} XP Total</strong> ({{ xpToNextLevel }} XP to Level
-            {{ overallLevel + 1 }})
+            <strong>{{ totalXp }} XP Total</strong>
+            <template v-if="overallLevel < 5">
+              ({{ xpToNextLevel }} XP to Level {{ overallLevel + 1 }})
+            </template>
+            <template v-else> • <span class="text-success">👑 Max Level Reached!</span> </template>
           </span>
         </div>
         <div class="progress-bar lg">
@@ -332,9 +337,7 @@ function getSourceUrl(url) {
           <div class="meta-row">
             <p class="meta">
               Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
-              {{ selectedQuizDetails.difficulty }} | Score: +{{
-                selectedQuizDetails.total_score
-              }}
+              {{ selectedQuizDetails.difficulty }} | Score: +{{ selectedQuizDetails.total_score }}
               XP
             </p>
             <button

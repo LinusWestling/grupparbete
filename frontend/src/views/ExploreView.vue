@@ -33,7 +33,13 @@ onMounted(async () => {
     } catch {
       loggedIn.value = false
     }
-    if (loggedIn.value) unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
+    if (loggedIn.value) {
+      try {
+        unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
+      } catch (err) {
+        console.error('Failed to load unfinished quizzes:', err)
+      }
+    }
 
     // Handle retake quiz auto-start from route query params
     if (route.query.topicId && route.query.difficulty) {
