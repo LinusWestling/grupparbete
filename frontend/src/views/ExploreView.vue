@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../services/api'
+
+const route = useRoute()
 
 const topics = ref([])
 const loading = ref(true)
@@ -31,6 +34,16 @@ onMounted(async () => {
       loggedIn.value = false
     }
     if (loggedIn.value) unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
+
+    // Handle retake quiz auto-start from route query params
+    if (route.query.topicId && route.query.difficulty) {
+      const diffNum = Number(route.query.difficulty)
+      if (diffNum >= 1 && diffNum <= 5) selectedDifficulty.value = diffNum
+      const targetTopic = topics.value.find((t) => t.id === Number(route.query.topicId))
+      if (targetTopic && route.query.autoStart === 'true' && loggedIn.value) {
+        await startQuizSession(targetTopic)
+      }
+    }
   } catch (err) {
     console.error('Failed to load topics:', err)
     error.value = 'Failed to load topics from database backend: ' + err.message

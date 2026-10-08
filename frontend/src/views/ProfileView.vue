@@ -1,15 +1,84 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { api } from '../services/api'
+
+const router = useRouter()
 
 const user = ref(null)
 const progress = ref(null)
 const history = ref([])
 const selectedQuizDetails = ref(null)
+const showLevelModal = ref(false)
 const loading = ref(true)
 const loginEmail = ref('')
 const loginPassword = ref('')
 const loginError = ref(null)
+
+const levelDefinitions = [
+  {
+    level: 1,
+    name: 'Beginner / Novice',
+    xpRequired: 0,
+    xpRange: '0 – 99 XP',
+    badge: '🔰 Novice Badge',
+    quizAccess: 'Level 1 Quizzes',
+    benefits: 'Basic quiz taking, track progress, access foundational anatomy & exercise concepts.',
+  },
+  {
+    level: 2,
+    name: 'Intermediate',
+    xpRequired: 100,
+    xpRange: '100 – 199 XP',
+    badge: '🥉 Bronze Scholar',
+    quizAccess: 'Level 2 Quizzes',
+    benefits: 'Unlocks Level 2 intermediate questions & +5% bonus XP reward multiplier.',
+  },
+  {
+    level: 3,
+    name: 'Advanced',
+    xpRequired: 200,
+    xpRange: '200 – 299 XP',
+    badge: '🥈 Silver Master',
+    quizAccess: 'Level 3 Quizzes',
+    benefits: 'Unlocks Level 3 advanced scenarios & custom profile badges and titles.',
+  },
+  {
+    level: 4,
+    name: 'Expert',
+    xpRequired: 300,
+    xpRange: '300 – 399 XP',
+    badge: '🥇 Gold Expert',
+    quizAccess: 'Level 4 Quizzes',
+    benefits: 'Unlocks Level 4 expert challenges & peer question reviewer privileges.',
+  },
+  {
+    level: 5,
+    name: 'PT Candidate / Master',
+    xpRequired: 400,
+    xpRange: '400+ XP',
+    badge: '💎 Diamond Legend',
+    quizAccess: 'Level 5 Quizzes',
+    benefits: 'Unlocks Level 5 PT Candidate exam-level questions & certification readiness status.',
+  },
+]
+
+const totalXp = computed(() => {
+  if (!progress.value || !progress.value.progress_by_topic) return 0
+  return progress.value.progress_by_topic.reduce((sum, tp) => sum + (tp.xp || 0), 0)
+})
+
+const overallLevel = computed(() => {
+  return Math.floor(totalXp.value / 100) + 1
+})
+
+const xpInCurrentLevel = computed(() => {
+  return totalXp.value % 100
+})
+
+const xpToNextLevel = computed(() => {
+  return 100 - (totalXp.value % 100)
+})
 
 onMounted(async () => {
   await loadUserData()
@@ -51,6 +120,41 @@ async function inspectQuizDetails(quizId) {
     alert('Failed to load details for quiz #' + quizId)
   }
 }
+
+function retakeQuiz(topicId, difficulty) {
+  selectedQuizDetails.value = null
+  router.push({
+    path: '/explore',
+    query: {
+      topicId: String(topicId),
+      difficulty: String(difficulty),
+      autoStart: 'true',
+    },
+  })
+}
+
+function getUserAnswerText(q) {
+  if (q.question_type === 'free_text') {
+    return q.free_text_answer
+      ? `"${q.free_text_answer}"`
+      : q.is_skipped
+        ? 'Skipped'
+        : 'No answer entered'
+  }
+  const opt = q.answers?.find((a) => a.id === q.chosen_answer_id)
+  return opt ? opt.answer_text : q.is_skipped ? 'Skipped' : 'No answer selected'
+}
+
+function getCorrectAnswerText(q) {
+  const opt = q.answers?.find((a) => a.is_correct)
+  return opt ? opt.answer_text : 'N/A'
+}
+
+function getSourceUrl(url) {
+  if (!url) return null
+  if (/^https?:\/\//i.test(url)) return url
+  return `https://${url}`
+}
 </script>
 
 <template>
@@ -71,8 +175,31 @@ async function inspectQuizDetails(quizId) {
       <div class="user-header">
         <div class="avatar-large">{{ user.username ? user.username[0].toUpperCase() : 'U' }}</div>
         <div>
-          <h2>{{ user.username }}</h2>
+          <div class="user-title-row">
+            <h2>{{ user.username }}</h2>
+            <button
+              class="level-pill-button"
+              @click="showLevelModal = true"
+              title="Click to view Level diagram & rewards"
+            >
+              ⭐ Overall Level {{ overallLevel }} ℹ️
+            </button>
+          </div>
           <p class="text-muted">{{ user.email }} • Role: {{ user.role }}</p>
+        </div>
+      </div>
+
+      <!-- XP Progression Overview Bar -->
+      <div v-if="progress" class="overall-xp-section">
+        <div class="xp-header-row">
+          <span class="xp-title">Platform XP Progression</span>
+          <span class="xp-value">
+            <strong>{{ totalXp }} XP Total</strong> ({{ xpToNextLevel }} XP to Level
+            {{ overallLevel + 1 }})
+          </span>
+        </div>
+        <div class="progress-bar lg">
+          <div class="progress-fill" :style="{ width: xpInCurrentLevel + '%' }"></div>
         </div>
       </div>
 
@@ -95,6 +222,10 @@ async function inspectQuizDetails(quizId) {
           </span>
           <span class="label">Overall Accuracy</span>
         </div>
+        <div class="stat-card clickable" @click="showLevelModal = true">
+          <span class="value">Level {{ overallLevel }}</span>
+          <span class="label">Current Tier (Details ℹ️)</span>
+        </div>
       </div>
 
       <!-- Topic Mastery -->
@@ -103,11 +234,27 @@ async function inspectQuizDetails(quizId) {
         <div v-if="progress && progress.progress_by_topic.length > 0" class="progress-list">
           <div v-for="tp in progress.progress_by_topic" :key="tp.id" class="tp-item">
             <div class="tp-info">
-              <strong>{{ tp.topic_name }}</strong>
-              <span>Level {{ tp.level }} • {{ tp.xp }} XP</span>
+              <div class="tp-title">
+                <strong>{{ tp.topic_name }}</strong>
+                <button
+                  class="level-chip-clickable"
+                  @click="showLevelModal = true"
+                  title="Click to inspect level diagram & benefits"
+                >
+                  ⭐ Level {{ tp.level }} ℹ️
+                </button>
+              </div>
+              <span>{{ tp.xp }} XP</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill" :style="{ width: Math.min(tp.xp % 100, 100) + '%' }"></div>
+            </div>
+            <div class="xp-next-level">
+              <span v-if="tp.level < 5">
+                <strong>{{ 100 - (tp.xp % 100) }} XP</strong> needed to reach Level
+                {{ tp.level + 1 }}
+              </span>
+              <span v-else class="text-success"> 👑 Max Level Reached! </span>
             </div>
           </div>
         </div>
@@ -135,7 +282,15 @@ async function inspectQuizDetails(quizId) {
                 <td>
                   <span class="badge">{{ q.topic_name }}</span>
                 </td>
-                <td>⭐ Level {{ q.difficulty }}</td>
+                <td>
+                  <button
+                    class="level-chip-clickable"
+                    @click="showLevelModal = true"
+                    title="Click for Level diagram"
+                  >
+                    ⭐ Level {{ q.difficulty }}
+                  </button>
+                </td>
                 <td>
                   <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
                   <span class="text-muted">
@@ -169,10 +324,19 @@ async function inspectQuizDetails(quizId) {
           <h2>Quiz #{{ selectedQuizDetails.id }} Detailed Report</h2>
           <button @click="selectedQuizDetails = null" class="button-text">✕ Close</button>
         </div>
-        <p class="meta">
-          Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
-          {{ selectedQuizDetails.difficulty }} | Score: +{{ selectedQuizDetails.total_score }} XP
-        </p>
+        <div class="meta-row">
+          <p class="meta">
+            Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
+            {{ selectedQuizDetails.difficulty }} | Score: +{{ selectedQuizDetails.total_score }} XP
+          </p>
+          <button
+            @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
+            class="button button-accent button-sm"
+          >
+            Retake Quiz 🔄
+          </button>
+        </div>
+
         <div class="results-list">
           <div
             v-for="q in selectedQuizDetails.questions"
@@ -180,18 +344,135 @@ async function inspectQuizDetails(quizId) {
             :class="['result-item', q.is_correct ? 'correct' : 'incorrect']"
           >
             <span class="status-icon">{{ q.is_correct ? '✅' : '❌' }}</span>
-            <div>
-              <p>
+            <div class="result-details">
+              <p class="question-title">
                 <strong>Q{{ q.position }}: {{ q.question_text }}</strong>
               </p>
-              <p v-if="q.free_text_answer" class="text-muted">
-                User Input: "{{ q.free_text_answer }}"
-              </p>
-              <p v-if="q.sources.length > 0" class="text-muted">
-                Source: {{ q.sources[0].source_text }}
-              </p>
+
+              <div class="answers-comparison">
+                <p>
+                  <strong>Your Answer:</strong>
+                  <span :class="q.is_correct ? 'text-success' : 'text-danger'">
+                    {{ getUserAnswerText(q) }}
+                  </span>
+                </p>
+                <p v-if="!q.is_correct" class="correct-answer-line">
+                  <strong>Correct Answer:</strong>
+                  <span class="text-success">{{ getCorrectAnswerText(q) }}</span>
+                </p>
+              </div>
+
+              <!-- Hyperlinked Source(s) -->
+              <div v-if="q.sources && q.sources.length > 0" class="source-container">
+                <span class="source-label">📖 Reference Source:</span>
+                <span v-for="src in q.sources" :key="src.id || src.source_text">
+                  <a
+                    v-if="src.url"
+                    :href="getSourceUrl(src.url)"
+                    target="_blank"
+                    rel="noopener"
+                    class="source-link"
+                  >
+                    {{ src.source_text }} ↗
+                  </a>
+                  <span v-else class="source-text">{{ src.source_text }}</span>
+                </span>
+              </div>
             </div>
           </div>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
+            class="button button-accent"
+          >
+            Retake Quiz 🔄
+          </button>
+          <button @click="selectedQuizDetails = null" class="button button-outline">
+            Close Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level Breakdown & Progression Diagram Modal -->
+    <div v-if="showLevelModal" class="modal-overlay" @click.self="showLevelModal = false">
+      <div class="modal-content large">
+        <div class="modal-header">
+          <h2>🏆 Level Progression & Requirements</h2>
+          <button @click="showLevelModal = false" class="button-text">✕ Close</button>
+        </div>
+
+        <p class="heading-description">
+          Earn XP by completing quizzes. Every 100 XP unlocks the next Level tier, granting access
+          to higher difficulty questions and platform rewards.
+        </p>
+
+        <!-- Visual Step Diagram -->
+        <div class="level-diagram-container">
+          <h3>Visual Progression Roadmap</h3>
+          <div class="level-stepper">
+            <div
+              v-for="item in levelDefinitions"
+              :key="item.level"
+              :class="[
+                'step-card',
+                {
+                  active: overallLevel === item.level,
+                  completed: overallLevel > item.level,
+                  locked: overallLevel < item.level,
+                },
+              ]"
+            >
+              <div class="step-badge-icon">
+                {{ overallLevel > item.level ? '✅' : overallLevel === item.level ? '⭐' : '🔒' }}
+              </div>
+              <div class="step-level-num">Level {{ item.level }}</div>
+              <div class="step-xp-range">{{ item.xpRange }}</div>
+              <div class="step-status">
+                {{
+                  overallLevel > item.level
+                    ? 'Mastered'
+                    : overallLevel === item.level
+                      ? 'Current Level'
+                      : 'Locked'
+                }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Level Rewards Breakdown -->
+        <div class="level-table-container">
+          <h3>Level Tiers, Unlocks & Rewards</h3>
+          <div class="level-cards-grid">
+            <div
+              v-for="item in levelDefinitions"
+              :key="item.level"
+              :class="[
+                'level-info-card',
+                { active: overallLevel === item.level, locked: overallLevel < item.level },
+              ]"
+            >
+              <div class="level-card-header">
+                <div>
+                  <span class="badge">Level {{ item.level }}</span>
+                  <strong class="level-name">{{ item.name }}</strong>
+                </div>
+                <span class="badge-tag">{{ item.badge }}</span>
+              </div>
+              <p class="xp-range-info">⚡ {{ item.xpRange }} required</p>
+              <div class="unlocks-list">
+                <p>🎯 <strong>Quiz Access:</strong> {{ item.quizAccess }}</p>
+                <p>🎁 <strong>Benefits & Rewards:</strong> {{ item.benefits }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button @click="showLevelModal = false" class="button button-accent">Got It! 👍</button>
         </div>
       </div>
     </div>
@@ -239,6 +520,11 @@ async function inspectQuizDetails(quizId) {
   align-items: center;
   gap: 1.25rem;
 }
+.user-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 .avatar-large {
   width: 60px;
   height: 60px;
@@ -251,6 +537,53 @@ async function inspectQuizDetails(quizId) {
   align-items: center;
   justify-content: center;
 }
+.level-pill-button {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.level-pill-button:hover {
+  background: #dbeafe;
+}
+.level-chip-clickable {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.level-chip-clickable:hover {
+  background: #e5e7eb;
+}
+.overall-xp-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.xp-header-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+}
+.xp-title {
+  font-weight: 600;
+  color: #334155;
+}
+.xp-value {
+  color: #64748b;
+}
 .progress-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -262,6 +595,14 @@ async function inspectQuizDetails(quizId) {
   border-radius: 8px;
   padding: 1rem;
   text-align: center;
+}
+.stat-card.clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.stat-card.clickable:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
 }
 .stat-card .value {
   font-size: 1.75rem;
@@ -278,7 +619,11 @@ async function inspectQuizDetails(quizId) {
   height: 10px;
   border-radius: 5px;
   overflow: hidden;
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
+}
+.progress-bar.lg {
+  height: 14px;
+  border-radius: 7px;
 }
 .progress-fill {
   background: #2563eb;
@@ -286,12 +631,23 @@ async function inspectQuizDetails(quizId) {
   transition: width 0.3s ease;
 }
 .tp-item {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 .tp-info {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.95rem;
+}
+.tp-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.xp-next-level {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
 }
 .table-container {
   background: #ffffff;
@@ -352,27 +708,42 @@ async function inspectQuizDetails(quizId) {
   background: #fff;
   border-radius: 12px;
   padding: 2rem;
-  max-width: 600px;
+  max-width: 650px;
   width: 90%;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
+}
+.modal-content.large {
+  max-width: 800px;
 }
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.button-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
 .results-list {
   margin-top: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 .result-item {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 6px;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 8px;
 }
 .result-item.correct {
   background: #f0fdf4;
@@ -381,5 +752,148 @@ async function inspectQuizDetails(quizId) {
 .result-item.incorrect {
   background: #fef2f2;
   border: 1px solid #fecaca;
+}
+.result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+.answers-comparison {
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
+}
+.text-success {
+  color: #15803d;
+  font-weight: 600;
+}
+.text-danger {
+  color: #b91c1c;
+}
+.correct-answer-line {
+  margin-top: 0.2rem;
+}
+.source-container {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+.source-link {
+  color: #2563eb;
+  text-decoration: underline;
+  margin-left: 0.4rem;
+}
+.source-text {
+  color: #4b5563;
+  margin-left: 0.4rem;
+}
+.modal-footer {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 1rem;
+}
+
+/* Level Diagram Styling */
+.level-diagram-container {
+  margin: 1.5rem 0;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 1.25rem;
+  border-radius: 10px;
+}
+.level-stepper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.step-card {
+  background: #ffffff;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.85rem;
+  text-align: center;
+  transition: all 0.2s;
+}
+.step-card.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+.step-card.completed {
+  border-color: #22c55e;
+  background: #f0fdf4;
+}
+.step-card.locked {
+  opacity: 0.7;
+}
+.step-badge-icon {
+  font-size: 1.25rem;
+}
+.step-level-num {
+  font-weight: bold;
+  font-size: 0.95rem;
+  margin-top: 0.2rem;
+}
+.step-xp-range {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.step-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.4rem;
+  color: #334155;
+}
+.level-table-container {
+  margin-top: 1.5rem;
+}
+.level-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+}
+.level-info-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+}
+.level-info-card.active {
+  border-color: #3b82f6;
+  background: #f0f9ff;
+}
+.level-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.level-name {
+  font-size: 1.05rem;
+  margin-left: 0.5rem;
+}
+.badge-tag {
+  background: #f1f5f9;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.xp-range-info {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0.3rem 0 0.6rem 0;
+}
+.unlocks-list p {
+  font-size: 0.9rem;
+  margin: 0.25rem 0;
+  color: #334155;
 }
 </style>
