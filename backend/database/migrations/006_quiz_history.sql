@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS quizzes (
     ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+
+
 CREATE TABLE IF NOT EXISTS quiz_questions (
   id               INT AUTO_INCREMENT PRIMARY KEY,
   quiz_id          INT NOT NULL,
