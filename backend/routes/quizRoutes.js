@@ -2,8 +2,22 @@ const express = require('express')
 const router = express.Router()
 const quizController = require('../controllers/quizController')
 
-router.get('/api/quizzes/practice', quizController.getPracticeQuiz)
-router.get('/api/quizzes/speedrun', quizController.getSpeedrunQuiz)
-router.post('/api/quizzes/submit', quizController.submitQuiz)
+function requireAuth(req, res, next) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+  }
+  next()
+}
+
+router.post('/api/quizzes/start', requireAuth, quizController.startQuiz)
+router.post('/api/quizzes/:quizId/submit', quizController.submitQuizSession)
+router.get('/api/quizzes/history', requireAuth, quizController.getHistory)
+router.get('/api/quizzes/unfinished', requireAuth, quizController.getUnfinishedQuizzes)
+router.put(
+  '/api/quizzes/:quizId/questions/:questionId/progress',
+  requireAuth,
+  quizController.saveQuestionProgress,
+)
+router.get('/api/quizzes/:quizId', quizController.getQuizDetails)
 
 module.exports = router

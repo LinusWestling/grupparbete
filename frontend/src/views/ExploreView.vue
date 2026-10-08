@@ -6,75 +6,134 @@ const topics = ref([])
 const loading = ref(true)
 const error = ref(null)
 
-// Quiz session state
-const activeQuiz = ref(null)
+// Difficulty selection (1-5)
+const selectedDifficulty = ref(1)
+
+// Active quiz session state
+const activeQuizSession = ref(null)
 const activeTopicName = ref('')
 const currentQuestionIndex = ref(0)
 const selectedAnswers = ref({})
-const freeTextInput = ref('')
 const quizResult = ref(null)
 const submitting = ref(false)
+const saving = ref(false)
+const saveMessage = ref('')
+const unfinishedQuizzes = ref([])
+const loggedIn = ref(false)
 
 onMounted(async () => {
   try {
     topics.value = await api.getTopics()
+    try {
+      await api.getMe()
+      loggedIn.value = true
+    } catch {
+      loggedIn.value = false
+    }
+    if (loggedIn.value) unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
   } catch (err) {
-    error.value = 'Failed to load topics from database backend.'
+    console.error('Failed to load topics:', err)
+    error.value = 'Failed to load topics from database backend: ' + err.message
   } finally {
     loading.value = false
   }
 })
 
-async function startQuiz(topic) {
+async function startQuizSession(topic) {
   try {
     loading.value = true
     error.value = null
-    activeTopicName.value = topic ? topic.name : 'All Topics'
-    activeQuiz.value = await api.getPracticeQuiz(topic ? topic.id : null)
+    activeTopicName.value = topic.name
+    activeQuizSession.value = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
     currentQuestionIndex.value = 0
     selectedAnswers.value = {}
-    freeTextInput.value = ''
     quizResult.value = null
+    saveMessage.value = ''
   } catch (err) {
-    error.value = 'Failed to generate quiz. Make sure backend is running.'
+    error.value = 'Failed to generate quiz: ' + err.message
   } finally {
     loading.value = false
   }
 }
 
-async function startSpeedrun() {
-  try {
-    loading.value = true
-    error.value = null
-    activeTopicName.value = 'Speed Run Challenge'
-    activeQuiz.value = await api.getSpeedrunQuiz()
-    currentQuestionIndex.value = 0
-    selectedAnswers.value = {}
-    freeTextInput.value = ''
-    quizResult.value = null
-  } catch (err) {
-    error.value = 'Failed to start Speed Run.'
-  } finally {
-    loading.value = false
-  }
-}
-
-function selectAnswer(questionId, answerVal) {
+async function selectAnswer(questionId, answerVal) {
   selectedAnswers.value[questionId] = answerVal
+  await saveCurrentQuestion()
 }
 
-function updateFreeText(questionId) {
-  selectedAnswers.value[questionId] = freeTextInput.value
+async function saveCurrentQuestion(isSkipped = false) {
+  const question = activeQuizSession.value?.questions[currentQuestionIndex.value]
+  if (!question || saving.value) return false
+  saving.value = true
+  saveMessage.value = 'Saving…'
+  error.value = null
+  try {
+    const progress = await api.saveQuestionProgress(activeQuizSession.value.quiz_id, question.id, {
+      answer: selectedAnswers.value[question.id],
+      isSkipped,
+    })
+    Object.assign(question, progress)
+    if (isSkipped) delete selectedAnswers.value[question.id]
+    saveMessage.value = 'Saved to your account'
+    return true
+  } catch (err) {
+    saveMessage.value = 'Not saved — retry before leaving'
+    error.value = err.message
+    return false
+  } finally {
+    saving.value = false
+  }
+}
+
+async function navigateQuestion(direction, skip = false) {
+  const question = activeQuizSession.value.questions[currentQuestionIndex.value]
+  const hasAnswer =
+    selectedAnswers.value[question.id] !== undefined && selectedAnswers.value[question.id] !== ''
+  if ((hasAnswer || skip) && !(await saveCurrentQuestion(skip))) return
+  currentQuestionIndex.value = Math.max(
+    0,
+    Math.min(activeQuizSession.value.questions.length - 1, currentQuestionIndex.value + direction),
+  )
+  saveMessage.value = ''
+}
+
+async function resumeQuiz(quizId) {
+  loading.value = true
+  error.value = null
+  try {
+    const quiz = await api.getQuizDetails(quizId)
+    if (quiz.status !== 'in_progress') throw new Error('This quiz is already completed')
+    activeQuizSession.value = quiz
+    activeQuizSession.value.quiz_id = quiz.id
+    activeTopicName.value = quiz.topic_name
+    selectedAnswers.value = {}
+    for (const question of quiz.questions) {
+      if (question.is_answered)
+        selectedAnswers.value[question.id] = question.free_text_answer ?? question.chosen_answer_id
+    }
+    const firstUnanswered = quiz.questions.findIndex((question) => !question.is_answered)
+    currentQuestionIndex.value = firstUnanswered < 0 ? 0 : firstUnanswered
+    quizResult.value = null
+    saveMessage.value = ''
+  } catch (err) {
+    error.value = 'Could not resume quiz: ' + err.message
+  } finally {
+    loading.value = false
+  }
 }
 
 async function handleSubmitQuiz() {
+  if (!activeQuizSession.value) return
+  const question = activeQuizSession.value.questions[currentQuestionIndex.value]
+  if (
+    selectedAnswers.value[question.id] !== undefined &&
+    selectedAnswers.value[question.id] !== ''
+  ) {
+    if (!(await saveCurrentQuestion())) return
+  }
   submitting.value = true
   try {
-    const submissions = Object.entries(selectedAnswers.value).map(([qId, ans]) => ({
-      question_id: Number(qId),
-      answer: ans,
-    }))
-    quizResult.value = await api.submitQuiz(submissions)
+    quizResult.value = await api.submitQuizSession(activeQuizSession.value.quiz_id)
   } catch (err) {
     error.value = 'Failed to submit quiz results.'
   } finally {
@@ -82,9 +141,24 @@ async function handleSubmitQuiz() {
   }
 }
 
-function exitQuiz() {
-  activeQuiz.value = null
+async function exitQuiz() {
+  if (!quizResult.value) {
+    const question = activeQuizSession.value?.questions[currentQuestionIndex.value]
+    if (
+      question &&
+      selectedAnswers.value[question.id] !== undefined &&
+      selectedAnswers.value[question.id] !== ''
+    ) {
+      if (!(await saveCurrentQuestion())) return
+    }
+  }
+  activeQuizSession.value = null
   quizResult.value = null
+  try {
+    unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
+  } catch (err) {
+    error.value = 'Could not load unfinished quizzes: ' + err.message
+  }
 }
 </script>
 
@@ -95,43 +169,75 @@ function exitQuiz() {
         <p class="eyebrow">EXPLORE SKILLS & KNOWLEDGE</p>
         <h1>Quiz & Knowledge Center</h1>
         <p class="heading-description">
-          Select a topic to test your knowledge or try a Speed Run across all domains.
+          Choose a difficulty level (1–5) and test your knowledge across Anatomy, Exercise Science,
+          and Physiology.
         </p>
       </div>
-      <button @click="startSpeedrun" class="button button-accent">⚡ Start Speed Run</button>
+    </div>
+
+    <!-- Difficulty Level Selector Bar -->
+    <div v-if="!activeQuizSession" class="difficulty-bar">
+      <span class="diff-label">Select Difficulty Level for Quiz:</span>
+      <div class="difficulty-options">
+        <button
+          v-for="lvl in [1, 2, 3, 4, 5]"
+          :key="lvl"
+          :class="['diff-btn', { active: selectedDifficulty === lvl }]"
+          @click="selectedDifficulty = lvl"
+        >
+          ⭐ Level {{ lvl }}
+          <span class="diff-desc">
+            {{
+              lvl === 1 ? 'Beginner' : lvl === 3 ? 'Intermediate' : lvl === 5 ? 'PT Candidate' : ''
+            }}
+          </span>
+        </button>
+      </div>
     </div>
 
     <div v-if="error" class="error-banner">⚠️ {{ error }}</div>
 
     <!-- Active Quiz Playing View -->
-    <div v-if="activeQuiz && !quizResult" class="quiz-container">
+    <div v-if="activeQuizSession && !quizResult" class="quiz-container">
       <div class="quiz-header">
-        <span class="badge">{{ activeTopicName }}</span>
-        <span>Question {{ currentQuestionIndex + 1 }} of {{ activeQuiz.length }}</span>
-        <button @click="exitQuiz" class="button-text">✕ Exit Quiz</button>
+        <div>
+          <span class="badge">{{ activeTopicName }}</span>
+          <span class="chip margin-left">⭐ Level {{ activeQuizSession.difficulty }}</span>
+        </div>
+        <span
+          >Question {{ currentQuestionIndex + 1 }} of {{ activeQuizSession.questions.length }}</span
+        >
+        <button @click="exitQuiz" :disabled="saving || submitting" class="button-text">
+          ✕ Exit Quiz
+        </button>
       </div>
 
-      <div v-if="activeQuiz[currentQuestionIndex]" class="question-card">
+      <div v-if="activeQuizSession.questions[currentQuestionIndex]" class="question-card">
         <p class="meta">
-          Type: {{ activeQuiz[currentQuestionIndex].question_type }} | Difficulty: Level
-          {{ activeQuiz[currentQuestionIndex].difficulty_level }}
+          Type: {{ activeQuizSession.questions[currentQuestionIndex].question_type }} | Difficulty:
+          Level
+          {{ activeQuizSession.questions[currentQuestionIndex].difficulty_level }}
         </p>
-        <h2>{{ activeQuiz[currentQuestionIndex].question_text }}</h2>
+        <h2>{{ activeQuizSession.questions[currentQuestionIndex].question_text }}</h2>
 
         <!-- Answer Rendering by Type -->
         <!-- 1. Multiple Choice & Yes/No -->
         <div
-          v-if="activeQuiz[currentQuestionIndex].question_type !== 'free_text'"
+          v-if="activeQuizSession.questions[currentQuestionIndex].question_type !== 'free_text'"
           class="options-grid"
         >
           <button
-            v-for="ans in activeQuiz[currentQuestionIndex].answers"
+            v-for="ans in activeQuizSession.questions[currentQuestionIndex].answers"
             :key="ans.id"
+            :disabled="saving || submitting"
             :class="[
               'option-button',
-              { selected: selectedAnswers[activeQuiz[currentQuestionIndex].id] === ans.id },
+              {
+                selected:
+                  selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id] === ans.id,
+              },
             ]"
-            @click="selectAnswer(activeQuiz[currentQuestionIndex].id, ans.id)"
+            @click="selectAnswer(activeQuizSession.questions[currentQuestionIndex].id, ans.id)"
           >
             {{ ans.answer_text }}
           </button>
@@ -141,17 +247,30 @@ function exitQuiz() {
         <div v-else class="free-text-box">
           <input
             type="text"
-            v-model="selectedAnswers[activeQuiz[currentQuestionIndex].id]"
+            v-model="selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id]"
             placeholder="Type your answer here..."
             class="text-input"
+            :disabled="saving || submitting"
+            @input="saveMessage = 'Not saved yet'"
+            @change="saveCurrentQuestion()"
           />
+          <button
+            class="button button-outline"
+            :disabled="saving || submitting"
+            @click="saveCurrentQuestion()"
+          >
+            Save answer
+          </button>
         </div>
 
         <!-- Sources / Citations -->
-        <div v-if="activeQuiz[currentQuestionIndex].sources.length > 0" class="source-box">
+        <div
+          v-if="activeQuizSession.questions[currentQuestionIndex].sources.length > 0"
+          class="source-box"
+        >
           <span class="source-label">📖 Reference Source:</span>
           <a
-            v-for="src in activeQuiz[currentQuestionIndex].sources"
+            v-for="src in activeQuizSession.questions[currentQuestionIndex].sources"
             :key="src.id"
             :href="src.url"
             target="_blank"
@@ -164,16 +283,17 @@ function exitQuiz() {
 
       <div class="quiz-nav">
         <button
-          :disabled="currentQuestionIndex === 0"
-          @click="currentQuestionIndex--"
+          :disabled="currentQuestionIndex === 0 || saving || submitting"
+          @click="navigateQuestion(-1)"
           class="button button-outline"
         >
           ← Previous
         </button>
 
         <button
-          v-if="currentQuestionIndex < activeQuiz.length - 1"
-          @click="currentQuestionIndex++"
+          v-if="currentQuestionIndex < activeQuizSession.questions.length - 1"
+          @click="navigateQuestion(1)"
+          :disabled="saving || submitting"
           class="button button-accent"
         >
           Next →
@@ -182,12 +302,24 @@ function exitQuiz() {
         <button
           v-else
           @click="handleSubmitQuiz"
-          :disabled="submitting"
+          :disabled="submitting || saving"
           class="button button-accent"
         >
-          {{ submitting ? 'Grading...' : 'Submit Quiz 🚀' }}
+          {{ submitting ? 'Grading & Saving...' : 'Submit Quiz 🚀' }}
         </button>
       </div>
+      <button
+        class="button button-outline"
+        :disabled="saving || submitting"
+        @click="navigateQuestion(1, true)"
+      >
+        Skip question
+      </button>
+      <p role="status" aria-live="polite">{{ saveMessage }}</p>
+      <p>
+        Answered: {{ activeQuizSession.questions.filter((q) => q.is_answered).length }} · Skipped:
+        {{ activeQuizSession.questions.filter((q) => q.is_skipped).length }}
+      </p>
     </div>
 
     <!-- Quiz Results View -->
@@ -202,7 +334,10 @@ function exitQuiz() {
         </div>
         <div class="stat">
           <span class="stat-value">+{{ quizResult.xp_earned }} XP</span>
-          <span class="stat-label">XP Earned</span>
+          <span class="stat-label">
+            XP Earned (Level
+            {{ activeQuizSession ? activeQuizSession.difficulty : selectedDifficulty }})
+          </span>
         </div>
       </div>
 
@@ -226,6 +361,27 @@ function exitQuiz() {
 
     <!-- Topics Grid View -->
     <div v-else>
+      <p v-if="!loading && !loggedIn">
+        Log in through your profile to start a quiz and save progress across devices.
+      </p>
+      <section v-if="unfinishedQuizzes.length" aria-labelledby="unfinished-title">
+        <h2 id="unfinished-title">Continue an unfinished quiz</h2>
+        <div v-for="quiz in unfinishedQuizzes" :key="quiz.quiz_id">
+          <p>
+            {{ quiz.topic_name }} · Level {{ quiz.difficulty }} · {{ quiz.answered_count }}/{{
+              quiz.total_cnt
+            }}
+            answered · {{ quiz.skipped_count }} skipped
+          </p>
+          <button
+            class="button button-outline"
+            :disabled="loading"
+            @click="resumeQuiz(quiz.quiz_id)"
+          >
+            Resume quiz
+          </button>
+        </div>
+      </section>
       <div v-if="loading" class="loading-state">Loading topics from database...</div>
 
       <div v-else class="topics-grid">
@@ -235,8 +391,12 @@ function exitQuiz() {
             <span class="chip">{{ topic.question_count }} Questions</span>
           </div>
           <p>{{ topic.description || 'Explore and master key concepts in ' + topic.name }}</p>
-          <button @click="startQuiz(topic)" class="button button-outline">
-            Start {{ topic.name }} Quiz ↗
+          <button
+            @click="startQuizSession(topic)"
+            :disabled="!loggedIn || loading"
+            class="button button-outline"
+          >
+            Start Level {{ selectedDifficulty }} {{ topic.name }} Quiz ↗
           </button>
         </article>
       </div>
@@ -249,6 +409,49 @@ function exitQuiz() {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+.difficulty-bar {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.diff-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
+.difficulty-options {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.diff-btn {
+  padding: 0.6rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.diff-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+.diff-desc {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: normal;
 }
 .error-banner {
   background: #fee2e2;
@@ -284,6 +487,9 @@ function exitQuiz() {
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
   font-weight: 500;
+}
+.margin-left {
+  margin-left: 0.5rem;
 }
 .quiz-container {
   background: #ffffff;

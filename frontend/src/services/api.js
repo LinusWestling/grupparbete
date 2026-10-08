@@ -27,18 +27,24 @@ export const api = {
       method: 'DELETE',
     }),
 
-  // Quizzes & Game Modes
-  getPracticeQuiz: (topicId, difficulty) => {
-    const params = new URLSearchParams()
-    if (topicId) params.append('topicId', topicId)
-    if (difficulty) params.append('difficulty', difficulty)
-    return request(`/quizzes/practice?${params.toString()}`)
-  },
-  getSpeedrunQuiz: () => request('/quizzes/speedrun'),
-  submitQuiz: (submissions) =>
-    request('/quizzes/submit', {
+  // Quizzes & Game Modes with Difficulty Selection & History
+  startQuiz: (topicId, difficulty = 1, limit = 10) =>
+    request('/quizzes/start', {
+      method: 'POST',
+      body: JSON.stringify({ topicId, difficulty, limit }),
+    }),
+  submitQuizSession: (quizId, submissions) =>
+    request(`/quizzes/${quizId}/submit`, {
       method: 'POST',
       body: JSON.stringify({ submissions }),
+    }),
+  getQuizHistory: () => request('/quizzes/history'),
+  getQuizDetails: (quizId) => request(`/quizzes/${quizId}`),
+  getUnfinishedQuizzes: () => request('/quizzes/unfinished'),
+  saveQuestionProgress: (quizId, questionId, progress) =>
+    request(`/quizzes/${quizId}/questions/${questionId}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify(progress),
     }),
 
   // User & Stats

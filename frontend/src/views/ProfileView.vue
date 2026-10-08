@@ -4,6 +4,8 @@ import { api } from '../services/api'
 
 const user = ref(null)
 const progress = ref(null)
+const history = ref([])
+const selectedQuizDetails = ref(null)
 const loading = ref(true)
 const loginEmail = ref('')
 const loginPassword = ref('')
@@ -18,7 +20,12 @@ async function loadUserData() {
     loading.value = true
     user.value = await api.getMe()
     if (user.value) {
-      progress.value = await api.getUserProgress(user.value.id)
+      const [progData, histData] = await Promise.all([
+        api.getUserProgress(user.value.id),
+        api.getQuizHistory(),
+      ])
+      progress.value = progData
+      history.value = histData
     }
   } catch (err) {
     // Guest mode
@@ -31,9 +38,17 @@ async function handleLogin() {
   try {
     loginError.value = null
     user.value = await api.login(loginEmail.value, loginPassword.value)
-    progress.value = await api.getUserProgress(user.value.id)
+    await loadUserData()
   } catch (err) {
     loginError.value = 'Login failed: ' + err.message
+  }
+}
+
+async function inspectQuizDetails(quizId) {
+  try {
+    selectedQuizDetails.value = await api.getQuizDetails(quizId)
+  } catch (err) {
+    alert('Failed to load details for quiz #' + quizId)
   }
 }
 </script>
@@ -42,10 +57,11 @@ async function handleLogin() {
   <div class="profile-page">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">USER PROFILE & PROGRESS</p>
-        <h1>My Account & Achievements</h1>
+        <p class="eyebrow">USER PROFILE & HISTORY</p>
+        <h1>My Progression & Quiz History</h1>
         <p class="heading-description">
-          Track your earned XP, quiz level, and progress across all learning topics.
+          Track your earned XP, difficulty progression (Level 1–5), and view detailed history of
+          completed quizzes.
         </p>
       </div>
     </div>
@@ -77,10 +93,11 @@ async function handleLogin() {
                 : 0
             }}%
           </span>
-          <span class="label">Accuracy</span>
+          <span class="label">Overall Accuracy</span>
         </div>
       </div>
 
+      <!-- Topic Mastery -->
       <div class="topic-progress-section">
         <h3>Topic Mastery</h3>
         <div v-if="progress && progress.progress_by_topic.length > 0" class="progress-list">
@@ -96,23 +113,104 @@ async function handleLogin() {
         </div>
         <p v-else class="text-muted">Take a quiz in Explore skills to start earning XP!</p>
       </div>
+
+      <!-- Quiz History Table -->
+      <div class="history-section">
+        <h3>Completed Quiz History</h3>
+        <div v-if="history.length > 0" class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Quiz #</th>
+                <th>Topic</th>
+                <th>Difficulty</th>
+                <th>Score / Accuracy</th>
+                <th>Date Completed</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="q in history" :key="q.quiz_id">
+                <td>#{{ q.quiz_id }}</td>
+                <td>
+                  <span class="badge">{{ q.topic_name }}</span>
+                </td>
+                <td>⭐ Level {{ q.difficulty }}</td>
+                <td>
+                  <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
+                  <span class="text-muted">
+                    ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
+                    +{{ q.total_score }} XP
+                  </span>
+                </td>
+                <td>{{ new Date(q.completed_at).toLocaleString() }}</td>
+                <td>
+                  <button
+                    @click="inspectQuizDetails(q.quiz_id)"
+                    class="button button-outline button-sm"
+                  >
+                    Inspect Report ↗
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="text-muted">
+          No completed quizzes found yet. Start a quiz under Explore skills!
+        </p>
+      </div>
+    </div>
+
+    <!-- Quiz Inspection Modal -->
+    <div v-if="selectedQuizDetails" class="modal-overlay" @click.self="selectedQuizDetails = null">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Quiz #{{ selectedQuizDetails.id }} Detailed Report</h2>
+          <button @click="selectedQuizDetails = null" class="button-text">✕ Close</button>
+        </div>
+        <p class="meta">
+          Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
+          {{ selectedQuizDetails.difficulty }} | Score: +{{ selectedQuizDetails.total_score }} XP
+        </p>
+        <div class="results-list">
+          <div
+            v-for="q in selectedQuizDetails.questions"
+            :key="q.question_id"
+            :class="['result-item', q.is_correct ? 'correct' : 'incorrect']"
+          >
+            <span class="status-icon">{{ q.is_correct ? '✅' : '❌' }}</span>
+            <div>
+              <p>
+                <strong>Q{{ q.position }}: {{ q.question_text }}</strong>
+              </p>
+              <p v-if="q.free_text_answer" class="text-muted">
+                User Input: "{{ q.free_text_answer }}"
+              </p>
+              <p v-if="q.sources.length > 0" class="text-muted">
+                Source: {{ q.sources[0].source_text }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Login form -->
     <div v-else class="login-card">
       <h2>Log in to your account</h2>
-      <p class="text-muted">Test authentication endpoints connected to MySQL users table.</p>
+      <p class="text-muted">Log in to track your quiz history and progression.</p>
 
       <div v-if="loginError" class="error-banner">⚠️ {{ loginError }}</div>
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
           <label>Email Address:</label>
-          <input type="email" v-model="loginEmail" required />
+          <input type="email" v-model="loginEmail" placeholder="admin@skillswap.se" required />
         </div>
         <div class="form-group">
           <label>Password:</label>
-          <input type="password" v-model="loginPassword" required />
+          <input type="password" v-model="loginPassword" placeholder="••••••••" required />
         </div>
         <button type="submit" class="button button-accent">Log In 🔑</button>
       </form>
@@ -134,7 +232,7 @@ async function handleLogin() {
   padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 .user-header {
   display: flex;
@@ -195,6 +293,27 @@ async function handleLogin() {
   justify-content: space-between;
   font-size: 0.95rem;
 }
+.table-container {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.data-table th,
+.data-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.95rem;
+}
+.data-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
 .login-form {
   display: flex;
   flex-direction: column;
@@ -216,5 +335,51 @@ async function handleLogin() {
   color: #991b1b;
   padding: 0.75rem;
   border-radius: 6px;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.results-list {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.result-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+.result-item.correct {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.result-item.incorrect {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
 }
 </style>
