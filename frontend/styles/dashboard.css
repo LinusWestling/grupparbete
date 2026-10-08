@@ -651,3 +651,30 @@ main {
     max-width: 420px;
   }
 }
+
+.live-stats-bar {
+  display: flex;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 var(--space-5) 0;
+}
+
+.stat-box {
+  background: rgba(255, 255, 255, 0.85);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-box .num {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+
+.stat-box .lbl {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}

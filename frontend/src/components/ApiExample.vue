@@ -49,23 +49,3 @@ async function handleLoadExample() {
     </ul>
   </section>
 </template>
-
-<style scoped>
-.api-example {
-  margin-block: 2rem;
-}
-
-.api-example ul {
-  padding-left: 1.5rem;
-  list-style: disc;
-}
-
-.api-example li {
-  margin-block: 0.5rem;
-}
-
-button:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-</style>

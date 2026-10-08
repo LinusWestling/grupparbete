@@ -199,7 +199,7 @@ function getSourceUrl(url) {
           </span>
         </div>
         <div class="progress-bar lg">
-          <div class="progress-fill" :style="{ width: xpInCurrentLevel + '%' }"></div>
+          <div class="progress-fill" :style="{ '--progress-width': xpInCurrentLevel + '%' }"></div>
         </div>
       </div>
 
@@ -247,7 +247,10 @@ function getSourceUrl(url) {
               <span>{{ tp.xp }} XP</span>
             </div>
             <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: Math.min(tp.xp % 100, 100) + '%' }"></div>
+              <div
+                class="progress-fill"
+                :style="{ '--progress-width': Math.min(tp.xp % 100, 100) + '%' }"
+              ></div>
             </div>
             <div class="xp-next-level">
               <span v-if="tp.level < 5">
@@ -324,59 +327,65 @@ function getSourceUrl(url) {
           <h2>Quiz #{{ selectedQuizDetails.id }} Detailed Report</h2>
           <button @click="selectedQuizDetails = null" class="button-text">✕ Close</button>
         </div>
-        <div class="meta-row">
-          <p class="meta">
-            Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
-            {{ selectedQuizDetails.difficulty }} | Score: +{{ selectedQuizDetails.total_score }} XP
-          </p>
-          <button
-            @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
-            class="button button-accent button-sm"
-          >
-            Retake Quiz 🔄
-          </button>
-        </div>
 
-        <div class="results-list">
-          <div
-            v-for="q in selectedQuizDetails.questions"
-            :key="q.question_id"
-            :class="['result-item', q.is_correct ? 'correct' : 'incorrect']"
-          >
-            <span class="status-icon">{{ q.is_correct ? '✅' : '❌' }}</span>
-            <div class="result-details">
-              <p class="question-title">
-                <strong>Q{{ q.position }}: {{ q.question_text }}</strong>
-              </p>
+        <div class="modal-body">
+          <div class="meta-row">
+            <p class="meta">
+              Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
+              {{ selectedQuizDetails.difficulty }} | Score: +{{
+                selectedQuizDetails.total_score
+              }}
+              XP
+            </p>
+            <button
+              @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
+              class="button button-accent button-sm"
+            >
+              Retake Quiz 🔄
+            </button>
+          </div>
 
-              <div class="answers-comparison">
-                <p>
-                  <strong>Your Answer:</strong>
-                  <span :class="q.is_correct ? 'text-success' : 'text-danger'">
-                    {{ getUserAnswerText(q) }}
+          <div class="results-list">
+            <div
+              v-for="q in selectedQuizDetails.questions"
+              :key="q.question_id"
+              :class="['result-item', q.is_correct ? 'correct' : 'incorrect']"
+            >
+              <span class="status-icon">{{ q.is_correct ? '✅' : '❌' }}</span>
+              <div class="result-details">
+                <p class="question-title">
+                  <strong>Q{{ q.position }}: {{ q.question_text }}</strong>
+                </p>
+
+                <div class="answers-comparison">
+                  <p>
+                    <strong>Your Answer:</strong>
+                    <span :class="q.is_correct ? 'text-success' : 'text-danger'">
+                      {{ getUserAnswerText(q) }}
+                    </span>
+                  </p>
+                  <p v-if="!q.is_correct" class="correct-answer-line">
+                    <strong>Correct Answer:</strong>
+                    <span class="text-success">{{ getCorrectAnswerText(q) }}</span>
+                  </p>
+                </div>
+
+                <!-- Hyperlinked Source(s) -->
+                <div v-if="q.sources && q.sources.length > 0" class="source-container">
+                  <span class="source-label">📖 Reference Source:</span>
+                  <span v-for="src in q.sources" :key="src.id || src.source_text">
+                    <a
+                      v-if="src.url"
+                      :href="getSourceUrl(src.url)"
+                      target="_blank"
+                      rel="noopener"
+                      class="source-link"
+                    >
+                      {{ src.source_text }} ↗
+                    </a>
+                    <span v-else class="source-text">{{ src.source_text }}</span>
                   </span>
-                </p>
-                <p v-if="!q.is_correct" class="correct-answer-line">
-                  <strong>Correct Answer:</strong>
-                  <span class="text-success">{{ getCorrectAnswerText(q) }}</span>
-                </p>
-              </div>
-
-              <!-- Hyperlinked Source(s) -->
-              <div v-if="q.sources && q.sources.length > 0" class="source-container">
-                <span class="source-label">📖 Reference Source:</span>
-                <span v-for="src in q.sources" :key="src.id || src.source_text">
-                  <a
-                    v-if="src.url"
-                    :href="getSourceUrl(src.url)"
-                    target="_blank"
-                    rel="noopener"
-                    class="source-link"
-                  >
-                    {{ src.source_text }} ↗
-                  </a>
-                  <span v-else class="source-text">{{ src.source_text }}</span>
-                </span>
+                </div>
               </div>
             </div>
           </div>
@@ -404,68 +413,70 @@ function getSourceUrl(url) {
           <button @click="showLevelModal = false" class="button-text">✕ Close</button>
         </div>
 
-        <p class="heading-description">
-          Earn XP by completing quizzes. Every 100 XP unlocks the next Level tier, granting access
-          to higher difficulty questions and platform rewards.
-        </p>
+        <div class="modal-body">
+          <p class="heading-description">
+            Earn XP by completing quizzes. Every 100 XP unlocks the next Level tier, granting access
+            to higher difficulty questions and platform rewards.
+          </p>
 
-        <!-- Visual Step Diagram -->
-        <div class="level-diagram-container">
-          <h3>Visual Progression Roadmap</h3>
-          <div class="level-stepper">
-            <div
-              v-for="item in levelDefinitions"
-              :key="item.level"
-              :class="[
-                'step-card',
-                {
-                  active: overallLevel === item.level,
-                  completed: overallLevel > item.level,
-                  locked: overallLevel < item.level,
-                },
-              ]"
-            >
-              <div class="step-badge-icon">
-                {{ overallLevel > item.level ? '✅' : overallLevel === item.level ? '⭐' : '🔒' }}
-              </div>
-              <div class="step-level-num">Level {{ item.level }}</div>
-              <div class="step-xp-range">{{ item.xpRange }}</div>
-              <div class="step-status">
-                {{
-                  overallLevel > item.level
-                    ? 'Mastered'
-                    : overallLevel === item.level
-                      ? 'Current Level'
-                      : 'Locked'
-                }}
+          <!-- Visual Step Diagram -->
+          <div class="level-diagram-container">
+            <h3>Visual Progression Roadmap</h3>
+            <div class="level-stepper">
+              <div
+                v-for="item in levelDefinitions"
+                :key="item.level"
+                :class="[
+                  'step-card',
+                  {
+                    active: overallLevel === item.level,
+                    completed: overallLevel > item.level,
+                    locked: overallLevel < item.level,
+                  },
+                ]"
+              >
+                <div class="step-badge-icon">
+                  {{ overallLevel > item.level ? '✅' : overallLevel === item.level ? '⭐' : '🔒' }}
+                </div>
+                <div class="step-level-num">Level {{ item.level }}</div>
+                <div class="step-xp-range">{{ item.xpRange }}</div>
+                <div class="step-status">
+                  {{
+                    overallLevel > item.level
+                      ? 'Mastered'
+                      : overallLevel === item.level
+                        ? 'Current Level'
+                        : 'Locked'
+                  }}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Detailed Level Rewards Breakdown -->
-        <div class="level-table-container">
-          <h3>Level Tiers, Unlocks & Rewards</h3>
-          <div class="level-cards-grid">
-            <div
-              v-for="item in levelDefinitions"
-              :key="item.level"
-              :class="[
-                'level-info-card',
-                { active: overallLevel === item.level, locked: overallLevel < item.level },
-              ]"
-            >
-              <div class="level-card-header">
-                <div>
-                  <span class="badge">Level {{ item.level }}</span>
-                  <strong class="level-name">{{ item.name }}</strong>
+          <!-- Detailed Level Rewards Breakdown -->
+          <div class="level-table-container">
+            <h3>Level Tiers, Unlocks & Rewards</h3>
+            <div class="level-cards-grid">
+              <div
+                v-for="item in levelDefinitions"
+                :key="item.level"
+                :class="[
+                  'level-info-card',
+                  { active: overallLevel === item.level, locked: overallLevel < item.level },
+                ]"
+              >
+                <div class="level-card-header">
+                  <div>
+                    <span class="badge">Level {{ item.level }}</span>
+                    <strong class="level-name">{{ item.name }}</strong>
+                  </div>
+                  <span class="badge-tag">{{ item.badge }}</span>
                 </div>
-                <span class="badge-tag">{{ item.badge }}</span>
-              </div>
-              <p class="xp-range-info">⚡ {{ item.xpRange }} required</p>
-              <div class="unlocks-list">
-                <p>🎯 <strong>Quiz Access:</strong> {{ item.quizAccess }}</p>
-                <p>🎁 <strong>Benefits & Rewards:</strong> {{ item.benefits }}</p>
+                <p class="xp-range-info">⚡ {{ item.xpRange }} required</p>
+                <div class="unlocks-list">
+                  <p>🎯 <strong>Quiz Access:</strong> {{ item.quizAccess }}</p>
+                  <p>🎁 <strong>Benefits & Rewards:</strong> {{ item.benefits }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -498,402 +509,3 @@ function getSourceUrl(url) {
     </div>
   </div>
 </template>
-
-<style scoped>
-.profile-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.profile-card,
-.login-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
-}
-.user-header {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-}
-.user-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.avatar-large {
-  width: 60px;
-  height: 60px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 1.75rem;
-  font-weight: bold;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.level-pill-button {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #93c5fd;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.level-pill-button:hover {
-  background: #dbeafe;
-}
-.level-chip-clickable {
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.level-chip-clickable:hover {
-  background: #e5e7eb;
-}
-.overall-xp-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.xp-header-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.95rem;
-}
-.xp-title {
-  font-weight: 600;
-  color: #334155;
-}
-.xp-value {
-  color: #64748b;
-}
-.progress-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-}
-.stat-card {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-}
-.stat-card.clickable {
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.stat-card.clickable:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-.stat-card .value {
-  font-size: 1.75rem;
-  font-weight: bold;
-  color: #2563eb;
-  display: block;
-}
-.stat-card .label {
-  font-size: 0.85rem;
-  color: #6b7280;
-}
-.progress-bar {
-  background: #e5e7eb;
-  height: 10px;
-  border-radius: 5px;
-  overflow: hidden;
-  margin-top: 0.4rem;
-}
-.progress-bar.lg {
-  height: 14px;
-  border-radius: 7px;
-}
-.progress-fill {
-  background: #2563eb;
-  height: 100%;
-  transition: width 0.3s ease;
-}
-.tp-item {
-  margin-bottom: 1.25rem;
-}
-.tp-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.95rem;
-}
-.tp-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.xp-next-level {
-  font-size: 0.8rem;
-  color: #6b7280;
-  margin-top: 0.25rem;
-}
-.table-container {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow-x: auto;
-}
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-.data-table th,
-.data-table td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 0.95rem;
-}
-.data-table th {
-  background: #f9fafb;
-  font-weight: 600;
-}
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-width: 400px;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.form-group input {
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-}
-.error-banner {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 0.75rem;
-  border-radius: 6px;
-}
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-.modal-content {
-  background: #fff;
-  border-radius: 12px;
-  padding: 2rem;
-  max-width: 650px;
-  width: 90%;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-.modal-content.large {
-  max-width: 800px;
-}
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 0.5rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #f3f4f6;
-}
-.button-sm {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
-}
-.results-list {
-  margin-top: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.result-item {
-  display: flex;
-  gap: 0.85rem;
-  padding: 1rem;
-  border-radius: 8px;
-}
-.result-item.correct {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-}
-.result-item.incorrect {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-}
-.result-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  width: 100%;
-}
-.answers-comparison {
-  margin-top: 0.25rem;
-  font-size: 0.95rem;
-}
-.text-success {
-  color: #15803d;
-  font-weight: 600;
-}
-.text-danger {
-  color: #b91c1c;
-}
-.correct-answer-line {
-  margin-top: 0.2rem;
-}
-.source-container {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-  background: rgba(255, 255, 255, 0.7);
-  padding: 0.4rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
-}
-.source-link {
-  color: #2563eb;
-  text-decoration: underline;
-  margin-left: 0.4rem;
-}
-.source-text {
-  color: #4b5563;
-  margin-left: 0.4rem;
-}
-.modal-footer {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  border-top: 1px solid #f3f4f6;
-  padding-top: 1rem;
-}
-
-/* Level Diagram Styling */
-.level-diagram-container {
-  margin: 1.5rem 0;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 1.25rem;
-  border-radius: 10px;
-}
-.level-stepper {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-.step-card {
-  background: #ffffff;
-  border: 2px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 0.85rem;
-  text-align: center;
-  transition: all 0.2s;
-}
-.step-card.active {
-  border-color: #2563eb;
-  background: #eff6ff;
-  box-shadow: 0 0 0 1px #2563eb;
-}
-.step-card.completed {
-  border-color: #22c55e;
-  background: #f0fdf4;
-}
-.step-card.locked {
-  opacity: 0.7;
-}
-.step-badge-icon {
-  font-size: 1.25rem;
-}
-.step-level-num {
-  font-weight: bold;
-  font-size: 0.95rem;
-  margin-top: 0.2rem;
-}
-.step-xp-range {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-.step-status {
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-top: 0.4rem;
-  color: #334155;
-}
-.level-table-container {
-  margin-top: 1.5rem;
-}
-.level-cards-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  margin-top: 0.75rem;
-}
-.level-info-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 1rem;
-}
-.level-info-card.active {
-  border-color: #3b82f6;
-  background: #f0f9ff;
-}
-.level-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.level-name {
-  font-size: 1.05rem;
-  margin-left: 0.5rem;
-}
-.badge-tag {
-  background: #f1f5f9;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-.xp-range-info {
-  font-size: 0.85rem;
-  color: #64748b;
-  margin: 0.3rem 0 0.6rem 0;
-}
-.unlocks-list p {
-  font-size: 0.9rem;
-  margin: 0.25rem 0;
-  color: #334155;
-}
-</style>

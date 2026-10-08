@@ -120,29 +120,3 @@ const steps = [
     <RouterLink to="/profile" class="button button-outline">Set up your profile ↗</RouterLink>
   </section>
 </template>
-
-<style scoped>
-.live-stats-bar {
-  display: flex;
-  gap: 1.5rem;
-  margin: 1rem 0 1.5rem 0;
-}
-.stat-box {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0.75rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-}
-.stat-box .num {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #2563eb;
-}
-.stat-box .lbl {
-  font-size: 0.8rem;
-  color: #6b7280;
-  text-transform: uppercase;
-}
-</style>

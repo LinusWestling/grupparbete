@@ -1,0 +1,117 @@
+/*
+ * SkillSwap — Component Stylesheet
+ * ------------------------------------------------------------
+ * Styling for reusable components (ApiExample, Greetings, WelcomeItem, etc.).
+ */
+
+.api-example {
+  margin-block: var(--space-8);
+}
+
+.api-example ul {
+  padding-left: var(--space-6);
+  list-style: disc;
+}
+
+.api-example li {
+  margin-block: var(--space-2);
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.greetings h1 {
+  font-weight: var(--font-weight-medium);
+  font-size: 2.6rem;
+  position: relative;
+  top: -10px;
+}
+
+.greetings h3 {
+  font-size: 1.2rem;
+}
+
+.greetings h1,
+.greetings h3 {
+  text-align: center;
+}
+
+@media (min-width: 64rem) {
+  .greetings h1,
+  .greetings h3 {
+    text-align: left;
+  }
+}
+
+.item {
+  margin-top: var(--space-8);
+  display: flex;
+  position: relative;
+}
+
+.details {
+  flex: 1;
+  margin-left: var(--space-4);
+}
+
+.item i {
+  display: flex;
+  place-items: center;
+  place-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--color-text);
+}
+
+.item h3 {
+  font-size: 1.2rem;
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-2);
+  color: var(--color-text);
+}
+
+@media (min-width: 64rem) {
+  .item {
+    margin-top: 0;
+    padding: var(--space-2) 0 var(--space-4) calc(var(--section-gap) / 2);
+  }
+
+  .item i {
+    top: calc(50% - 25px);
+    left: -26px;
+    position: absolute;
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    width: 50px;
+    height: 50px;
+  }
+
+  .item:before {
+    content: ' ';
+    border-left: var(--border-width) solid var(--color-border);
+    position: absolute;
+    left: 0;
+    bottom: calc(50% + 25px);
+    height: calc(50% - 25px);
+  }
+
+  .item:after {
+    content: ' ';
+    border-left: var(--border-width) solid var(--color-border);
+    position: absolute;
+    left: 0;
+    top: calc(50% + 25px);
+    height: calc(50% - 25px);
+  }
+
+  .item:first-of-type:before {
+    display: none;
+  }
+
+  .item:last-of-type:after {
+    display: none;
+  }
+}
