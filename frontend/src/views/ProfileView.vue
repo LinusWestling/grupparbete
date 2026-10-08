@@ -332,9 +332,7 @@ function getSourceUrl(url) {
           <div class="meta-row">
             <p class="meta">
               Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
-              {{ selectedQuizDetails.difficulty }} | Score: +{{
-                selectedQuizDetails.total_score
-              }}
+              {{ selectedQuizDetails.difficulty }} | Score: +{{ selectedQuizDetails.total_score }}
               XP
             </p>
             <button
