@@ -11,12 +11,28 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     { includeCorrect: false },
   )
 
+  let actualDifficulty = Number(difficulty)
+
   if (questions.length === 0 && topicId) {
-    // If no questions at specific difficulty level, fallback to any difficulty for that topic
-    questions = await questionService.getQuestions(
-      { topic_id: topicId, limit: limit },
-      { includeCorrect: false },
-    )
+    const availableLevels = await questionService.getAvailableDifficulties(topicId)
+
+    if (availableLevels.length > 0) {
+      actualDifficulty = availableLevels.reduce((closest, level) => {
+        const levelDistance = Math.abs(level - Number(difficulty))
+        const closestDistance = Math.abs(closest - Number(difficulty))
+
+        return levelDistance < closestDistance ? level : closest
+      })
+
+      questions = await questionService.getQuestions(
+        {
+          topic_id: topicId,
+          difficulty: actualDifficulty,
+          limit,
+        },
+        { includeCorrect: false },
+      )
+    }
   }
 
   if (questions.length === 0) {
@@ -33,7 +49,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     const [qResult] = await connection.execute(
       `INSERT INTO quizzes (user_id, topic_id, difficulty, total_cnt, status)
        VALUES (?, ?, ?, ?, 'in_progress')`,
-      [userId || null, topicId || questions[0].topic_id, Number(difficulty) || 1, questions.length],
+      [userId || null, topicId || questions[0].topic_id, actualDifficulty || 1, questions.length],
     )
     quizId = qResult.insertId
 
@@ -58,7 +74,8 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     quiz_id: quizId,
     topic_id: topicId || questions[0].topic_id,
     topic_name: questions[0].topic_name,
-    difficulty: Number(difficulty) || 1,
+    difficulty: actualDifficulty,
+    requested_difficulty: Number(difficulty),
     total_questions: questions.length,
     questions: questions.map((question) => ({
       ...question,
