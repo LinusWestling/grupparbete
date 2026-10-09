@@ -21,7 +21,7 @@ async function findByEmail(email) {
 }
 
 async function findById(id) {
-  const [users] = await db.execute('SELECT id, username, email FROM users WHERE id = ?', [id])
+  const [users] = await db.execute('SELECT id, username, email, role FROM users WHERE id = ?', [id])
 
   return users[0] || null
 }

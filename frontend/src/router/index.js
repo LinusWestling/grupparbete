@@ -1,11 +1,12 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { currentUser, isAdmin, loadCurrentUser } from '../services/auth'
 
 export const navigation = [
   { path: '/', label: 'Overview', icon: '◫' },
   { path: '/explore', label: 'Explore skills', icon: '⌕' },
-  { path: '/my-skills', label: 'My skills', icon: '✳' },
   { path: '/messages', label: 'Messages', icon: '◌' },
   { path: '/profile', label: 'Profile', icon: '◎' },
+  { path: '/admin/questions', label: 'Manage questions', icon: '✎', adminOnly: true },
 ]
 
 // Hash URLs support direct links and refreshes on static hosting.
@@ -25,11 +26,12 @@ const router = createRouter({
       meta: { title: 'Explore skills' },
     },
     {
-      path: '/my-skills',
-      name: 'my-skills',
+      path: '/admin/questions',
+      name: 'admin-questions',
       component: () => import('../views/MySkillsView.vue'),
-      meta: { title: 'My skills' },
+      meta: { title: 'Manage questions', requiresAdmin: true },
     },
+    { path: '/my-skills', redirect: '/admin/questions' },
     {
       path: '/messages',
       name: 'messages',
@@ -49,6 +51,12 @@ const router = createRouter({
     },
   ],
   scrollBehavior: () => ({ top: 0 }),
+})
+router.beforeEach(async (to) => {
+  if (!to.meta.requiresAdmin) return
+  await loadCurrentUser()
+  if (!currentUser.value) return { name: 'profile' }
+  if (!isAdmin.value) return { name: 'home' }
 })
 router.afterEach((to) => {
   document.title = `${to.meta.title} · SkillSwap`

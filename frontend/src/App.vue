@@ -1,6 +1,14 @@
 <script setup>
+import { computed, onMounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import { navigation } from './router'
+import { isAdmin, loadCurrentUser } from './services/auth'
+
+const visibleNavigation = computed(() =>
+  navigation.filter((item) => !item.adminOnly || isAdmin.value),
+)
+
+onMounted(loadCurrentUser)
 </script>
 <template>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -12,7 +20,7 @@ import { navigation } from './router'
       <p class="nav-label">YOUR WORKSPACE</p>
       <nav aria-label="Main navigation">
         <RouterLink
-          v-for="item in navigation"
+          v-for="item in visibleNavigation"
           :key="item.path"
           :to="item.path"
           class="nav-link"
@@ -25,7 +33,7 @@ import { navigation } from './router'
         <span class="note-symbol" aria-hidden="true">✳</span>
         <h3>Everyone has something to teach.</h3>
         <p>And something new to learn.</p>
-        <RouterLink to="/my-skills">Share your skills ↗</RouterLink>
+        <RouterLink to="/explore">Explore skills ↗</RouterLink>
       </div>
       <div class="sidebar-footer">
         <span class="status-dot"></span> A little exchange. A lot of possibility.
