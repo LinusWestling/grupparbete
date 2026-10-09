@@ -4,4 +4,4 @@
 
 ALTER TABLE users
   MODIFY COLUMN role ENUM('user', 'admin', 'organization') NOT NULL DEFAULT 'user',
-  ADD COLUMN is_public_prospect BOOLEAN NOT NULL DEFAULT FALSE;
+  ADD COLUMN is_public_prospect BOOLEAN NOT NULL DEFAULT TRUE;
