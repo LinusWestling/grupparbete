@@ -208,6 +208,16 @@ async function exitQuiz() {
 
     <!-- Active Quiz Playing View -->
     <div v-if="activeQuizSession && !quizResult" class="quiz-container">
+      <p
+        v-if="
+          activeQuizSession.requested_difficulty != null &&
+          activeQuizSession.requested_difficulty !== activeQuizSession.difficulty
+        "
+        role="status"
+      >
+        Nivå {{ activeQuizSession.requested_difficulty }} saknar frågor inom detta ämne. Quizet
+        använder nivå {{ activeQuizSession.difficulty }}.
+      </p>
       <div class="quiz-header">
         <div>
           <span class="badge">{{ activeTopicName }}</span>

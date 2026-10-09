@@ -201,6 +201,19 @@ async function deleteQuestion(id) {
   return result.affectedRows > 0
 }
 
+async function getAvailableDifficulties(topic_id) {
+  const [rows] = await pool.execute(
+    `SELECT DISTINCT difficulty_level
+    FROM questions
+    WHERE topic_id = ?
+      AND difficulty_level BETWEEN 1 AND 5
+    ORDER BY difficulty_level ASC`,
+    [topic_id],
+  )
+
+  return rows.map((row) => Number(row.difficulty_level))
+}
+
 module.exports = {
   getQuestions,
   getQuestionById,
@@ -208,4 +221,5 @@ module.exports = {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  getAvailableDifficulties,
 }
