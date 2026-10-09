@@ -75,7 +75,7 @@ function closeDetailsModal() {
         v-model="searchQuery"
         type="text"
         class="search-input"
-        placeholder="Search prospects by username or email..."
+        placeholder="Search prospects by username..."
         aria-label="Search prospects"
       />
       <div class="filter-group">
@@ -111,7 +111,6 @@ function closeDetailsModal() {
           </div>
           <div class="prospect-info">
             <span class="prospect-name">{{ p.username }}</span>
-            <span class="text-xs text-muted">{{ p.email }}</span>
           </div>
         </div>
 

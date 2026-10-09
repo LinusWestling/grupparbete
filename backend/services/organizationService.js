@@ -2,15 +2,15 @@ const pool = require('../database/pool')
 
 async function getProspects(filters = {}) {
   let sql = `
-    SELECT u.id, u.username, u.email, u.created_at
+    SELECT u.id, u.username, u.created_at
     FROM users u
     WHERE u.role = 'user' AND u.is_public_prospect = TRUE
   `
   const params = []
 
   if (filters.search) {
-    sql += ' AND (u.username LIKE ? OR u.email LIKE ?)'
-    params.push(`%${filters.search}%`, `%${filters.search}%`)
+    sql += ' AND u.username LIKE ?'
+    params.push(`%${filters.search}%`)
   }
 
   sql += ' ORDER BY u.created_at DESC'
@@ -66,7 +66,6 @@ async function getProspects(filters = {}) {
     return {
       id: p.id,
       username: p.username,
-      email: p.email,
       overall_level: overallLevel,
       total_xp: totalXp,
       total_answered: totalAnswered,
@@ -80,7 +79,7 @@ async function getProspects(filters = {}) {
 
 async function getProspectDetails(prospectId) {
   const [userRows] = await pool.query(
-    'SELECT id, username, email, role, is_public_prospect, created_at FROM users WHERE id = ?',
+    "SELECT id, username, role, is_public_prospect, created_at FROM users WHERE id = ? AND role = 'user'",
     [prospectId],
   )
 
@@ -123,7 +122,6 @@ async function getProspectDetails(prospectId) {
   return {
     id: prospect.id,
     username: prospect.username,
-    email: prospect.email,
     created_at: prospect.created_at,
     overall_level: overallLevel,
     total_xp: totalXp,
