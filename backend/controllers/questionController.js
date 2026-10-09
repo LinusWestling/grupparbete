@@ -17,7 +17,7 @@ async function getQuestions(req, res) {
 async function getQuestionById(req, res) {
   try {
     const question = await questionService.getQuestionById(req.params.id)
-    if (!question) {
+    if (!question || question.deleted_at) {
       return res.status(404).json({ status: 'error', message: 'Question not found' })
     }
     res.json({ status: 'success', data: question })

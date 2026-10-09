@@ -8,7 +8,7 @@ async function getAllTopics() {
       t.description, 
       COUNT(q.id) AS question_count
     FROM topics t
-    LEFT JOIN questions q ON t.id = q.topic_id
+    LEFT JOIN questions q ON t.id = q.topic_id AND q.deleted_at IS NULL
     GROUP BY t.id
     ORDER BY t.name ASC
   `
