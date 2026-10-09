@@ -2,28 +2,37 @@ import { createApiService } from './apiFactory.js'
 
 const { request } = createApiService('')
 
+// Drops empty filters so they aren't sent as e.g. "search=".
+function toQuery(params) {
+  const filled = Object.entries(params).filter(([, value]) => value !== '' && value != null)
+  const query = new URLSearchParams(filled).toString()
+  return query ? `?${query}` : ''
+}
+
 export const api = {
   // Topics
   getTopics: () => request('/topics'),
   getTopic: (id) => request(`/topics/${id}`),
 
-  // Questions (CRUD)
-  getQuestions: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
-    return request(`/questions${query ? `?${query}` : ''}`)
-  },
+  // Questions (public, without correct answers)
+  getQuestions: (params = {}) => request(`/questions${toQuery(params)}`),
+
+  // Admin question CRUD. Reads include correct answers and usage_count.
+  // Filters: topicId, type, difficulty, search.
+  getAdminQuestions: (params = {}) => request(`/admin/questions${toQuery(params)}`),
+  getAdminQuestion: (id) => request(`/admin/questions/${id}`),
   createQuestion: (questionData) =>
-    request('/questions', {
+    request('/admin/questions', {
       method: 'POST',
       body: JSON.stringify(questionData),
     }),
   updateQuestion: (id, questionData) =>
-    request(`/questions/${id}`, {
+    request(`/admin/questions/${id}`, {
       method: 'PUT',
       body: JSON.stringify(questionData),
     }),
   deleteQuestion: (id) =>
-    request(`/questions/${id}`, {
+    request(`/admin/questions/${id}`, {
       method: 'DELETE',
     }),
 
