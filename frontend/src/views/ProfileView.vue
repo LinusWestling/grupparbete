@@ -254,7 +254,7 @@ function getSourceUrl(url) {
             <div class="progress-bar">
               <div
                 class="progress-fill"
-                :style="{ '--progress-width': Math.min(tp.xp % 100, 100) + '%' }"
+                :style="{ '--progress-width': (tp.level >= 5 ? 100 : tp.xp % 100) + '%' }"
               ></div>
             </div>
             <div class="xp-next-level">
