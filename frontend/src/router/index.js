@@ -28,7 +28,7 @@ const router = createRouter({
     {
       path: '/admin/questions',
       name: 'admin-questions',
-      component: () => import('../views/MySkillsView.vue'),
+      component: () => import('../views/AdminQuestionsView.vue'),
       meta: { title: 'Manage questions', requiresAdmin: true },
     },
     { path: '/my-skills', redirect: '/admin/questions' },
