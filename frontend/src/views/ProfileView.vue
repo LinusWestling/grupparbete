@@ -116,6 +116,19 @@ async function handleLogin() {
   }
 }
 
+async function handlePrivacyToggle(event) {
+  const isChecked = event.target.checked
+  try {
+    await api.updateUserPrivacy(isChecked)
+    if (user.value) {
+      user.value.is_public_prospect = isChecked
+    }
+  } catch (err) {
+    alert('Failed to update privacy settings: ' + err.message)
+    event.target.checked = !isChecked
+  }
+}
+
 async function inspectQuizDetails(quizId) {
   try {
     selectedQuizDetails.value = await api.getQuizDetails(quizId)
@@ -190,6 +203,21 @@ function getSourceUrl(url) {
           </div>
           <p class="text-muted">{{ user.email }} • Role: {{ user.role }}</p>
         </div>
+      </div>
+
+      <!-- Prospect Privacy Setting -->
+      <div class="privacy-section">
+        <label class="privacy-toggle">
+          <input
+            type="checkbox"
+            :checked="!!user.is_public_prospect"
+            @change="handlePrivacyToggle($event)"
+          />
+          <span>Visible as public prospect candidate to organizations</span>
+        </label>
+        <p class="text-muted">
+          When enabled, organizations (e.g. gym owners, recruiters) can view your quiz mastery & accuracy statistics for candidate insights.
+        </p>
       </div>
 
       <!-- XP Progression Overview Bar -->

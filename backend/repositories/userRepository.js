@@ -21,13 +21,24 @@ async function findByEmail(email) {
 }
 
 async function findById(id) {
-  const [users] = await db.execute('SELECT id, username, email, role FROM users WHERE id = ?', [id])
+  const [users] = await db.execute(
+    'SELECT id, username, email, role, is_public_prospect FROM users WHERE id = ?',
+    [id],
+  )
 
   return users[0] || null
+}
+
+async function updateUserPrivacy(id, isPublicProspect) {
+  await db.execute('UPDATE users SET is_public_prospect = ? WHERE id = ?', [
+    isPublicProspect ? 1 : 0,
+    id,
+  ])
 }
 
 module.exports = {
   createUser,
   findByEmail,
   findById,
+  updateUserPrivacy,
 }

@@ -50,6 +50,16 @@ export const api = {
   // User & Stats
   getDashboardStats: () => request('/dashboard/stats'),
   getUserProgress: (userId) => request(userId ? `/users/${userId}/progress` : '/users/me/progress'),
+  updateUserPrivacy: (isPublicProspect) =>
+    request('/users/me/privacy', {
+      method: 'PUT',
+      body: JSON.stringify({ is_public_prospect: isPublicProspect }),
+    }),
+
+  // Organization Candidate Insights
+  getProspects: (search = '') =>
+    request(`/organization/prospects${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  getProspectDetails: (prospectId) => request(`/organization/prospects/${prospectId}`),
 
   // Auth
   login: (email, password) =>

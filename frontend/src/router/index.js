@@ -1,9 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { currentUser, isAdmin, loadCurrentUser } from '../services/auth'
+import { currentUser, isAdmin, isOrganization, loadCurrentUser } from '../services/auth'
 
 export const navigation = [
   { path: '/', label: 'Overview', icon: '◫' },
   { path: '/explore', label: 'Explore skills', icon: '⌕' },
+  { path: '/organization/prospects', label: 'Prospect Insights', icon: 'ϗ', orgOnly: true },
   { path: '/messages', label: 'Messages', icon: '◌' },
   { path: '/profile', label: 'Profile', icon: '◎' },
   { path: '/admin/questions', label: 'Manage questions', icon: '✎', adminOnly: true },
@@ -24,6 +25,12 @@ const router = createRouter({
       name: 'explore',
       component: () => import('../views/ExploreView.vue'),
       meta: { title: 'Explore skills' },
+    },
+    {
+      path: '/organization/prospects',
+      name: 'org-prospects',
+      component: () => import('../views/OrganizationView.vue'),
+      meta: { title: 'Prospect Insights', requiresOrg: true },
     },
     {
       path: '/admin/questions',
@@ -53,10 +60,16 @@ const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
 })
 router.beforeEach(async (to) => {
-  if (!to.meta.requiresAdmin) return
-  await loadCurrentUser()
-  if (!currentUser.value) return { name: 'profile' }
-  if (!isAdmin.value) return { name: 'home' }
+  if (to.meta.requiresAdmin) {
+    await loadCurrentUser()
+    if (!currentUser.value) return { name: 'profile' }
+    if (!isAdmin.value) return { name: 'home' }
+  }
+  if (to.meta.requiresOrg) {
+    await loadCurrentUser()
+    if (!currentUser.value) return { name: 'profile' }
+    if (!isOrganization.value) return { name: 'home' }
+  }
 })
 router.afterEach((to) => {
   document.title = `${to.meta.title} · SkillSwap`

@@ -85,6 +85,7 @@ const quizRoutes = require('./routes/quizRoutes')
 const userRoutes = require('./routes/userRoutes')
 const authRoutes = require('./routes/authRoutes')
 const exampleRoutes = require('./routes/exampleRoutes')
+const organizationRoutes = require('./routes/organizationRoutes')
 
 // Mount API routes
 app.use(exampleRoutes)
@@ -93,6 +94,7 @@ app.use(questionRoutes)
 app.use(quizRoutes)
 app.use(userRoutes)
 app.use(authRoutes)
+app.use(organizationRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'SkillSwap API Server Running' })
