@@ -1,10 +1,10 @@
 /*
- * SkillSwap — Question & Content Management Stylesheet
+ * SkillSwap — Admin question management
  * ------------------------------------------------------------
- * Styling for My Skills page and question creation form.
+ * Styling for the Manage questions page, its list and QuestionForm.
  */
 
-.my-skills-page {
+.admin-questions-page {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -48,7 +48,8 @@
 
 .form-group input,
 .form-group select,
-.form-group textarea {
+.form-group textarea,
+.answer-row input:not([type='radio']) {
   padding: var(--space-3);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
@@ -58,8 +59,10 @@
 }
 
 .form-section {
+  border: none;
   border-top: var(--border-width) solid var(--color-border);
-  padding-top: var(--space-4);
+  margin: 0;
+  padding: var(--space-4) 0 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -76,7 +79,71 @@
 }
 
 .question-col {
-  max-width: 350px;
+  max-width: 420px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+
+.form-section legend {
+  font-weight: var(--font-weight-semibold);
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+
+.form-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.align-start {
+  align-self: flex-start;
+}
+
+.field-errors {
+  margin: var(--space-2) 0 0 var(--space-5);
+  list-style: disc;
+}
+
+.correct-answer {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.data-table tr.is-editing td {
+  background: var(--color-surface-soft);
+}
+
+.delete-question-text {
+  margin: var(--space-3) 0;
+  font-style: italic;
+}
+
+.modal-content .form-actions {
+  margin-top: var(--space-5);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .button-icon {
@@ -104,4 +171,33 @@
 
 .button-danger:hover {
   opacity: 0.9;
+}
+
+.question-filters {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.question-search {
+  flex: 1;
+  min-width: 240px;
+}
+
+/* base.css gives every input/select width: 100%; undo that where it doesn't fit. */
+.question-filter {
+  width: auto;
+  flex: 0 1 180px;
+}
+
+.answer-row input[type='radio'] {
+  width: auto;
+  min-height: auto;
+  flex: none;
+  accent-color: var(--color-primary);
 }
