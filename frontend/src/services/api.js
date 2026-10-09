@@ -2,16 +2,24 @@ import { createApiService } from './apiFactory.js'
 
 const { request } = createApiService('')
 
+// Drops empty filters so they aren't sent as e.g. "search=".
+function toQuery(params) {
+  const filled = Object.entries(params).filter(([, value]) => value !== '' && value != null)
+  const query = new URLSearchParams(filled).toString()
+  return query ? `?${query}` : ''
+}
+
 export const api = {
   // Topics
   getTopics: () => request('/topics'),
   getTopic: (id) => request(`/topics/${id}`),
 
   // Questions (CRUD)
-  getQuestions: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
-    return request(`/questions${query ? `?${query}` : ''}`)
-  },
+  getQuestions: (params = {}) => request(`/questions${toQuery(params)}`),
+
+  // Admin: includes correct answers and usage_count. Filters: topicId, type, difficulty, search.
+  getAdminQuestions: (params = {}) => request(`/admin/questions${toQuery(params)}`),
+  getAdminQuestion: (id) => request(`/admin/questions/${id}`),
   createQuestion: (questionData) =>
     request('/questions', {
       method: 'POST',

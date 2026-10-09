@@ -30,7 +30,11 @@ export function createApiService(endpoint) {
     }
 
     if (!response.ok || data?.status === 'error') {
-      throw new Error(data?.message || `Request failed: ${response.status}`)
+      // status and errors (per-field validation messages) let forms show what went wrong.
+      throw Object.assign(new Error(data?.message || `Request failed: ${response.status}`), {
+        status: response.status,
+        errors: data?.errors || [],
+      })
     }
 
     return data?.data !== undefined ? data.data : data
