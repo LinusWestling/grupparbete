@@ -1,24 +1,19 @@
 /*
- * SkillSwap — Main stylesheet
+ * SkillSwap — Main Master Stylesheet
  * ------------------------------------------------------------
- * Importordningen är viktig:
- * 1. reset       → tar bort webbläsarens standardstyling
- * 2. variables   → definierar projektets design tokens
- * 3. base        → globala regler och hjälpklasser
- *
- * Lägg sedan komponentfiler efter dessa imports, exempelvis:
- * @import url("./components/button.css");
- * @import url("./components/card.css");
+ * Import order:
+ * 1. reset       → browser standard reset
+ * 2. variables   → central design tokens & CSS custom variables
+ * 3. base        → global layout rules, typography & base classes
+ * 4. dashboard   → app layout shell, header, sidebar, hero
+ * 5. view/comp   → modular feature stylesheets
  */
 
 @import url('./reset.css');
 @import url('./variables.css');
 @import url('./base.css');
-
-/*
- * Komponenter kan läggas här när projektet växer:
- *
- * @import url("./components/button.css");
- * @import url("./components/card.css");
- * @import url("./components/quiz.css");
- */
+@import url('./dashboard.css');
+@import url('./explore.css');
+@import url('./profile.css');
+@import url('./my-skills.css');
+@import url('./components.css');

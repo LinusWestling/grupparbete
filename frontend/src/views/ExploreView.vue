@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '../services/api'
+
+const route = useRoute()
 
 const topics = ref([])
 const loading = ref(true)
@@ -30,7 +33,23 @@ onMounted(async () => {
     } catch {
       loggedIn.value = false
     }
-    if (loggedIn.value) unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
+    if (loggedIn.value) {
+      try {
+        unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
+      } catch (err) {
+        console.error('Failed to load unfinished quizzes:', err)
+      }
+    }
+
+    // Handle retake quiz auto-start from route query params
+    if (route.query.topicId && route.query.difficulty) {
+      const diffNum = Number(route.query.difficulty)
+      if (diffNum >= 1 && diffNum <= 5) selectedDifficulty.value = diffNum
+      const targetTopic = topics.value.find((t) => t.id === Number(route.query.topicId))
+      if (targetTopic && route.query.autoStart === 'true' && loggedIn.value) {
+        await startQuizSession(targetTopic)
+      }
+    }
   } catch (err) {
     console.error('Failed to load topics:', err)
     error.value = 'Failed to load topics from database backend: ' + err.message
@@ -422,194 +441,3 @@ async function exitQuiz() {
     </div>
   </div>
 </template>
-
-<style scoped>
-.explore-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.difficulty-bar {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.diff-label {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.95rem;
-}
-.difficulty-options {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-.diff-btn {
-  padding: 0.6rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.diff-btn.active {
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-weight: 600;
-  box-shadow: 0 0 0 1px #2563eb;
-}
-.diff-desc {
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: normal;
-}
-.error-banner {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 1rem;
-  border-radius: 8px;
-  font-weight: 500;
-}
-.topics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-.topic-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.5rem;
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.topic-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.chip {
-  background: #f3f4f6;
-  color: #374151;
-  font-size: 0.85rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  font-weight: 500;
-}
-.margin-left {
-  margin-left: 0.5rem;
-}
-.quiz-container {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.quiz-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #f3f4f6;
-  padding-bottom: 1rem;
-}
-.question-card h2 {
-  margin: 0.5rem 0 1.5rem 0;
-  font-size: 1.35rem;
-}
-.options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-}
-.option-button {
-  padding: 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fff;
-  text-align: left;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.option-button:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
-}
-.option-button.selected {
-  border-color: #2563eb;
-  background: #dbeafe;
-  font-weight: 600;
-}
-.free-text-box {
-  margin: 1rem 0;
-}
-.text-input {
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.1rem;
-  border: 2px solid #3b82f6;
-  border-radius: 8px;
-}
-.quiz-nav {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid #f3f4f6;
-  padding-top: 1rem;
-}
-.source-box {
-  margin-top: 1.5rem;
-  font-size: 0.9rem;
-  background: #f9fafb;
-  padding: 0.75rem;
-  border-radius: 6px;
-}
-.results-card {
-  background: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  text-align: center;
-}
-.score-summary {
-  display: flex;
-  justify-content: center;
-  gap: 3rem;
-  margin: 1.5rem 0;
-}
-.stat-value {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #2563eb;
-  display: block;
-}
-.result-item {
-  display: flex;
-  gap: 1rem;
-  text-align: left;
-  padding: 0.75rem;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-}
-.result-item.correct {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-}
-.result-item.incorrect {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-}
-</style>
