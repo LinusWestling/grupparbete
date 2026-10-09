@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
+import { loadCurrentUser } from '../services/auth'
 
 const router = useRouter()
 
@@ -89,7 +90,7 @@ onMounted(async () => {
 async function loadUserData() {
   try {
     loading.value = true
-    user.value = await api.getMe()
+    user.value = await loadCurrentUser({ force: true })
     if (user.value) {
       const [progData, histData] = await Promise.all([
         api.getUserProgress(user.value.id),

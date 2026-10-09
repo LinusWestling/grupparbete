@@ -23,9 +23,9 @@ const steps = [
   {
     number: '01',
     title: 'Bring what you know',
-    description: 'Add custom quiz questions to our live MySQL database directly.',
-    path: '/my-skills',
-    action: 'Add a skill',
+    description: 'Take a quiz to find out how much you already know.',
+    path: '/explore',
+    action: 'Test yourself',
   },
   {
     number: '02',
