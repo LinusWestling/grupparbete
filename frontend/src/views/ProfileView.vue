@@ -216,7 +216,8 @@ function getSourceUrl(url) {
           <span>Visible as public prospect candidate to organizations</span>
         </label>
         <p class="text-muted">
-          When enabled, organizations (e.g. gym owners, recruiters) can view your quiz mastery & accuracy statistics for candidate insights.
+          When enabled, organizations (e.g. gym owners, recruiters) can view your quiz mastery &
+          accuracy statistics for candidate insights.
         </p>
       </div>
 

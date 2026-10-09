@@ -63,7 +63,8 @@ function closeDetailsModal() {
         <p class="eyebrow">ORGANIZATION RECRUITMENT & PROSPECT INSIGHTS</p>
         <h1>Candidate Knowledge Overview</h1>
         <p class="heading-description">
-          Inspect quiz performance, topic mastery levels, and detailed test history of candidates (prospects) to evaluate theoretical knowledge.
+          Inspect quiz performance, topic mastery levels, and detailed test history of candidates
+          (prospects) to evaluate theoretical knowledge.
         </p>
       </div>
     </div>
@@ -91,14 +92,10 @@ function closeDetailsModal() {
     </div>
 
     <!-- Error Banner -->
-    <div v-if="error" class="error-banner">
-      ⚠️ {{ error }}
-    </div>
+    <div v-if="error" class="error-banner">⚠️ {{ error }}</div>
 
     <!-- Loading Indicator -->
-    <div v-if="loading" class="text-muted text-center">
-      Loading prospect candidates...
-    </div>
+    <div v-if="loading" class="text-muted text-center">Loading prospect candidates...</div>
 
     <!-- Empty State -->
     <div v-else-if="filteredProspects.length === 0" class="empty-state">
@@ -134,19 +131,12 @@ function closeDetailsModal() {
         </div>
 
         <div v-if="p.topic_progress && p.topic_progress.length > 0" class="topic-pills">
-          <span
-            v-for="tp in p.topic_progress"
-            :key="tp.topic_id"
-            class="topic-pill"
-          >
+          <span v-for="tp in p.topic_progress" :key="tp.topic_id" class="topic-pill">
             {{ tp.topic_name }}: ⭐ Lvl {{ tp.level }}
           </span>
         </div>
 
-        <button
-          @click="inspectProspect(p.id)"
-          class="button button-outline button-sm"
-        >
+        <button @click="inspectProspect(p.id)" class="button button-outline button-sm">
           Inspect Full Report ↗
         </button>
       </div>
@@ -231,7 +221,9 @@ function closeDetailsModal() {
                     <td>
                       <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
                       <span class="text-muted">
-                        ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
+                        ({{
+                          q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0
+                        }}%)
                       </span>
                     </td>
                     <td>{{ new Date(q.completed_at).toLocaleString() }}</td>
@@ -244,9 +236,7 @@ function closeDetailsModal() {
         </div>
 
         <div class="modal-footer">
-          <button @click="closeDetailsModal" class="button button-outline">
-            Close Report
-          </button>
+          <button @click="closeDetailsModal" class="button button-outline">Close Report</button>
         </div>
       </div>
     </div>
