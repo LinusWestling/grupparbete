@@ -2,7 +2,9 @@ const pool = require('../database/pool')
 
 async function getDashboardStats() {
   const [[topics]] = await pool.query('SELECT COUNT(*) AS total FROM topics')
-  const [[questions]] = await pool.query('SELECT COUNT(*) AS total FROM questions')
+  const [[questions]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM questions WHERE deleted_at IS NULL',
+  )
   const [[answers]] = await pool.query('SELECT COUNT(*) AS total FROM user_answers')
 
   return {

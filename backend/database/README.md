@@ -13,6 +13,12 @@ navigation away from that answer; text still being typed has not yet been saved.
 Explore lists unfinished quizzes for the logged-in account. Final submission
 grades saved answers and awards XP once; saving and skipping do not award XP.
 
+Questions are soft deleted. Migration `008_question_soft_delete.sql` adds
+`questions.deleted_at`; DELETE sets it instead of removing the row, because a hard
+delete cascades into `quiz_questions` and `user_answers` and rewrites completed
+quiz history. Deleted questions are excluded from listings, counts and new
+quizzes, but still load in quiz history and already started quizzes.
+
 Run migrations with `npm run migrate`. Uses the same environment variables and
 Aiven CA certificate as the backend. Local development reads `backend/.env`.
 

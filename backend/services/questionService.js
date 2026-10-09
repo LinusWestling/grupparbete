@@ -22,7 +22,7 @@ async function getQuestions(filters = {}, options = {}) {
       q.created_at
     FROM questions q
     JOIN topics t ON q.topic_id = t.id
-    WHERE 1=1
+    WHERE q.deleted_at IS NULL
   `
   const params = []
 
@@ -87,6 +87,7 @@ async function getQuestions(filters = {}, options = {}) {
   return questions
 }
 
+// Also returns soft-deleted questions, so quiz history and started quizzes still load.
 async function getQuestionById(id, options = {}) {
   const { includeCorrect = false } = options
   const [rows] = await pool.query('SELECT * FROM questions WHERE id = ?', [id])
@@ -166,7 +167,7 @@ async function updateQuestion(id, data) {
     const [result] = await connection.execute(
       `UPDATE questions 
        SET topic_id = ?, question_type = ?, question_text = ?, difficulty_level = ?
-       WHERE id = ?`,
+       WHERE id = ? AND deleted_at IS NULL`,
       [data.topic_id, data.question_type, data.question_text, data.difficulty_level, id],
     )
 
@@ -196,8 +197,12 @@ async function updateQuestion(id, data) {
   return await getQuestionById(id, { includeCorrect: true })
 }
 
+// Soft delete: completed quizzes still reference the question and its answers.
 async function deleteQuestion(id) {
-  const [result] = await pool.execute('DELETE FROM questions WHERE id = ?', [id])
+  const [result] = await pool.execute(
+    'UPDATE questions SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL',
+    [id],
+  )
   return result.affectedRows > 0
 }
 
@@ -206,6 +211,7 @@ async function getAvailableDifficulties(topic_id) {
     `SELECT DISTINCT difficulty_level
     FROM questions
     WHERE topic_id = ?
+      AND deleted_at IS NULL
       AND difficulty_level BETWEEN 1 AND 5
     ORDER BY difficulty_level ASC`,
     [topic_id],
