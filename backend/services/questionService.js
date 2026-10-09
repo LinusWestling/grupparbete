@@ -192,6 +192,17 @@ async function createQuestion(data) {
   return await getQuestionById(questionId, { includeCorrect: true })
 }
 
+async function isAnyAnswerChosen(connection, answerIds) {
+  if (answerIds.length === 0) return false
+  const [[{ chosen }]] = await connection.query(
+    `SELECT
+       (SELECT COUNT(*) FROM quiz_questions WHERE chosen_answer_id IN (?)) +
+       (SELECT COUNT(*) FROM user_answers WHERE answer_id IN (?)) AS chosen`,
+    [answerIds, answerIds],
+  )
+  return chosen > 0
+}
+
 // Expects data already checked by questionValidation. Answers are updated in
 // place by id, so quiz history that points at an answer keeps pointing at it.
 // Answers sent without an id are added; existing answers left out are removed.
@@ -222,28 +233,33 @@ async function updateQuestion(id, data) {
     }
 
     const [existingRows] = await connection.execute(
-      'SELECT id FROM answers WHERE question_id = ?',
+      'SELECT id, is_correct FROM answers WHERE question_id = ?',
       [id],
     )
-    const existingIds = new Set(existingRows.map((row) => row.id))
+    const existingCorrect = new Map(existingRows.map((row) => [row.id, Boolean(row.is_correct)]))
     const keptIds = new Set()
+    const correctnessChangedIds = []
     for (const ans of data.answers) {
       if (ans.id === null) continue
-      if (!existingIds.has(ans.id)) {
+      if (!existingCorrect.has(ans.id)) {
         throw httpError(400, `Answer ${ans.id} does not belong to this question`)
       }
       keptIds.add(ans.id)
+      if (existingCorrect.get(ans.id) !== ans.is_correct) correctnessChangedIds.push(ans.id)
     }
 
-    const removedIds = [...existingIds].filter((answerId) => !keptIds.has(answerId))
-    if (removedIds.length > 0) {
-      const [[{ chosen }]] = await connection.query(
-        `SELECT
-           (SELECT COUNT(*) FROM quiz_questions WHERE chosen_answer_id IN (?)) +
-           (SELECT COUNT(*) FROM user_answers WHERE answer_id IN (?)) AS chosen`,
-        [removedIds, removedIds],
+    // Results are stored per attempt, so a chosen answer's correctness must not
+    // change or history and in-progress grading would disagree with the key.
+    if (await isAnyAnswerChosen(connection, correctnessChangedIds)) {
+      throw httpError(
+        409,
+        'An answer whose correctness you changed has been chosen in quizzes. Delete the question and create a new one instead.',
       )
-      if (chosen > 0) {
+    }
+
+    const removedIds = [...existingCorrect.keys()].filter((answerId) => !keptIds.has(answerId))
+    if (removedIds.length > 0) {
+      if (await isAnyAnswerChosen(connection, removedIds)) {
         throw httpError(
           409,
           'An answer you removed has been chosen in quizzes. Edit its text instead of removing it.',

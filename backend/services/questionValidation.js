@@ -61,13 +61,17 @@ function validateAnswers(type, answers, errors) {
       errors.push(`Multiple choice needs 2-${MAX_ANSWERS} answers`)
     }
     if (correctCount !== 1) errors.push('Multiple choice needs exactly one correct answer')
-    const texts = cleaned.map((a) => a.answer_text.toLowerCase()).filter(Boolean)
-    if (new Set(texts).size !== texts.length) errors.push('Answers must be different')
   } else if (type === 'yes_no') {
     if (cleaned.length !== 2) errors.push('Yes/no needs exactly two answers')
     if (correctCount !== 1) errors.push('Yes/no needs exactly one correct answer')
   } else if (type === 'free_text') {
     if (cleaned.length !== 1) errors.push('Free text needs exactly one model answer')
+  }
+
+  // Players pick between these options, so two with the same text make no sense.
+  if (type !== 'free_text') {
+    const texts = cleaned.map((a) => a.answer_text.toLowerCase()).filter(Boolean)
+    if (new Set(texts).size !== texts.length) errors.push('Answers must be different')
   }
 
   const ids = cleaned.map((a) => a.id).filter(Boolean)

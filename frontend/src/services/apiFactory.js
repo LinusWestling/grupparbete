@@ -26,7 +26,10 @@ export function createApiService(endpoint) {
     try {
       data = text ? JSON.parse(text) : null
     } catch {
-      throw new Error(`API returned a non-JSON response: ${response.status}`)
+      throw Object.assign(new Error(`API returned a non-JSON response: ${response.status}`), {
+        status: response.status,
+        errors: [],
+      })
     }
 
     if (!response.ok || data?.status === 'error') {
