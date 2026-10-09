@@ -28,4 +28,23 @@ async function requireAdmin(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, requireAdmin }
+async function requireOrganization(req, res, next) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+  }
+
+  try {
+    const user = await userRepository.findById(req.session.userId)
+    if (!user) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    }
+    if (user.role !== 'organization' && user.role !== 'admin') {
+      return res.status(403).json({ status: 'error', message: 'Organization access required' })
+    }
+    next()
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message })
+  }
+}
+
+module.exports = { requireAuth, requireAdmin, requireOrganization }

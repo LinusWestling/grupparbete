@@ -2,10 +2,12 @@
 import { computed, onMounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import { navigation } from './router'
-import { isAdmin, loadCurrentUser } from './services/auth'
+import { isAdmin, isOrganization, loadCurrentUser } from './services/auth'
 
 const visibleNavigation = computed(() =>
-  navigation.filter((item) => !item.adminOnly || isAdmin.value),
+  navigation.filter(
+    (item) => (!item.adminOnly || isAdmin.value) && (!item.orgOnly || isOrganization.value),
+  ),
 )
 
 onMounted(loadCurrentUser)

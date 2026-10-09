@@ -5,6 +5,9 @@ import { api } from './api'
 // This only hides UI; the backend enforces admin access on every request.
 export const currentUser = ref(null)
 export const isAdmin = computed(() => currentUser.value?.role === 'admin')
+export const isOrganization = computed(
+  () => currentUser.value?.role === 'organization' || currentUser.value?.role === 'admin',
+)
 
 let pending = null
 
