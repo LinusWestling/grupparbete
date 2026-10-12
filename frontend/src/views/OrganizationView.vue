@@ -54,6 +54,50 @@ async function inspectProspect(prospectId) {
 function closeDetailsModal() {
   selectedProspectDetails.value = null
 }
+
+const showCreateModal = ref(false)
+const newUsername = ref('')
+const newEmail = ref('')
+const newPassword = ref('')
+const newRole = ref('user')
+const createError = ref(null)
+const createSuccess = ref(null)
+const creating = ref(false)
+
+async function handleCreateUser() {
+  try {
+    creating.value = true
+    createError.value = null
+    createSuccess.value = null
+
+    if (newUsername.value.trim().length < 3) {
+      createError.value = 'Username must be at least 3 characters long.'
+      return
+    }
+    if (newPassword.value.length < 15) {
+      createError.value = 'Password must be at least 15 characters long.'
+      return
+    }
+
+    await api.register(
+      newUsername.value.trim(),
+      newEmail.value.trim(),
+      newPassword.value,
+      newRole.value,
+    )
+
+    createSuccess.value = 'User account created successfully!'
+    newUsername.value = ''
+    newEmail.value = ''
+    newPassword.value = ''
+    newRole.value = 'user'
+    await fetchProspects()
+  } catch (err) {
+    createError.value = 'Failed to create user: ' + err.message
+  } finally {
+    creating.value = false
+  }
+}
 </script>
 
 <template>
@@ -89,6 +133,12 @@ function closeDetailsModal() {
           <option :value="5">Level 5 (PT Master)</option>
         </select>
       </div>
+      <button
+        @click="showCreateModal = true"
+        class="button button-accent button-sm"
+      >
+        + Create New User / Candidate ✨
+      </button>
     </div>
 
     <!-- Error Banner -->
@@ -236,6 +286,66 @@ function closeDetailsModal() {
 
         <div class="modal-footer">
           <button @click="closeDetailsModal" class="button button-outline">Close Report</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Create New User / Candidate</h2>
+          <button @click="showCreateModal = false" class="button-text">✕ Close</button>
+        </div>
+
+        <div class="modal-body">
+          <div v-if="createError" class="error-banner">⚠️ {{ createError }}</div>
+          <div v-if="createSuccess" class="success-banner">✅ {{ createSuccess }}</div>
+
+          <form @submit.prevent="handleCreateUser" class="login-form">
+            <div class="form-group">
+              <label>Username:</label>
+              <input
+                type="text"
+                v-model="newUsername"
+                placeholder="e.g. candidate_user"
+                minlength="3"
+                maxlength="50"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Email Address:</label>
+              <input type="email" v-model="newEmail" placeholder="user@example.com" required />
+            </div>
+            <div class="form-group">
+              <label>Role:</label>
+              <select v-model="newRole" class="form-select">
+                <option value="user">Candidate / Regular User</option>
+                <option value="organization">Organization User</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Password:</label>
+              <input
+                type="password"
+                v-model="newPassword"
+                placeholder="Min 15 characters"
+                minlength="15"
+                required
+              />
+              <span class="form-help-text">Password must be at least 15 characters long.</span>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="button button-accent" :disabled="creating">
+                {{ creating ? 'Creating...' : 'Create Account ✨' }}
+              </button>
+              <button type="button" @click="showCreateModal = false" class="button button-outline">
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

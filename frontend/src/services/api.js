@@ -62,6 +62,11 @@ export const api = {
   getProspectDetails: (prospectId) => request(`/organization/prospects/${prospectId}`),
 
   // Auth
+  register: (username, email, password, role = 'user') =>
+    request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password, role }),
+    }),
   login: (email, password) =>
     request('/auth/login', {
       method: 'POST',
@@ -69,3 +74,4 @@ export const api = {
     }),
   getMe: () => request('/auth/me'),
 }
+

@@ -16,6 +16,15 @@ const loginEmail = ref('')
 const loginPassword = ref('')
 const loginError = ref(null)
 
+const authMode = ref('login')
+const regUsername = ref('')
+const regEmail = ref('')
+const regPassword = ref('')
+const regConfirmPassword = ref('')
+const regRole = ref('user')
+const regError = ref(null)
+const regSuccess = ref(null)
+
 const levelDefinitions = [
   {
     level: 1,
@@ -113,6 +122,39 @@ async function handleLogin() {
     await loadUserData()
   } catch (err) {
     loginError.value = 'Login failed: ' + err.message
+  }
+}
+
+async function handleRegister() {
+  try {
+    regError.value = null
+    regSuccess.value = null
+
+    if (regUsername.value.trim().length < 3) {
+      regError.value = 'Username must be at least 3 characters long.'
+      return
+    }
+    if (regPassword.value.length < 15) {
+      regError.value = 'Password must be at least 15 characters long.'
+      return
+    }
+    if (regPassword.value !== regConfirmPassword.value) {
+      regError.value = 'Passwords do not match.'
+      return
+    }
+
+    await api.register(
+      regUsername.value.trim(),
+      regEmail.value.trim(),
+      regPassword.value,
+      regRole.value,
+    )
+
+    regSuccess.value = 'Account created successfully! Logging you in...'
+    user.value = await api.login(regEmail.value.trim(), regPassword.value)
+    await loadUserData()
+  } catch (err) {
+    regError.value = 'Registration failed: ' + err.message
   }
 }
 
@@ -521,24 +563,101 @@ function getSourceUrl(url) {
       </div>
     </div>
 
-    <!-- Login form -->
+    <!-- Login / Registration form -->
     <div v-else class="login-card">
-      <h2>Log in to your account</h2>
-      <p class="text-muted">Log in to track your quiz history and progression.</p>
+      <div class="auth-tabs">
+        <button
+          type="button"
+          :class="['auth-tab-btn', { active: authMode === 'login' }]"
+          @click="authMode = 'login'"
+        >
+          Log In 🔑
+        </button>
+        <button
+          type="button"
+          :class="['auth-tab-btn', { active: authMode === 'register' }]"
+          @click="authMode = 'register'"
+        >
+          Create Account ✨
+        </button>
+      </div>
 
-      <div v-if="loginError" class="error-banner">⚠️ {{ loginError }}</div>
+      <!-- Login Form -->
+      <template v-if="authMode === 'login'">
+        <h2>Log in to your account</h2>
+        <p class="text-muted">Log in to track your quiz history and progression.</p>
 
-      <form @submit.prevent="handleLogin" class="login-form">
-        <div class="form-group">
-          <label>Email Address:</label>
-          <input type="email" v-model="loginEmail" placeholder="admin@skillswap.se" required />
-        </div>
-        <div class="form-group">
-          <label>Password:</label>
-          <input type="password" v-model="loginPassword" placeholder="••••••••" required />
-        </div>
-        <button type="submit" class="button button-accent">Log In 🔑</button>
-      </form>
+        <div v-if="loginError" class="error-banner">⚠️ {{ loginError }}</div>
+
+        <form @submit.prevent="handleLogin" class="login-form">
+          <div class="form-group">
+            <label>Email Address:</label>
+            <input type="email" v-model="loginEmail" placeholder="admin@skillswap.se" required />
+          </div>
+          <div class="form-group">
+            <label>Password:</label>
+            <input type="password" v-model="loginPassword" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="button button-accent">Log In 🔑</button>
+        </form>
+      </template>
+
+      <!-- Register Form -->
+      <template v-else>
+        <h2>Create a new account</h2>
+        <p class="text-muted">Register to save your quiz scores and track your skill progression.</p>
+
+        <div v-if="regError" class="error-banner">⚠️ {{ regError }}</div>
+        <div v-if="regSuccess" class="success-banner">✅ {{ regSuccess }}</div>
+
+        <form @submit.prevent="handleRegister" class="login-form">
+          <div class="form-group">
+            <label>Username:</label>
+            <input
+              type="text"
+              v-model="regUsername"
+              placeholder="e.g. johndoe"
+              minlength="3"
+              maxlength="50"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Email Address:</label>
+            <input type="email" v-model="regEmail" placeholder="john@example.com" required />
+          </div>
+          <div class="form-group">
+            <label>Account Role:</label>
+            <select v-model="regRole" class="form-select">
+              <option value="user">Candidate / Regular User</option>
+              <option value="organization">Organization (Recruiter / Gym)</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Password:</label>
+            <input
+              type="password"
+              v-model="regPassword"
+              placeholder="Min 15 characters"
+              minlength="15"
+              required
+            />
+            <span class="form-help-text">Password must be at least 15 characters long.</span>
+          </div>
+          <div class="form-group">
+            <label>Confirm Password:</label>
+            <input
+              type="password"
+              v-model="regConfirmPassword"
+              placeholder="Repeat password"
+              minlength="15"
+              required
+            />
+          </div>
+          <button type="submit" class="button button-accent">Register & Sign In ✨</button>
+        </form>
+      </template>
     </div>
   </div>
 </template>

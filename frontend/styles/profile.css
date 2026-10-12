@@ -513,3 +513,60 @@
   margin: var(--space-1) 0;
   color: var(--color-text);
 }
+
+/* Auth Tabs & Registration Form Styling */
+.auth-tabs {
+  display: flex;
+  gap: var(--space-2);
+  border-bottom: var(--border-width) solid var(--color-border);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.auth-tab-btn {
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.auth-tab-btn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-soft);
+}
+
+.auth-tab-btn.active {
+  color: var(--color-primary);
+  background: var(--color-surface-soft);
+  border: var(--border-width) solid var(--color-border);
+}
+
+.form-select {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.form-help-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+.success-banner {
+  background: var(--color-surface-soft);
+  color: var(--color-success-text);
+  border: var(--border-width) solid var(--color-success-text);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-4);
+}

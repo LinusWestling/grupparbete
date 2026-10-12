@@ -18,7 +18,7 @@ function createError(status, message) {
   return error
 }
 
-async function register({ username, email, password } = {}) {
+async function register({ username, email, password, role } = {}) {
   // Kontrollera att alla fält är text.
   if (typeof username !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
     throw createError(400, 'Användarnamn, e-post och lösenord krävs')
@@ -43,7 +43,7 @@ async function register({ username, email, password } = {}) {
   const passwordHash = await argon2.hash(password, hashOptions)
 
   try {
-    const id = await userRepository.createUser(cleanUsername, cleanEmail, passwordHash)
+    const id = await userRepository.createUser(cleanUsername, cleanEmail, passwordHash, role)
 
     return { id }
   } catch (error) {
