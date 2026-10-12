@@ -59,7 +59,6 @@ const showCreateModal = ref(false)
 const newUsername = ref('')
 const newEmail = ref('')
 const newPassword = ref('')
-const newRole = ref('user')
 const createError = ref(null)
 const createSuccess = ref(null)
 const creating = ref(false)
@@ -83,14 +82,12 @@ async function handleCreateUser() {
       newUsername.value.trim(),
       newEmail.value.trim(),
       newPassword.value,
-      newRole.value,
     )
 
-    createSuccess.value = 'User account created successfully!'
+    createSuccess.value = 'Candidate account created successfully!'
     newUsername.value = ''
     newEmail.value = ''
     newPassword.value = ''
-    newRole.value = 'user'
     await fetchProspects()
   } catch (err) {
     createError.value = 'Failed to create user: ' + err.message
@@ -317,14 +314,6 @@ async function handleCreateUser() {
             <div class="form-group">
               <label>Email Address:</label>
               <input type="email" v-model="newEmail" placeholder="user@example.com" required />
-            </div>
-            <div class="form-group">
-              <label>Role:</label>
-              <select v-model="newRole" class="form-select">
-                <option value="user">Candidate / Regular User</option>
-                <option value="organization">Organization User</option>
-                <option value="admin">Administrator</option>
-              </select>
             </div>
             <div class="form-group">
               <label>Password:</label>

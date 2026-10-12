@@ -2,13 +2,12 @@ const { promisify } = require('node:util')
 const authService = require('../services/authService')
 
 async function register(req, res) {
-  const { username, email, password, role } = req.body || {}
+  const { username, email, password } = req.body || {}
 
   const user = await authService.register({
     username,
     email,
     password,
-    role,
   })
 
   res.status(201).json({

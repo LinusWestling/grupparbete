@@ -21,7 +21,7 @@ const regUsername = ref('')
 const regEmail = ref('')
 const regPassword = ref('')
 const regConfirmPassword = ref('')
-const regRole = ref('user')
+const registering = ref(false)
 const regError = ref(null)
 const regSuccess = ref(null)
 
@@ -126,28 +126,30 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
+  if (registering.value) return
+
+  regError.value = null
+  regSuccess.value = null
+
+  if (regUsername.value.trim().length < 3) {
+    regError.value = 'Username must be at least 3 characters long.'
+    return
+  }
+  if (regPassword.value.length < 15) {
+    regError.value = 'Password must be at least 15 characters long.'
+    return
+  }
+  if (regPassword.value !== regConfirmPassword.value) {
+    regError.value = 'Passwords do not match.'
+    return
+  }
+
+  registering.value = true
   try {
-    regError.value = null
-    regSuccess.value = null
-
-    if (regUsername.value.trim().length < 3) {
-      regError.value = 'Username must be at least 3 characters long.'
-      return
-    }
-    if (regPassword.value.length < 15) {
-      regError.value = 'Password must be at least 15 characters long.'
-      return
-    }
-    if (regPassword.value !== regConfirmPassword.value) {
-      regError.value = 'Passwords do not match.'
-      return
-    }
-
     await api.register(
       regUsername.value.trim(),
       regEmail.value.trim(),
       regPassword.value,
-      regRole.value,
     )
 
     regSuccess.value = 'Account created successfully! Logging you in...'
@@ -155,6 +157,8 @@ async function handleRegister() {
     await loadUserData()
   } catch (err) {
     regError.value = 'Registration failed: ' + err.message
+  } finally {
+    registering.value = false
   }
 }
 
@@ -627,14 +631,6 @@ function getSourceUrl(url) {
             <input type="email" v-model="regEmail" placeholder="john@example.com" required />
           </div>
           <div class="form-group">
-            <label>Account Role:</label>
-            <select v-model="regRole" class="form-select">
-              <option value="user">Candidate / Regular User</option>
-              <option value="organization">Organization (Recruiter / Gym)</option>
-              <option value="admin">Administrator</option>
-            </select>
-          </div>
-          <div class="form-group">
             <label>Password:</label>
             <input
               type="password"
@@ -655,7 +651,9 @@ function getSourceUrl(url) {
               required
             />
           </div>
-          <button type="submit" class="button button-accent">Register & Sign In ✨</button>
+          <button type="submit" class="button button-accent" :disabled="registering">
+            {{ registering ? 'Registering...' : 'Register & Sign In ✨' }}
+          </button>
         </form>
       </template>
     </div>
