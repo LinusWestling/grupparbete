@@ -74,4 +74,3 @@ export const api = {
     }),
   getMe: () => request('/auth/me'),
 }
-
