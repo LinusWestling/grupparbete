@@ -78,11 +78,7 @@ async function handleCreateUser() {
       return
     }
 
-    await api.register(
-      newUsername.value.trim(),
-      newEmail.value.trim(),
-      newPassword.value,
-    )
+    await api.register(newUsername.value.trim(), newEmail.value.trim(), newPassword.value)
 
     createSuccess.value = 'Candidate account created successfully!'
     newUsername.value = ''

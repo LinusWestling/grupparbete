@@ -146,11 +146,7 @@ async function handleRegister() {
 
   registering.value = true
   try {
-    await api.register(
-      regUsername.value.trim(),
-      regEmail.value.trim(),
-      regPassword.value,
-    )
+    await api.register(regUsername.value.trim(), regEmail.value.trim(), regPassword.value)
 
     regSuccess.value = 'Account created successfully! Logging you in...'
     user.value = await api.login(regEmail.value.trim(), regPassword.value)
