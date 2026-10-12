@@ -133,10 +133,7 @@ async function handleCreateUser() {
           <option :value="5">Level 5 (PT Master)</option>
         </select>
       </div>
-      <button
-        @click="showCreateModal = true"
-        class="button button-accent button-sm"
-      >
+      <button @click="showCreateModal = true" class="button button-accent button-sm">
         + Create New User / Candidate ✨
       </button>
     </div>

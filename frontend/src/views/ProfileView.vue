@@ -605,7 +605,9 @@ function getSourceUrl(url) {
       <!-- Register Form -->
       <template v-else>
         <h2>Create a new account</h2>
-        <p class="text-muted">Register to save your quiz scores and track your skill progression.</p>
+        <p class="text-muted">
+          Register to save your quiz scores and track your skill progression.
+        </p>
 
         <div v-if="regError" class="error-banner">⚠️ {{ regError }}</div>
         <div v-if="regSuccess" class="success-banner">✅ {{ regSuccess }}</div>
