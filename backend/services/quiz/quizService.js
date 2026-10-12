@@ -3,6 +3,7 @@ const questionService = require('../questionService')
 const multipleChoiceEngine = require('./multipleChoiceEngine')
 const yesNoEngine = require('./yesNoEngine')
 const freeTextEngine = require('./freeTextEngine')
+const { orderQuizAnswers } = require('../../utils/quizAnswerOrder')
 
 async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
@@ -79,6 +80,10 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     total_questions: questions.length,
     questions: questions.map((question) => ({
       ...question,
+      answers:
+        question.question_type === 'multiple_choice'
+          ? orderQuizAnswers(question.answers, quizId, question.id)
+          : question.answers,
       is_answered: false,
       is_skipped: false,
     })),
@@ -289,7 +294,10 @@ async function getQuizDetails(quizId, userId) {
     item.id = item.question_id
     item.is_answered = Boolean(item.is_answered)
     item.is_skipped = Boolean(item.is_skipped)
-    item.answers = fullQuestion.answers
+    item.answers =
+      fullQuestion.question_type === 'multiple_choice'
+        ? orderQuizAnswers(fullQuestion.answers, quizId, item.question_id)
+        : fullQuestion.answers
     item.sources = fullQuestion.sources
   }
 
