@@ -1,10 +1,12 @@
 const db = require('../connectionMySQL').promise()
 
-async function createUser(username, email, passwordHash) {
+async function createUser(username, email, passwordHash, role = 'user') {
+  const validRoles = ['user', 'admin', 'organization']
+  const userRole = validRoles.includes(role) ? role : 'user'
   const [result] = await db.execute(
     `INSERT INTO users (username, email, password_Hash, role)
-        VALUES (?, ?, ?, 'user')`,
-    [username, email, passwordHash],
+        VALUES (?, ?, ?, ?)`,
+    [username, email, passwordHash, userRole],
   )
 
   return result.insertId
