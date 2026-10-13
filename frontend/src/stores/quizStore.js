@@ -1,9 +1,14 @@
 import { computed, ref } from 'vue'
+import { gradeQuizLocally } from '../services/localQuizGrading.js'
 
 export function createQuizStore(
   saveProgress = async (...args) => {
     const { api } = await import('../services/api.js')
     return api.saveQuestionProgress(...args)
+  },
+  submitQuiz = async (...args) => {
+    const { api } = await import('../services/api.js')
+    return api.submitQuizSession(...args)
   },
 ) {
   const activeQuizSession = ref(null)
@@ -13,6 +18,8 @@ export function createQuizStore(
   const pendingChanges = ref({})
   const confirmedProgress = ref({})
   const saving = ref(false)
+  const pendingCompletion = ref(false)
+  const syncingCompletion = ref(false)
   let revision = 0
   let flushPromise = null
   const saveMessage = computed(() =>
@@ -24,7 +31,7 @@ export function createQuizStore(
   )
 
   function loadQuiz(payload) {
-    if (Object.keys(pendingChanges.value).length || saving.value) {
+    if (pendingCompletion.value || Object.keys(pendingChanges.value).length || saving.value) {
       throw new Error('Save the current quiz progress before replacing it')
     }
     if (
@@ -59,7 +66,7 @@ export function createQuizStore(
 
   function recordProgress(questionId, answer, isSkipped = false) {
     const question = activeQuizSession.value?.questions.find((q) => q.id === questionId)
-    if (!question) return
+    if (!question || pendingCompletion.value || quizResult.value) return
     if (isSkipped) delete selectedAnswers.value[questionId]
     else selectedAnswers.value[questionId] = answer
     question.is_answered = !isSkipped && answer !== undefined && String(answer).trim() !== ''
@@ -114,12 +121,59 @@ export function createQuizStore(
   }
 
   function clearQuiz() {
-    if (saving.value || Object.keys(pendingChanges.value).length) return false
+    if (
+      pendingCompletion.value ||
+      syncingCompletion.value ||
+      saving.value ||
+      Object.keys(pendingChanges.value).length
+    )
+      return false
     activeQuizSession.value = null
     quizResult.value = null
     selectedAnswers.value = {}
     confirmedProgress.value = {}
     return true
+  }
+
+  function completeLocally() {
+    const quiz = activeQuizSession.value
+    if (!quiz || quizResult.value) return
+    // Unanswered questions are explicitly skipped in the final local result.
+    for (const question of quiz.questions) {
+      if (!question.is_answered && !question.is_skipped)
+        recordProgress(question.id, undefined, true)
+    }
+    quizResult.value = gradeQuizLocally(quiz, selectedAnswers.value)
+    quiz.status = 'completed_locally'
+    pendingCompletion.value = true
+  }
+
+  async function syncCompletion() {
+    if (!pendingCompletion.value || syncingCompletion.value) return false
+    syncingCompletion.value = true
+    try {
+      if (!(await flushPending())) return false
+      const confirmed = await submitQuiz(activeQuizSession.value.quiz_id)
+      const localResults = quizResult.value.results
+      quizResult.value = {
+        ...quizResult.value,
+        ...confirmed,
+        confirmation_status: 'confirmed',
+        // Preserve skipped entries and question/selected-answer text that the
+        // existing submit endpoint does not include in its grading response.
+        results: localResults.map((local) => ({
+          ...local,
+          ...confirmed.results.find((result) => result.question_id === local.question_id),
+        })),
+      }
+      activeQuizSession.value.status = 'completed'
+      pendingCompletion.value = false
+      return true
+    } catch {
+      return false
+    } finally {
+      syncingCompletion.value = false
+    }
   }
 
   return {
@@ -135,6 +189,10 @@ export function createQuizStore(
     recordProgress,
     flushPending,
     clearQuiz,
+    pendingCompletion,
+    syncingCompletion,
+    completeLocally,
+    syncCompletion,
   }
 }
 

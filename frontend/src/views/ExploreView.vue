@@ -14,8 +14,15 @@ const error = ref(null)
 const selectedDifficulty = ref(1)
 
 // Active quiz session state
-const { activeQuizSession, currentQuestionIndex, selectedAnswers, quizResult, saveMessage } =
-  quizStore
+const {
+  activeQuizSession,
+  currentQuestionIndex,
+  selectedAnswers,
+  quizResult,
+  saveMessage,
+  pendingCompletion,
+  syncingCompletion,
+} = quizStore
 const activeTopicName = computed(() => activeQuizSession.value?.topic_name || '')
 const submitting = ref(false)
 const unfinishedQuizzes = ref([])
@@ -116,18 +123,10 @@ async function resumeQuiz(quizId) {
 
 async function handleSubmitQuiz() {
   if (!activeQuizSession.value) return
-  submitting.value = true
-  try {
-    if (!(await quizStore.flushPending())) {
-      error.value = 'Progress is saved in this tab. Connect to the server before submitting.'
-      return
-    }
-    quizResult.value = await api.submitQuizSession(activeQuizSession.value.quiz_id)
-  } catch (err) {
-    error.value = 'Failed to submit quiz results.'
-  } finally {
-    submitting.value = false
-  }
+  error.value = null
+  quizStore.completeLocally()
+  // Render the summary immediately; server requests never gate completion.
+  void quizStore.syncCompletion()
 }
 
 async function exitQuiz() {
@@ -309,7 +308,7 @@ async function exitQuiz() {
           :disabled="submitting"
           class="button button-accent"
         >
-          {{ submitting ? 'Grading & Saving...' : 'Submit Quiz 🚀' }}
+          Finish Quiz 🚀
         </button>
       </div>
       <button
@@ -329,17 +328,25 @@ async function exitQuiz() {
     <!-- Quiz Results View -->
     <div v-else-if="quizResult" class="results-card">
       <h2>🎉 Quiz Complete!</h2>
+      <p v-if="pendingCompletion" role="status" aria-live="polite">
+        Completed in this tab. Results and estimated XP are awaiting confirmation. Keep this tab
+        open until your results are saved.
+        {{ syncingCompletion ? 'Syncing…' : 'Connect to the server and retry saving.' }}
+      </p>
+      <p v-else role="status">Results confirmed and saved to your account.</p>
       <div class="score-summary">
         <div class="stat">
           <span class="stat-value"
             >{{ quizResult.correct_count }} / {{ quizResult.total_questions }}</span
           >
-          <span class="stat-label">Correct Answers</span>
+          <span class="stat-label"
+            >Correct Answers {{ pendingCompletion ? '(provisional)' : '' }}</span
+          >
         </div>
         <div class="stat">
           <span class="stat-value">+{{ quizResult.xp_earned }} XP</span>
           <span class="stat-label">
-            XP Earned (Level
+            {{ pendingCompletion ? 'Estimated XP — awaiting confirmation' : 'XP Earned' }} (Level
             {{ activeQuizSession ? activeQuizSession.difficulty : selectedDifficulty }})
           </span>
         </div>
@@ -352,15 +359,39 @@ async function exitQuiz() {
           :key="idx"
           :class="['result-item', res.is_correct ? 'correct' : 'incorrect']"
         >
-          <span class="status-icon">{{ res.is_correct ? '✅' : '❌' }}</span>
+          <span class="status-icon">{{
+            res.is_skipped ? '⏭️' : res.is_correct ? '✅' : '❌'
+          }}</span>
           <div>
+            <p>
+              <strong>{{ idx + 1 }}. {{ res.question_text }}</strong>
+            </p>
+            <p v-if="res.is_skipped">Skipped</p>
+            <p v-else><strong>Your Answer:</strong> {{ res.selected_answer_text }}</p>
             <p><strong>Correct Answer:</strong> {{ res.correct_answer_text }}</p>
-            <p v-if="res.explanation" class="text-muted">Source: {{ res.explanation }}</p>
+            <p v-for="source in res.sources" :key="source.id" class="text-muted">
+              {{ source.source_text }}
+            </p>
           </div>
         </div>
       </div>
 
-      <button @click="exitQuiz" class="button button-accent">Back to Topics</button>
+      <p>Skipped: {{ quizResult.skipped_count }}</p>
+      <button
+        v-if="pendingCompletion"
+        @click="quizStore.syncCompletion()"
+        :disabled="syncingCompletion"
+        class="button button-accent"
+      >
+        {{ syncingCompletion ? 'Saving…' : 'Retry saving results' }}
+      </button>
+      <button
+        @click="exitQuiz"
+        :disabled="pendingCompletion || syncingCompletion"
+        class="button button-accent"
+      >
+        Back to Topics
+      </button>
     </div>
 
     <!-- Topics Grid View -->
