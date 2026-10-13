@@ -1,3 +1,4 @@
+const quizPayload = require('./quizPayload')
 const pool = require('../../database/pool')
 const questionService = require('../questionService')
 const multipleChoiceEngine = require('./multipleChoiceEngine')
@@ -8,7 +9,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
   let questions = await questionService.getQuestions(
     { topic_id: topicId, difficulty: difficulty, limit: limit },
-    { includeCorrect: false },
+    { includeCorrect: true },
   )
 
   let actualDifficulty = Number(difficulty)
@@ -30,7 +31,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
           difficulty: actualDifficulty,
           limit,
         },
-        { includeCorrect: false },
+        { includeCorrect: true },
       )
     }
   }
@@ -70,19 +71,18 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     connection.release()
   }
 
-  return {
-    quiz_id: quizId,
-    topic_id: topicId || questions[0].topic_id,
-    topic_name: questions[0].topic_name,
-    difficulty: actualDifficulty,
-    requested_difficulty: Number(difficulty),
-    total_questions: questions.length,
-    questions: questions.map((question) => ({
-      ...question,
-      is_answered: false,
-      is_skipped: false,
-    })),
-  }
+  return quizPayload(
+    {
+      status: 'in_progress',
+      quiz_id: quizId,
+      topic_id: topicId || questions[0].topic_id,
+      topic_name: questions[0].topic_name,
+      difficulty: actualDifficulty,
+      requested_difficulty: Number(difficulty),
+      total_questions: questions.length,
+    },
+    questions,
+  )
 }
 
 async function submitQuizSession(quizId, userId, submissions) {
@@ -106,7 +106,10 @@ async function submitQuizSession(quizId, userId, submissions) {
     }
 
     // Verify ownership if quiz has an owner
-    if (quiz.user_id !== null && quiz.user_id !== userId) {
+    if (
+      (quiz.user_id !== null && quiz.user_id !== userId) ||
+      (quiz.status === 'in_progress' && !userId)
+    ) {
       throw new Error('Forbidden')
     }
 
@@ -259,7 +262,10 @@ async function getQuizDetails(quizId, userId) {
   const quiz = qRows[0]
 
   // Deny access if quiz has an owner and that owner differs from caller (including when userId is null)
-  if (quiz.user_id !== null && quiz.user_id !== userId) {
+  if (
+    (quiz.user_id !== null && quiz.user_id !== userId) ||
+    (quiz.status === 'in_progress' && !userId)
+  ) {
     throw new Error('Forbidden')
   }
 
@@ -284,7 +290,7 @@ async function getQuizDetails(quizId, userId) {
 
   for (const item of qqRows) {
     const fullQuestion = await questionService.getQuestionById(item.question_id, {
-      includeCorrect: quiz.status === 'completed',
+      includeCorrect: true,
     })
     item.id = item.question_id
     item.is_answered = Boolean(item.is_answered)
@@ -293,8 +299,7 @@ async function getQuizDetails(quizId, userId) {
     item.sources = fullQuestion.sources
   }
 
-  quiz.questions = qqRows
-  return quiz
+  return quizPayload(quiz, qqRows)
 }
 
 async function getUnfinishedQuizzes(userId) {
