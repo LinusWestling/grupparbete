@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { gradeQuizLocally } from '../services/localQuizGrading.js'
 
 export function createQuizStore(
@@ -20,6 +20,7 @@ export function createQuizStore(
   const saving = ref(false)
   const pendingCompletion = ref(false)
   const syncingCompletion = ref(false)
+  const syncError = ref(null)
   let revision = 0
   let flushPromise = null
   const saveMessage = computed(() =>
@@ -50,6 +51,8 @@ export function createQuizStore(
     confirmedProgress.value = {}
     pendingChanges.value = {}
     quizResult.value = null
+    syncError.value = null
+    revision = Math.max(0, ...payload.questions.map((question) => question.progress_revision || 0))
     for (const question of payload.questions) {
       if (question.is_answered) {
         selectedAnswers.value[question.id] = question.free_text_answer ?? question.chosen_answer_id
@@ -81,6 +84,7 @@ export function createQuizStore(
   // Serialize writes and only acknowledge the revision actually sent. Editing
   // while a request is running must never clear or overwrite newer local data.
   function flushPending() {
+    if (pendingCompletion.value || syncingCompletion.value) return Promise.resolve(false)
     if (flushPromise) return flushPromise
     const quizId = activeQuizSession.value?.quiz_id
     if (!quizId) return Promise.resolve(false)
@@ -88,6 +92,7 @@ export function createQuizStore(
       saving.value = true
       try {
         while (Object.keys(pendingChanges.value).length) {
+          if (pendingCompletion.value) return false
           // Empty free-text drafts stay local until answered or explicitly skipped.
           const next = Object.entries(pendingChanges.value).find(
             ([, change]) =>
@@ -97,9 +102,11 @@ export function createQuizStore(
           if (!next) return false
           const [questionId, change] = next
           await saveProgress(quizId, Number(questionId), {
-            answer: change.answer,
+            answer: change.isSkipped ? null : change.answer,
             isSkipped: change.isSkipped,
+            revision: change.revision,
           })
+          syncError.value = null
           confirmedProgress.value[questionId] = {
             answer: change.answer,
             isSkipped: change.isSkipped,
@@ -109,7 +116,8 @@ export function createQuizStore(
           }
         }
         return true
-      } catch {
+      } catch (error) {
+        syncError.value = { status: error.status, message: error.message }
         return false
       } finally {
         saving.value = false
@@ -152,27 +160,74 @@ export function createQuizStore(
     if (!pendingCompletion.value || syncingCompletion.value) return false
     syncingCompletion.value = true
     try {
-      if (!(await flushPending())) return false
-      const confirmed = await submitQuiz(activeQuizSession.value.quiz_id)
-      const localResults = quizResult.value.results
+      // Finish any in-flight progress write, then send the complete local state
+      // in one transaction. Do not discard pending changes before confirmation.
+      if (flushPromise) await flushPromise
+      const submissions = activeQuizSession.value.questions.map((question) => ({
+        question_id: question.id,
+        answer: question.is_skipped ? null : selectedAnswers.value[question.id],
+        isSkipped: question.is_skipped,
+      }))
+      const confirmed = await submitQuiz(activeQuizSession.value.quiz_id, submissions)
       quizResult.value = {
-        ...quizResult.value,
         ...confirmed,
         confirmation_status: 'confirmed',
-        // Preserve skipped entries and question/selected-answer text that the
-        // existing submit endpoint does not include in its grading response.
-        results: localResults.map((local) => ({
-          ...local,
-          ...confirmed.results.find((result) => result.question_id === local.question_id),
-        })),
       }
       activeQuizSession.value.status = 'completed'
       pendingCompletion.value = false
+      pendingChanges.value = {}
+      confirmedProgress.value = Object.fromEntries(
+        submissions.map((item) => [
+          item.question_id,
+          { answer: item.answer, isSkipped: item.isSkipped },
+        ]),
+      )
+      syncError.value = null
       return true
-    } catch {
+    } catch (error) {
+      syncError.value = { status: error.status, message: error.message }
       return false
     } finally {
       syncingCompletion.value = false
+    }
+  }
+
+  function startAutoSync(target = globalThis.window) {
+    if (!target) return () => {}
+    let timer
+    let stopped = false
+    const hasPending = () => pendingCompletion.value || Object.keys(pendingChanges.value).length > 0
+    const synchronize = async () => {
+      if (stopped || !hasPending() || target.navigator?.onLine === false) return
+      // Authentication and validation need user intervention; avoid polling
+      // them continuously. Focus, reconnect, and manual retries try again.
+      if ([400, 401, 403, 409].includes(syncError.value?.status)) return
+      if (pendingCompletion.value) await syncCompletion()
+      else await flushPending()
+      if (hasPending()) schedule(15000)
+    }
+    const schedule = (delay = 350) => {
+      clearTimeout(timer)
+      if (!stopped && hasPending()) timer = setTimeout(synchronize, delay)
+    }
+    const reconnect = () => {
+      syncError.value = null
+      schedule(0)
+    }
+    const stopWatching = watch([pendingChanges, pendingCompletion], () => schedule(), {
+      deep: true,
+    })
+    target.addEventListener('online', reconnect)
+    target.addEventListener('focus', reconnect)
+    target.addEventListener('quiz-auth-restored', reconnect)
+    schedule()
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+      stopWatching()
+      target.removeEventListener('online', reconnect)
+      target.removeEventListener('focus', reconnect)
+      target.removeEventListener('quiz-auth-restored', reconnect)
     }
   }
 
@@ -193,7 +248,13 @@ export function createQuizStore(
     syncingCompletion,
     completeLocally,
     syncCompletion,
+    syncError,
+    startAutoSync,
   }
 }
 
 export const quizStore = createQuizStore()
+if (typeof window !== 'undefined') {
+  const stopAutoSync = quizStore.startAutoSync(window)
+  if (import.meta.hot) import.meta.hot.dispose(stopAutoSync)
+}

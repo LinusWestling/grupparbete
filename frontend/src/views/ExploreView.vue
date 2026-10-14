@@ -22,6 +22,7 @@ const {
   saveMessage,
   pendingCompletion,
   syncingCompletion,
+  syncError,
 } = quizStore
 const activeTopicName = computed(() => activeQuizSession.value?.topic_name || '')
 const submitting = ref(false)
@@ -334,6 +335,14 @@ async function exitQuiz() {
         {{ syncingCompletion ? 'Syncing…' : 'Connect to the server and retry saving.' }}
       </p>
       <p v-else role="status">Results confirmed and saved to your account.</p>
+      <p v-if="syncError" role="status">
+        {{
+          syncError.status === 401
+            ? 'Your login expired. Sign in again to save these results.'
+            : syncError.message
+        }}
+        Your quiz is still stored in this tab.
+      </p>
       <div class="score-summary">
         <div class="stat">
           <span class="stat-value"
