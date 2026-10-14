@@ -171,7 +171,8 @@ async function getQuizDetails(quizId, userId) {
   const questions = rows.map((row) => {
     const snapshot = readJson(row.question_snapshot)
     if (!snapshot) throw httpError(409, 'Quiz content snapshot is unavailable')
-    const answer = readJson(row.submitted_answer)
+    const isFreeText = snapshot.question_type === 'free_text'
+    const answer = isFreeText ? null : readJson(row.submitted_answer)
     return {
       ...snapshot,
       question_id: row.question_id,
@@ -180,10 +181,8 @@ async function getQuizDetails(quizId, userId) {
       progress_revision: row.progress_revision,
       is_answered: Boolean(row.is_answered),
       is_skipped: Boolean(row.is_skipped),
-      chosen_answer_id:
-        snapshot.question_type === 'free_text' ? null : (answer ?? row.chosen_answer_id),
-      free_text_answer:
-        snapshot.question_type === 'free_text' ? (answer ?? row.free_text_answer) : null,
+      chosen_answer_id: isFreeText ? null : (answer ?? row.chosen_answer_id),
+      free_text_answer: isFreeText ? row.free_text_answer : null,
     }
   })
   const { result_snapshot, ...metadata } = quiz
