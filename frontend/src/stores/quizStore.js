@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { gradeQuizLocally } from '../services/localQuizGrading.js'
+import { startQuizUnloadWarning } from '../services/quizNavigationSafety.js'
 
 export function createQuizStore(
   saveProgress = async (...args) => {
@@ -23,6 +24,13 @@ export function createQuizStore(
   const syncError = ref(null)
   let revision = 0
   let flushPromise = null
+  const hasUnsyncedData = computed(
+    () => pendingCompletion.value || Object.keys(pendingChanges.value).length > 0,
+  )
+  const isSyncing = computed(() => saving.value || syncingCompletion.value)
+  const syncState = computed(() =>
+    isSyncing.value ? 'Syncing' : hasUnsyncedData.value ? 'Waiting to sync' : 'Saved',
+  )
   const saveMessage = computed(() =>
     Object.keys(pendingChanges.value).length
       ? saving.value
@@ -32,9 +40,7 @@ export function createQuizStore(
   )
 
   function loadQuiz(payload) {
-    if (pendingCompletion.value || Object.keys(pendingChanges.value).length || saving.value) {
-      throw new Error('Save the current quiz progress before replacing it')
-    }
+    assertCanReplaceQuiz()
     if (
       payload.payload_version !== 1 ||
       !Array.isArray(payload.questions) ||
@@ -67,9 +73,22 @@ export function createQuizStore(
     activeQuizSession.value = payload
   }
 
+  function assertCanReplaceQuiz() {
+    if (hasUnsyncedData.value || isSyncing.value) {
+      throw new Error(
+        'Your current quiz has unsaved data. Keep this tab open and finish saving before starting another quiz.',
+      )
+    }
+  }
+
   function recordProgress(questionId, answer, isSkipped = false) {
     const question = activeQuizSession.value?.questions.find((q) => q.id === questionId)
     if (!question || pendingCompletion.value || quizResult.value) return
+    if (
+      question.is_skipped === isSkipped &&
+      (isSkipped || selectedAnswers.value[questionId] === answer)
+    )
+      return
     if (isSkipped) delete selectedAnswers.value[questionId]
     else selectedAnswers.value[questionId] = answer
     question.is_answered = !isSkipped && answer !== undefined && String(answer).trim() !== ''
@@ -250,11 +269,20 @@ export function createQuizStore(
     syncCompletion,
     syncError,
     startAutoSync,
+    hasUnsyncedData,
+    isSyncing,
+    syncState,
+    assertCanReplaceQuiz,
   }
 }
 
 export const quizStore = createQuizStore()
 if (typeof window !== 'undefined') {
   const stopAutoSync = quizStore.startAutoSync(window)
-  if (import.meta.hot) import.meta.hot.dispose(stopAutoSync)
+  const stopUnloadWarning = startQuizUnloadWarning(quizStore, window)
+  if (import.meta.hot)
+    import.meta.hot.dispose(() => {
+      stopAutoSync()
+      stopUnloadWarning()
+    })
 }
