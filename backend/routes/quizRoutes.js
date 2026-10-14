@@ -10,7 +10,7 @@ function requireAuth(req, res, next) {
 }
 
 router.post('/api/quizzes/start', requireAuth, quizController.startQuiz)
-router.post('/api/quizzes/:quizId/submit', quizController.submitQuizSession)
+router.post('/api/quizzes/:quizId/submit', requireAuth, quizController.submitQuizSession)
 router.get('/api/quizzes/history', requireAuth, quizController.getHistory)
 router.get('/api/quizzes/unfinished', requireAuth, quizController.getUnfinishedQuizzes)
 router.put(

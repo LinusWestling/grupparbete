@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { api } from '../services/api'
 import { quizStore } from '../stores/quizStore'
+import QuizSyncStatus from '../components/QuizSyncStatus.vue'
+import { confirmQuizNavigation } from '../services/quizNavigationSafety.js'
 
 const route = useRoute()
 
@@ -22,6 +24,8 @@ const {
   saveMessage,
   pendingCompletion,
   syncingCompletion,
+  hasUnsyncedData,
+  isSyncing,
 } = quizStore
 const activeTopicName = computed(() => activeQuizSession.value?.topic_name || '')
 const submitting = ref(false)
@@ -29,6 +33,12 @@ const unfinishedQuizzes = ref([])
 const loggedIn = ref(false)
 
 onMounted(async () => {
+  // The store survives internal navigation. Returning offline must not fetch
+  // fresh content or replace a loaded quiz (including its local summary).
+  if (activeQuizSession.value) {
+    loading.value = false
+    return
+  }
   try {
     topics.value = await api.getTopics()
     try {
@@ -64,6 +74,7 @@ onMounted(async () => {
 
 async function startQuizSession(topic) {
   try {
+    quizStore.assertCanReplaceQuiz()
     loading.value = true
     error.value = null
     const payload = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
@@ -93,7 +104,7 @@ async function navigateQuestion(direction, skip = false) {
     selectedAnswers.value[question.id] !== undefined && selectedAnswers.value[question.id] !== ''
 
   // Stoppa NEXT om ingen svar har valats.
-  if (direction > 0 && !skip && !hasAnswer) {
+  if (direction > 0 && !skip && !hasAnswer && !question.is_skipped) {
     error.value = 'Välj ett svar eller hoppa över frågan'
     return
   }
@@ -111,6 +122,7 @@ async function resumeQuiz(quizId) {
   loading.value = true
   error.value = null
   try {
+    quizStore.assertCanReplaceQuiz()
     const quiz = await api.getQuizDetails(quizId)
     if (quiz.status !== 'in_progress') throw new Error('This quiz is already completed')
     quizStore.loadQuiz(quiz)
@@ -120,6 +132,9 @@ async function resumeQuiz(quizId) {
     loading.value = false
   }
 }
+
+onBeforeRouteLeave(() => confirmQuizNavigation(quizStore))
+onBeforeRouteUpdate(() => confirmQuizNavigation(quizStore))
 
 async function handleSubmitQuiz() {
   if (!activeQuizSession.value) return
@@ -145,6 +160,16 @@ async function exitQuiz() {
     return
   }
   try {
+    if (!topics.value.length) topics.value = await api.getTopics()
+    if (!loggedIn.value) {
+      try {
+        await api.getMe()
+        loggedIn.value = true
+      } catch {
+        loggedIn.value = false
+      }
+    }
+    if (!loggedIn.value) return
     unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
   } catch (err) {
     error.value = 'Could not load unfinished quizzes: ' + err.message
@@ -186,6 +211,7 @@ async function exitQuiz() {
     </div>
 
     <div v-if="error" class="error-banner">⚠️ {{ error }}</div>
+    <QuizSyncStatus v-if="activeQuizSession" />
 
     <!-- Active Quiz Playing View -->
     <div v-if="activeQuizSession && !quizResult" class="quiz-container">
@@ -378,14 +404,6 @@ async function exitQuiz() {
 
       <p>Skipped: {{ quizResult.skipped_count }}</p>
       <button
-        v-if="pendingCompletion"
-        @click="quizStore.syncCompletion()"
-        :disabled="syncingCompletion"
-        class="button button-accent"
-      >
-        {{ syncingCompletion ? 'Saving…' : 'Retry saving results' }}
-      </button>
-      <button
         @click="exitQuiz"
         :disabled="pendingCompletion || syncingCompletion"
         class="button button-accent"
@@ -410,7 +428,7 @@ async function exitQuiz() {
           </p>
           <button
             class="button button-outline"
-            :disabled="loading"
+            :disabled="loading || hasUnsyncedData || isSyncing"
             @click="resumeQuiz(quiz.quiz_id)"
           >
             Resume quiz
@@ -428,7 +446,7 @@ async function exitQuiz() {
           <p>{{ topic.description || 'Explore and master key concepts in ' + topic.name }}</p>
           <button
             @click="startQuizSession(topic)"
-            :disabled="!loggedIn || loading"
+            :disabled="!loggedIn || loading || hasUnsyncedData || isSyncing"
             class="button button-outline"
           >
             Start Level {{ selectedDifficulty }} {{ topic.name }} Quiz ↗

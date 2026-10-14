@@ -10,3 +10,35 @@ trusts one reverse proxy (Render) and sends Secure, HttpOnly, SameSite=None cook
 so a local frontend can call the hosted backend. Set `FRONTEND_ORIGIN` to the
 allowed frontend origin and send requests with `credentials: 'include'`.
 Browsers that block third-party cookies may still prevent cross-site sessions.
+
+## Offline quiz synchronization
+
+Run `npm run migrate` before starting this backend version. Migration 011 adds
+immutable question snapshots, submitted answers, progress revisions, and saved
+final results. New quizzes are graded using exactly the content returned at
+startup. Existing quizzes are frozen using the content available when the
+migration runs; earlier edits cannot be reconstructed.
+
+Authenticated `POST /api/quizzes/:quizId/submit` accepts a `submissions` array
+with exactly one entry per quiz question:
+
+```json
+{
+  "submissions": [
+    { "question_id": 1, "answer": 10, "isSkipped": false },
+    { "question_id": 2, "answer": null, "isSkipped": true }
+  ]
+}
+```
+
+An answered entry contains an option ID or a nonempty free-text string. A skipped
+entry contains `answer: null`. The server checks ownership and snapshot membership,
+then saves progress, grading, completion, and XP in one transaction. Repeating a
+completed submission returns its saved result without awarding XP again.
+
+Progress updates include a positive `revision`; older revisions cannot overwrite
+newer progress. The Vue store retries transient failures while online and retries
+on reconnect, focus, and successful login. Authentication or validation failures
+retain local data while waiting for user action. A completed quiz sends all answers
+and skips directly, so final submission does not depend on individual saves.
+Browser memory still requires keeping the tab open until confirmation.
