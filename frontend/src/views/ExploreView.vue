@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../services/api'
+import { quizStore } from '../stores/quizStore'
 
 const route = useRoute()
 
@@ -13,14 +14,17 @@ const error = ref(null)
 const selectedDifficulty = ref(1)
 
 // Active quiz session state
-const activeQuizSession = ref(null)
-const activeTopicName = ref('')
-const currentQuestionIndex = ref(0)
-const selectedAnswers = ref({})
-const quizResult = ref(null)
+const {
+  activeQuizSession,
+  currentQuestionIndex,
+  selectedAnswers,
+  quizResult,
+  saveMessage,
+  pendingCompletion,
+  syncingCompletion,
+} = quizStore
+const activeTopicName = computed(() => activeQuizSession.value?.topic_name || '')
 const submitting = ref(false)
-const saving = ref(false)
-const saveMessage = ref('')
 const unfinishedQuizzes = ref([])
 const loggedIn = ref(false)
 
@@ -62,12 +66,8 @@ async function startQuizSession(topic) {
   try {
     loading.value = true
     error.value = null
-    activeTopicName.value = topic.name
-    activeQuizSession.value = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
-    currentQuestionIndex.value = 0
-    selectedAnswers.value = {}
-    quizResult.value = null
-    saveMessage.value = ''
+    const payload = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
+    quizStore.loadQuiz(payload)
   } catch (err) {
     error.value = 'Failed to generate quiz: ' + err.message
   } finally {
@@ -75,33 +75,16 @@ async function startQuizSession(topic) {
   }
 }
 
-async function selectAnswer(questionId, answerVal) {
-  selectedAnswers.value[questionId] = answerVal
-  await saveCurrentQuestion()
+function selectAnswer(questionId, answerVal) {
+  quizStore.recordProgress(questionId, answerVal)
+  void quizStore.flushPending()
 }
 
-async function saveCurrentQuestion(isSkipped = false) {
+function saveCurrentQuestion(isSkipped = false) {
   const question = activeQuizSession.value?.questions[currentQuestionIndex.value]
-  if (!question || saving.value) return false
-  saving.value = true
-  saveMessage.value = 'Saving…'
-  error.value = null
-  try {
-    const progress = await api.saveQuestionProgress(activeQuizSession.value.quiz_id, question.id, {
-      answer: selectedAnswers.value[question.id],
-      isSkipped,
-    })
-    Object.assign(question, progress)
-    if (isSkipped) delete selectedAnswers.value[question.id]
-    saveMessage.value = 'Saved to your account'
-    return true
-  } catch (err) {
-    saveMessage.value = 'Not saved — retry before leaving'
-    error.value = err.message
-    return false
-  } finally {
-    saving.value = false
-  }
+  if (!question) return Promise.resolve(false)
+  quizStore.recordProgress(question.id, selectedAnswers.value[question.id], isSkipped)
+  return quizStore.flushPending()
 }
 
 async function navigateQuestion(direction, skip = false) {
@@ -114,7 +97,7 @@ async function navigateQuestion(direction, skip = false) {
     error.value = 'Välj ett svar eller hoppa över frågan'
     return
   }
-  if ((hasAnswer || skip) && !(await saveCurrentQuestion(skip))) return
+  if (hasAnswer || skip) void saveCurrentQuestion(skip)
 
   error.value = null
 
@@ -122,7 +105,6 @@ async function navigateQuestion(direction, skip = false) {
     0,
     Math.min(activeQuizSession.value.questions.length - 1, currentQuestionIndex.value + direction),
   )
-  saveMessage.value = ''
 }
 
 async function resumeQuiz(quizId) {
@@ -131,18 +113,7 @@ async function resumeQuiz(quizId) {
   try {
     const quiz = await api.getQuizDetails(quizId)
     if (quiz.status !== 'in_progress') throw new Error('This quiz is already completed')
-    activeQuizSession.value = quiz
-    activeQuizSession.value.quiz_id = quiz.id
-    activeTopicName.value = quiz.topic_name
-    selectedAnswers.value = {}
-    for (const question of quiz.questions) {
-      if (question.is_answered)
-        selectedAnswers.value[question.id] = question.free_text_answer ?? question.chosen_answer_id
-    }
-    const firstUnanswered = quiz.questions.findIndex((question) => !question.is_answered)
-    currentQuestionIndex.value = firstUnanswered < 0 ? 0 : firstUnanswered
-    quizResult.value = null
-    saveMessage.value = ''
+    quizStore.loadQuiz(quiz)
   } catch (err) {
     error.value = 'Could not resume quiz: ' + err.message
   } finally {
@@ -152,21 +123,10 @@ async function resumeQuiz(quizId) {
 
 async function handleSubmitQuiz() {
   if (!activeQuizSession.value) return
-  const question = activeQuizSession.value.questions[currentQuestionIndex.value]
-  if (
-    selectedAnswers.value[question.id] !== undefined &&
-    selectedAnswers.value[question.id] !== ''
-  ) {
-    if (!(await saveCurrentQuestion())) return
-  }
-  submitting.value = true
-  try {
-    quizResult.value = await api.submitQuizSession(activeQuizSession.value.quiz_id)
-  } catch (err) {
-    error.value = 'Failed to submit quiz results.'
-  } finally {
-    submitting.value = false
-  }
+  error.value = null
+  quizStore.completeLocally()
+  // Render the summary immediately; server requests never gate completion.
+  void quizStore.syncCompletion()
 }
 
 async function exitQuiz() {
@@ -180,8 +140,10 @@ async function exitQuiz() {
       if (!(await saveCurrentQuestion())) return
     }
   }
-  activeQuizSession.value = null
-  quizResult.value = null
+  if (!quizStore.clearQuiz()) {
+    error.value = 'Progress is saved in this tab. Sync it before leaving the quiz.'
+    return
+  }
   try {
     unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
   } catch (err) {
@@ -245,9 +207,7 @@ async function exitQuiz() {
         <span
           >Question {{ currentQuestionIndex + 1 }} of {{ activeQuizSession.questions.length }}</span
         >
-        <button @click="exitQuiz" :disabled="saving || submitting" class="button-text">
-          ✕ Exit Quiz
-        </button>
+        <button @click="exitQuiz" :disabled="submitting" class="button-text">✕ Exit Quiz</button>
       </div>
 
       <div v-if="activeQuizSession.questions[currentQuestionIndex]" class="question-card">
@@ -267,7 +227,7 @@ async function exitQuiz() {
           <button
             v-for="ans in activeQuizSession.questions[currentQuestionIndex].answers"
             :key="ans.id"
-            :disabled="saving || submitting"
+            :disabled="submitting"
             :class="[
               'option-button',
               {
@@ -285,16 +245,21 @@ async function exitQuiz() {
         <div v-else class="free-text-box">
           <input
             type="text"
-            v-model="selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id]"
+            :value="selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id] ?? ''"
             placeholder="Type your answer here..."
             class="text-input"
-            :disabled="saving || submitting"
-            @input="saveMessage = 'Not saved yet'"
+            :disabled="submitting"
+            @input="
+              quizStore.recordProgress(
+                activeQuizSession.questions[currentQuestionIndex].id,
+                $event.target.value,
+              )
+            "
             @change="saveCurrentQuestion()"
           />
           <button
             class="button button-outline"
-            :disabled="saving || submitting"
+            :disabled="submitting"
             @click="saveCurrentQuestion()"
           >
             Save answer
@@ -321,7 +286,7 @@ async function exitQuiz() {
 
       <div class="quiz-nav">
         <button
-          :disabled="currentQuestionIndex === 0 || saving || submitting"
+          :disabled="currentQuestionIndex === 0 || submitting"
           @click="navigateQuestion(-1)"
           class="button button-outline"
         >
@@ -331,7 +296,7 @@ async function exitQuiz() {
         <button
           v-if="currentQuestionIndex < activeQuizSession.questions.length - 1"
           @click="navigateQuestion(1)"
-          :disabled="saving || submitting"
+          :disabled="submitting"
           class="button button-accent"
         >
           Next →
@@ -340,15 +305,15 @@ async function exitQuiz() {
         <button
           v-else
           @click="handleSubmitQuiz"
-          :disabled="submitting || saving"
+          :disabled="submitting"
           class="button button-accent"
         >
-          {{ submitting ? 'Grading & Saving...' : 'Submit Quiz 🚀' }}
+          Finish Quiz 🚀
         </button>
       </div>
       <button
         class="button button-outline"
-        :disabled="saving || submitting"
+        :disabled="submitting"
         @click="navigateQuestion(1, true)"
       >
         Skip question
@@ -363,17 +328,25 @@ async function exitQuiz() {
     <!-- Quiz Results View -->
     <div v-else-if="quizResult" class="results-card">
       <h2>🎉 Quiz Complete!</h2>
+      <p v-if="pendingCompletion" role="status" aria-live="polite">
+        Completed in this tab. Results and estimated XP are awaiting confirmation. Keep this tab
+        open until your results are saved.
+        {{ syncingCompletion ? 'Syncing…' : 'Connect to the server and retry saving.' }}
+      </p>
+      <p v-else role="status">Results confirmed and saved to your account.</p>
       <div class="score-summary">
         <div class="stat">
           <span class="stat-value"
             >{{ quizResult.correct_count }} / {{ quizResult.total_questions }}</span
           >
-          <span class="stat-label">Correct Answers</span>
+          <span class="stat-label"
+            >Correct Answers {{ pendingCompletion ? '(provisional)' : '' }}</span
+          >
         </div>
         <div class="stat">
           <span class="stat-value">+{{ quizResult.xp_earned }} XP</span>
           <span class="stat-label">
-            XP Earned (Level
+            {{ pendingCompletion ? 'Estimated XP — awaiting confirmation' : 'XP Earned' }} (Level
             {{ activeQuizSession ? activeQuizSession.difficulty : selectedDifficulty }})
           </span>
         </div>
@@ -386,15 +359,39 @@ async function exitQuiz() {
           :key="idx"
           :class="['result-item', res.is_correct ? 'correct' : 'incorrect']"
         >
-          <span class="status-icon">{{ res.is_correct ? '✅' : '❌' }}</span>
+          <span class="status-icon">{{
+            res.is_skipped ? '⏭️' : res.is_correct ? '✅' : '❌'
+          }}</span>
           <div>
+            <p>
+              <strong>{{ idx + 1 }}. {{ res.question_text }}</strong>
+            </p>
+            <p v-if="res.is_skipped">Skipped</p>
+            <p v-else><strong>Your Answer:</strong> {{ res.selected_answer_text }}</p>
             <p><strong>Correct Answer:</strong> {{ res.correct_answer_text }}</p>
-            <p v-if="res.explanation" class="text-muted">Source: {{ res.explanation }}</p>
+            <p v-for="source in res.sources" :key="source.id" class="text-muted">
+              {{ source.source_text }}
+            </p>
           </div>
         </div>
       </div>
 
-      <button @click="exitQuiz" class="button button-accent">Back to Topics</button>
+      <p>Skipped: {{ quizResult.skipped_count }}</p>
+      <button
+        v-if="pendingCompletion"
+        @click="quizStore.syncCompletion()"
+        :disabled="syncingCompletion"
+        class="button button-accent"
+      >
+        {{ syncingCompletion ? 'Saving…' : 'Retry saving results' }}
+      </button>
+      <button
+        @click="exitQuiz"
+        :disabled="pendingCompletion || syncingCompletion"
+        class="button button-accent"
+      >
+        Back to Topics
+      </button>
     </div>
 
     <!-- Topics Grid View -->
