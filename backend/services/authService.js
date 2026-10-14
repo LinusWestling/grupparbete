@@ -43,7 +43,7 @@ async function register({ username, email, password } = {}) {
   const passwordHash = await argon2.hash(password, hashOptions)
 
   try {
-    const id = await userRepository.createUser(cleanUsername, cleanEmail, passwordHash)
+    const id = await userRepository.createUser(cleanUsername, cleanEmail, passwordHash, 'user')
 
     return { id }
   } catch (error) {

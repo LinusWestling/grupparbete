@@ -71,6 +71,11 @@ export const api = {
   getProspectDetails: (prospectId) => request(`/organization/prospects/${prospectId}`),
 
   // Auth
+  register: (username, email, password) =>
+    request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, email, password }),
+    }),
   login: (email, password) =>
     request('/auth/login', {
       method: 'POST',

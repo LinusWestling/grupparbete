@@ -4,6 +4,9 @@ const questionService = require('../questionService')
 const multipleChoiceEngine = require('./multipleChoiceEngine')
 const yesNoEngine = require('./yesNoEngine')
 const freeTextEngine = require('./freeTextEngine')
+const { orderQuizAnswers } = require('../../utils/quizAnswerOrder')
+const quizRepository = require('../../repositories/quizRepository')
+const { randomInt } = require('node:crypto')
 
 async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
@@ -38,6 +41,34 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
 
   if (questions.length === 0) {
     throw new Error('No questions found for the selected topic and difficulty level')
+  }
+
+  const previousQuestionIds = await quizRepository.getLatestQuizQuestionIds(
+    userId,
+    topicId,
+    actualDifficulty,
+  )
+
+  if (previousQuestionIds.length > 0) {
+    questions = await questionService.getQuestions(
+      {
+        topic_id: topicId,
+        difficulty: actualDifficulty,
+        limit,
+      },
+      {
+        includeCorrect: false,
+        previousQuestionIds,
+      },
+    )
+  }
+
+  for (let i = questions.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1)
+
+    const temporary = questions[i]
+    questions[i] = questions[j]
+    questions[j] = temporary
   }
 
   const connection = await pool.getConnection()
@@ -295,7 +326,10 @@ async function getQuizDetails(quizId, userId) {
     item.id = item.question_id
     item.is_answered = Boolean(item.is_answered)
     item.is_skipped = Boolean(item.is_skipped)
-    item.answers = fullQuestion.answers
+    item.answers =
+      fullQuestion.question_type === 'multiple_choice'
+        ? orderQuizAnswers(fullQuestion.answers, quizId, item.question_id)
+        : fullQuestion.answers
     item.sources = fullQuestion.sources
   }
 
