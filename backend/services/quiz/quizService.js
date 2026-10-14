@@ -57,7 +57,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
         limit,
       },
       {
-        includeCorrect: false,
+        includeCorrect: true,
         previousQuestionIds,
       },
     )
@@ -112,7 +112,13 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
       requested_difficulty: Number(difficulty),
       total_questions: questions.length,
     },
-    questions,
+    questions.map((question) => ({
+      ...question,
+      answers:
+        question.question_type === 'multiple_choice'
+          ? orderQuizAnswers(question.answers, quizId, question.id)
+          : question.answers,
+    })),
   )
 }
 
