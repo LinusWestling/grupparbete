@@ -45,6 +45,7 @@ export const api = {
   submitQuizSession: (quizId, submissions) =>
     request(`/quizzes/${quizId}/submit`, {
       method: 'POST',
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify({ submissions }),
     }),
   getQuizHistory: () => request('/quizzes/history'),
@@ -53,6 +54,7 @@ export const api = {
   saveQuestionProgress: (quizId, questionId, progress) =>
     request(`/quizzes/${quizId}/questions/${questionId}/progress`, {
       method: 'PUT',
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify(progress),
     }),
 
@@ -76,10 +78,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ username, email, password }),
     }),
-  login: (email, password) =>
-    request('/auth/login', {
+  login: async (email, password) => {
+    const result = await request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
-    }),
+    })
+    window.dispatchEvent(new Event('quiz-auth-restored'))
+    return result
+  },
   getMe: () => request('/auth/me'),
 }

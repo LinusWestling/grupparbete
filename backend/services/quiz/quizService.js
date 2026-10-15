@@ -1,9 +1,8 @@
 const quizPayload = require('./quizPayload')
 const pool = require('../../database/pool')
 const questionService = require('../questionService')
-const multipleChoiceEngine = require('./multipleChoiceEngine')
-const yesNoEngine = require('./yesNoEngine')
-const freeTextEngine = require('./freeTextEngine')
+const { submitQuizSession, existingAnswerId } = require('./submitQuiz')
+const { httpError, readJson, validateAnswer } = require('./quizSubmission')
 const { orderQuizAnswers } = require('../../utils/quizAnswerOrder')
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
@@ -85,12 +84,20 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     )
     quizId = qResult.insertId
 
+    // Freeze the same ordered content used by the browser and server grading.
+    questions = questions.map((question) => ({
+      ...question,
+      answers:
+        question.question_type === 'multiple_choice'
+          ? orderQuizAnswers(question.answers, quizId, question.id)
+          : question.answers,
+    }))
     // Link questions to quiz session
     for (let i = 0; i < questions.length; i++) {
       await connection.execute(
-        `INSERT INTO quiz_questions (quiz_id, question_id, position)
-         VALUES (?, ?, ?)`,
-        [quizId, questions[i].id, i + 1],
+        `INSERT INTO quiz_questions (quiz_id, question_id, position, question_snapshot)
+         VALUES (?, ?, ?, ?)`,
+        [quizId, questions[i].id, i + 1, JSON.stringify(questions[i])],
       )
     }
 
@@ -119,149 +126,6 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
           ? orderQuizAnswers(question.answers, quizId, question.id)
           : question.answers,
     })),
-  )
-}
-
-async function submitQuizSession(quizId, userId, submissions) {
-  const connection = await pool.getConnection()
-
-  try {
-    await connection.beginTransaction()
-
-    // Lock the quiz row in a transaction to prevent race conditions & duplicate submissions
-    const [qRows] = await connection.query('SELECT * FROM quizzes WHERE id = ? FOR UPDATE', [
-      quizId,
-    ])
-    if (qRows.length === 0) {
-      throw new Error('Quiz session not found')
-    }
-    const quiz = qRows[0]
-
-    // Verify status is in_progress
-    if (quiz.status !== 'in_progress') {
-      throw new Error('Quiz session is not in progress')
-    }
-
-    // Verify ownership if quiz has an owner
-    if (
-      (quiz.user_id !== null && quiz.user_id !== userId) ||
-      (quiz.status === 'in_progress' && !userId)
-    ) {
-      throw new Error('Forbidden')
-    }
-
-    // Load allowed question IDs for this quiz session
-    const [qqRows] = await connection.query(
-      'SELECT question_id, is_answered, chosen_answer_id, free_text_answer FROM quiz_questions WHERE quiz_id = ?',
-      [quizId],
-    )
-    const allowedQuestionIds = new Set(qqRows.map((row) => row.question_id))
-
-    let correctCnt = 0
-    let totalScore = 0
-    const results = []
-
-    // Persisted progress is authoritative when the client submits no answer list.
-    const answersToGrade =
-      submissions ??
-      qqRows
-        .filter((row) => row.is_answered)
-        .map((row) => ({
-          question_id: row.question_id,
-          answer: row.free_text_answer ?? row.chosen_answer_id,
-        }))
-    const gradedQuestionIds = new Set()
-    for (const item of answersToGrade) {
-      // Skip any submission for a question not belonging to this quiz session
-      if (!allowedQuestionIds.has(item.question_id) || gradedQuestionIds.has(item.question_id))
-        continue
-      gradedQuestionIds.add(item.question_id)
-
-      const question = await questionService.getQuestionForEvaluation(item.question_id)
-      if (!question) continue
-
-      let evaluation
-      switch (question.question_type) {
-        case 'yes_no':
-          evaluation = yesNoEngine.evaluate(question, item.answer)
-          break
-        case 'free_text':
-          evaluation = freeTextEngine.evaluate(question, item.answer)
-          break
-        case 'multiple_choice':
-        default:
-          evaluation = multipleChoiceEngine.evaluate(question, item.answer)
-          break
-      }
-
-      if (evaluation.is_correct) {
-        correctCnt++
-        totalScore += 10 * quiz.difficulty // Scale XP with difficulty level 1-5
-      }
-      results.push(evaluation)
-
-      // Update quiz_questions record
-      const chosenAnswerId =
-        typeof evaluation.chosen_answer_id === 'number' ? evaluation.chosen_answer_id : null
-      const freeTextAns = question.question_type === 'free_text' ? String(item.answer || '') : null
-
-      await connection.execute(
-        `UPDATE quiz_questions 
-         SET chosen_answer_id = ?, free_text_answer = ?, is_correct = ?, is_answered = TRUE, is_skipped = FALSE
-         WHERE quiz_id = ? AND question_id = ?`,
-        [chosenAnswerId, freeTextAns, evaluation.is_correct ? 1 : 0, quizId, question.id],
-      )
-
-      // Log in user_answers history as well
-      if (userId) {
-        await connection.execute(
-          `INSERT INTO user_answers (user_id, question_id, answer_id, is_correct)
-           VALUES (?, ?, ?, ?)`,
-          [userId, question.id, chosenAnswerId, evaluation.is_correct ? 1 : 0],
-        )
-      }
-    }
-
-    // Update quiz session completion
-    await connection.execute(
-      `UPDATE quizzes 
-       SET total_score = ?, correct_cnt = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [totalScore, correctCnt, quizId],
-    )
-
-    // Update User Progress XP and Level per (user_id, topic_id)
-    const actualUserId = userId || quiz.user_id
-    if (actualUserId && totalScore > 0) {
-      await updateUserXP(connection, actualUserId, quiz.topic_id, totalScore)
-    }
-
-    await connection.commit()
-
-    return {
-      quiz_id: quizId,
-      total_questions: quiz.total_cnt || allowedQuestionIds.size,
-      correct_count: correctCnt,
-      xp_earned: totalScore,
-      results: results,
-    }
-  } catch (err) {
-    await connection.rollback()
-    throw err
-  } finally {
-    connection.release()
-  }
-}
-
-async function updateUserXP(connection, userId, topicId, xpEarned) {
-  const db = connection || pool
-  await db.execute(
-    `INSERT INTO user_progress (user_id, topic_id, level, xp_points)
-     VALUES (?, ?, 1, ?)
-     ON DUPLICATE KEY UPDATE 
-       xp_points = xp_points + VALUES(xp_points),
-       level = FLOOR((xp_points + VALUES(xp_points)) / 100) + 1`,
-    [userId, topicId, xpEarned],
   )
 }
 
@@ -306,40 +170,29 @@ async function getQuizDetails(quizId, userId) {
     throw new Error('Forbidden')
   }
 
-  const [qqRows] = await pool.query(
-    `SELECT 
-       qq.position,
-       qq.is_correct,
-       qq.is_answered,
-       qq.is_skipped,
-       qq.chosen_answer_id,
-       qq.free_text_answer,
-       qn.id AS question_id,
-       qn.question_text,
-       qn.question_type,
-       qn.difficulty_level
-     FROM quiz_questions qq
-     JOIN questions qn ON qq.question_id = qn.id
-     WHERE qq.quiz_id = ?
-     ORDER BY qq.position ASC`,
+  const [rows] = await pool.query(
+    'SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY position',
     [quizId],
   )
-
-  for (const item of qqRows) {
-    const fullQuestion = await questionService.getQuestionById(item.question_id, {
-      includeCorrect: true,
-    })
-    item.id = item.question_id
-    item.is_answered = Boolean(item.is_answered)
-    item.is_skipped = Boolean(item.is_skipped)
-    item.answers =
-      fullQuestion.question_type === 'multiple_choice'
-        ? orderQuizAnswers(fullQuestion.answers, quizId, item.question_id)
-        : fullQuestion.answers
-    item.sources = fullQuestion.sources
-  }
-
-  return quizPayload(quiz, qqRows)
+  const questions = rows.map((row) => {
+    const snapshot = readJson(row.question_snapshot)
+    if (!snapshot) throw httpError(409, 'Quiz content snapshot is unavailable')
+    const isFreeText = snapshot.question_type === 'free_text'
+    const answer = isFreeText ? null : readJson(row.submitted_answer)
+    return {
+      ...snapshot,
+      question_id: row.question_id,
+      position: row.position,
+      is_correct: row.is_correct,
+      progress_revision: row.progress_revision,
+      is_answered: Boolean(row.is_answered),
+      is_skipped: Boolean(row.is_skipped),
+      chosen_answer_id: isFreeText ? null : (answer ?? row.chosen_answer_id),
+      free_text_answer: isFreeText ? row.free_text_answer : null,
+    }
+  })
+  const { result_snapshot, ...metadata } = quiz
+  return quizPayload(metadata, questions)
 }
 
 async function getUnfinishedQuizzes(userId) {
@@ -355,7 +208,12 @@ async function getUnfinishedQuizzes(userId) {
   return rows
 }
 
-async function saveQuestionProgress(quizId, userId, questionId, { answer, isSkipped = false }) {
+async function saveQuestionProgress(
+  quizId,
+  userId,
+  questionId,
+  { answer, isSkipped = false, revision },
+) {
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
@@ -369,34 +227,42 @@ async function saveQuestionProgress(quizId, userId, questionId, { answer, isSkip
     if (quiz.status !== 'in_progress')
       throw Object.assign(new Error('Quiz is already completed'), { status: 409 })
     const [rows] = await connection.query(
-      'SELECT question_id FROM quiz_questions WHERE quiz_id = ? AND question_id = ?',
+      'SELECT question_snapshot, progress_revision, is_answered, is_skipped FROM quiz_questions WHERE quiz_id = ? AND question_id = ?',
       [quizId, questionId],
     )
-    if (!rows.length) throw Object.assign(new Error('Question not in quiz'), { status: 404 })
-    if (typeof isSkipped !== 'boolean')
-      throw Object.assign(new Error('isSkipped must be boolean'), { status: 400 })
-    const question = await questionService.getQuestionById(questionId)
-    if (!question) throw Object.assign(new Error('Question no longer exists'), { status: 404 })
-    let chosenAnswerId = null
-    let freeTextAnswer = null
-    if (!isSkipped) {
-      if (question.question_type === 'free_text') {
-        if (typeof answer !== 'string' || !answer.trim() || answer.length > 10000) {
-          throw Object.assign(new Error('Enter an answer or skip this question'), { status: 400 })
-        }
-        freeTextAnswer = answer
-      } else {
-        if (!Number.isInteger(answer) || !question.answers.some((option) => option.id === answer)) {
-          throw Object.assign(new Error('Choose an answer or skip this question'), { status: 400 })
-        }
-        chosenAnswerId = answer
+    if (!rows.length) throw httpError(404, 'Question not in quiz')
+    const question = readJson(rows[0].question_snapshot)
+    validateAnswer(question, { answer, isSkipped })
+    if (!Number.isSafeInteger(revision) || revision < 1 || revision > 4294967295) {
+      throw httpError(400, 'A valid progress revision is required')
+    }
+    if (revision <= rows[0].progress_revision) {
+      if (revision < rows[0].progress_revision)
+        throw httpError(409, 'Newer quiz progress is already saved')
+      await connection.commit()
+      return {
+        question_id: questionId,
+        is_answered: Boolean(rows[0].is_answered),
+        is_skipped: Boolean(rows[0].is_skipped),
+        revision: rows[0].progress_revision,
       }
     }
+    const chosenAnswerId = await existingAnswerId(connection, question, { answer, isSkipped })
+    const freeTextAnswer = !isSkipped && question.question_type === 'free_text' ? answer : null
     await connection.execute(
       `UPDATE quiz_questions SET chosen_answer_id = ?, free_text_answer = ?,
-       is_answered = ?, is_skipped = ?, is_correct = NULL
+       is_answered = ?, is_skipped = ?, submitted_answer = ?, progress_revision = ?, is_correct = NULL
        WHERE quiz_id = ? AND question_id = ?`,
-      [chosenAnswerId, freeTextAnswer, !isSkipped, isSkipped, quizId, questionId],
+      [
+        chosenAnswerId,
+        freeTextAnswer,
+        !isSkipped,
+        isSkipped,
+        JSON.stringify(isSkipped ? null : answer),
+        revision,
+        quizId,
+        questionId,
+      ],
     )
     await connection.commit()
     return { question_id: questionId, is_answered: !isSkipped, is_skipped: isSkipped }

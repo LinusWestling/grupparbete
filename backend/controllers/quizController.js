@@ -22,15 +22,18 @@ async function startQuiz(req, res) {
 async function submitQuizSession(req, res) {
   try {
     const quizId = Number(req.params.quizId)
+    if (!Number.isInteger(quizId) || quizId < 1) {
+      return res.status(400).json({ status: 'error', message: 'Invalid quiz ID' })
+    }
     const { submissions } = req.body || {}
-    if (submissions !== undefined && !Array.isArray(submissions)) {
+    if (!Array.isArray(submissions)) {
       return res.status(400).json({ status: 'error', message: 'submissions array is required' })
     }
     const userId = req.session?.userId || null
     const result = await quizService.submitQuizSession(quizId, userId, submissions)
     res.json({ status: 'success', data: result })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    res.status(err.status || 500).json({ status: 'error', message: err.message })
   }
 }
 
@@ -43,7 +46,7 @@ async function getHistory(req, res) {
     const history = await quizService.getUserQuizHistory(userId)
     res.json({ status: 'success', data: history })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    res.status(err.status || 500).json({ status: 'error', message: err.message })
   }
 }
 

@@ -11,17 +11,25 @@ export function createApiService(endpoint) {
       headers.set('Content-Type', 'application/json')
     }
 
-    const response = await fetch(`${baseUrl}${endpoint}${path}`, {
-      ...options,
-      credentials: 'include',
-      headers,
-    })
+    let response
+    let text
+    try {
+      response = await fetch(`${baseUrl}${endpoint}${path}`, {
+        ...options,
+        credentials: 'include',
+        headers,
+      })
+      text = response.status === 204 ? '' : await response.text()
+      recordApiResponse(response.status)
+    } catch (error) {
+      recordApiFailure(error)
+      throw error
+    }
 
     if (response.status === 204) {
       return null
     }
 
-    const text = await response.text()
     let data
     try {
       data = text ? JSON.parse(text) : null
@@ -48,3 +56,4 @@ export function createApiService(endpoint) {
     getAll: () => request(),
   }
 }
+import { recordApiFailure, recordApiResponse } from './connectionStatus.js'
