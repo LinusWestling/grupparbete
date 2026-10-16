@@ -1,12 +1,17 @@
 const pool = require('../database/pool')
 
-async function getProspects(filters = {}) {
+async function getProspects(viewerUser, filters = {}) {
+  const viewerId = viewerUser?.id || 0
+  const isAdminViewer = viewerUser?.role === 'admin'
+
   let sql = `
-    SELECT u.id, u.username, u.created_at
+    SELECT u.id, u.username, u.created_at, par.status AS access_status
     FROM users u
+    LEFT JOIN prospect_access_requests par
+      ON par.candidate_id = u.id AND par.organization_id = ?
     WHERE u.role = 'user' AND u.is_public_prospect = TRUE
   `
-  const params = []
+  const params = [viewerId]
 
   if (filters.search) {
     sql += ' AND u.username LIKE ?'
@@ -19,42 +24,67 @@ async function getProspects(filters = {}) {
 
   if (prospects.length === 0) return []
 
-  const prospectIds = prospects.map((p) => p.id)
-
-  const [progressRows] = await pool.query(
-    `SELECT up.user_id, up.topic_id, up.level, up.xp_points AS xp, t.name AS topic_name
-     FROM user_progress up
-     JOIN topics t ON up.topic_id = t.id
-     WHERE up.user_id IN (?)`,
-    [prospectIds],
-  )
-
-  const [statsRows] = await pool.query(
-    `SELECT user_id, COUNT(*) AS total_answered, SUM(is_correct) AS total_correct
-     FROM user_answers
-     WHERE user_id IN (?)
-     GROUP BY user_id`,
-    [prospectIds],
-  )
-
-  const [quizRows] = await pool.query(
-    `SELECT user_id, COUNT(*) AS quizzes_completed
-     FROM quizzes
-     WHERE user_id IN (?) AND status = 'completed'
-     GROUP BY user_id`,
-    [prospectIds],
-  )
+  const approvedIds = prospects
+    .filter((p) => isAdminViewer || p.access_status === 'approved')
+    .map((p) => p.id)
 
   const progressMap = new Map()
-  for (const r of progressRows) {
-    if (!progressMap.has(r.user_id)) progressMap.set(r.user_id, [])
-    progressMap.get(r.user_id).push(r)
+  let statsMap = new Map()
+  let quizMap = new Map()
+
+  if (approvedIds.length > 0) {
+    const [progressRows] = await pool.query(
+      `SELECT up.user_id, up.topic_id, up.level, up.xp_points AS xp, t.name AS topic_name
+       FROM user_progress up
+       JOIN topics t ON up.topic_id = t.id
+       WHERE up.user_id IN (?)`,
+      [approvedIds],
+    )
+
+    const [statsRows] = await pool.query(
+      `SELECT user_id, COUNT(*) AS total_answered, SUM(is_correct) AS total_correct
+       FROM user_answers
+       WHERE user_id IN (?)
+       GROUP BY user_id`,
+      [approvedIds],
+    )
+
+    const [quizRows] = await pool.query(
+      `SELECT user_id, COUNT(*) AS quizzes_completed
+       FROM quizzes
+       WHERE user_id IN (?) AND status = 'completed'
+       GROUP BY user_id`,
+      [approvedIds],
+    )
+
+    for (const r of progressRows) {
+      if (!progressMap.has(r.user_id)) progressMap.set(r.user_id, [])
+      progressMap.get(r.user_id).push(r)
+    }
+
+    statsMap = new Map(statsRows.map((s) => [s.user_id, s]))
+    quizMap = new Map(quizRows.map((q) => [q.user_id, q.quizzes_completed]))
   }
 
-  const statsMap = new Map(statsRows.map((s) => [s.user_id, s]))
-  const quizMap = new Map(quizRows.map((q) => [q.user_id, q.quizzes_completed]))
-
   return prospects.map((p) => {
+    const accessStatus = isAdminViewer ? 'approved' : p.access_status || 'none'
+    const isApproved = accessStatus === 'approved'
+
+    if (!isApproved) {
+      return {
+        id: p.id,
+        username: p.username,
+        access_status: accessStatus,
+        overall_level: null,
+        total_xp: null,
+        total_answered: null,
+        total_correct: null,
+        accuracy_percentage: null,
+        quizzes_completed: null,
+        topic_progress: [],
+      }
+    }
+
     const topicProgress = progressMap.get(p.id) || []
     const stats = statsMap.get(p.id) || { total_answered: 0, total_correct: 0 }
     const totalAnswered = stats.total_answered || 0
@@ -66,6 +96,7 @@ async function getProspects(filters = {}) {
     return {
       id: p.id,
       username: p.username,
+      access_status: accessStatus,
       overall_level: overallLevel,
       total_xp: totalXp,
       total_answered: totalAnswered,
@@ -77,7 +108,41 @@ async function getProspects(filters = {}) {
   })
 }
 
-async function getProspectDetails(prospectId) {
+async function requestProspectAccess(organizationId, candidateId) {
+  const [userRows] = await pool.query(
+    "SELECT id, is_public_prospect FROM users WHERE id = ? AND role = 'user'",
+    [candidateId],
+  )
+
+  if (userRows.length === 0) {
+    throw Object.assign(new Error('Candidate not found'), { status: 404 })
+  }
+
+  if (!userRows[0].is_public_prospect) {
+    throw Object.assign(new Error('Candidate is not accepting organization requests'), {
+      status: 403,
+    })
+  }
+
+  await pool.execute(
+    `INSERT INTO prospect_access_requests (organization_id, candidate_id, status)
+     VALUES (?, ?, 'pending')
+     ON DUPLICATE KEY UPDATE
+       status = IF(status = 'approved', 'approved', 'pending'),
+       requested_at = IF(status = 'approved', requested_at, CURRENT_TIMESTAMP),
+       responded_at = IF(status = 'approved', responded_at, NULL)`,
+    [organizationId, candidateId],
+  )
+
+  const [[row]] = await pool.execute(
+    'SELECT status FROM prospect_access_requests WHERE organization_id = ? AND candidate_id = ?',
+    [organizationId, candidateId],
+  )
+
+  return { access_status: row ? row.status : 'pending' }
+}
+
+async function getProspectDetails(viewerUser, prospectId) {
   const [userRows] = await pool.query(
     "SELECT id, username, role, is_public_prospect, created_at FROM users WHERE id = ? AND role = 'user'",
     [prospectId],
@@ -88,6 +153,19 @@ async function getProspectDetails(prospectId) {
 
   if (!prospect.is_public_prospect) {
     throw Object.assign(new Error('Prospect profile is private'), { status: 403 })
+  }
+
+  if (viewerUser?.role !== 'admin') {
+    const [[accessRow]] = await pool.execute(
+      'SELECT status FROM prospect_access_requests WHERE organization_id = ? AND candidate_id = ?',
+      [viewerUser?.id || 0, prospectId],
+    )
+    if (!accessRow || accessRow.status !== 'approved') {
+      throw Object.assign(
+        new Error('Access denied: candidate has not approved your organization yet'),
+        { status: 403 },
+      )
+    }
   }
 
   const [topicProgress] = await pool.query(
@@ -135,5 +213,6 @@ async function getProspectDetails(prospectId) {
 
 module.exports = {
   getProspects,
+  requestProspectAccess,
   getProspectDetails,
 }

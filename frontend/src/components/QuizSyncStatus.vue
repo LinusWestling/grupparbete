@@ -54,35 +54,3 @@ function retry() {
     </button>
   </aside>
 </template>
-
-<style scoped>
-.quiz-sync-status {
-  margin: 1rem 0;
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-soft);
-  color: var(--color-success-text);
-}
-.quiz-sync-status.needs-saving {
-  border-color: var(--color-warning-text);
-  background: var(--color-warning);
-  color: var(--color-warning-text);
-}
-.sync-heading {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
-.sync-heading span {
-  font-size: 0.875rem;
-}
-p {
-  margin: 0.6rem 0;
-  line-height: 1.5;
-}
-.tab-warning {
-  font-weight: 600;
-}
-</style>

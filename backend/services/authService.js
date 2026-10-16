@@ -18,7 +18,7 @@ function createError(status, message) {
   return error
 }
 
-async function register({ username, email, password } = {}) {
+async function register({ username, email, password, requestOrganization = false } = {}) {
   // Kontrollera att alla fält är text.
   if (typeof username !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
     throw createError(400, 'Användarnamn, e-post och lösenord krävs')
@@ -41,11 +41,18 @@ async function register({ username, email, password } = {}) {
 
   // Hasha lösenorder innan det sparas.
   const passwordHash = await argon2.hash(password, hashOptions)
+  const orgRequestStatus = requestOrganization === true ? 'pending' : 'none'
 
   try {
-    const id = await userRepository.createUser(cleanUsername, cleanEmail, passwordHash, 'user')
+    const id = await userRepository.createUser(
+      cleanUsername,
+      cleanEmail,
+      passwordHash,
+      'user',
+      orgRequestStatus,
+    )
 
-    return { id }
+    return { id, org_request_status: orgRequestStatus }
   } catch (error) {
     if (error.code == 'ER_DUP_ENTRY') {
       throw createError(409, 'Användarnamnet eller e-postadressen är upptaget')
@@ -79,8 +86,11 @@ async function login({ email, password } = {}) {
     id: user.id,
     username: user.username,
     email: user.email,
+    role: user.role,
+    org_request_status: user.org_request_status,
   }
 }
+
 
 async function getCurrentUser(userId) {
   if (!userId) {
