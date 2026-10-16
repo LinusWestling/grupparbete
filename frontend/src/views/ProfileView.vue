@@ -106,7 +106,9 @@ async function loadUserData() {
       const [progData, histData, reqData] = await Promise.all([
         api.getUserProgress(user.value.id),
         api.getQuizHistory(),
-        user.value.role === 'user' ? api.getMyAccessRequests().catch(() => []) : Promise.resolve([]),
+        user.value.role === 'user'
+          ? api.getMyAccessRequests().catch(() => [])
+          : Promise.resolve([]),
       ])
       progress.value = progData
       history.value = histData

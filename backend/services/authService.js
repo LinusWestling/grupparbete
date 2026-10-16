@@ -91,7 +91,6 @@ async function login({ email, password } = {}) {
   }
 }
 
-
 async function getCurrentUser(userId) {
   if (!userId) {
     throw createError(401, 'Du är inte inloggad')

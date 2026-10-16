@@ -73,7 +73,10 @@ async function respondToAccessRequest(req, res) {
     if (!Number.isInteger(requestId) || !['approved', 'rejected'].includes(status)) {
       return res
         .status(400)
-        .json({ status: 'error', message: 'Valid requestId and status (approved/rejected) required' })
+        .json({
+          status: 'error',
+          message: 'Valid requestId and status (approved/rejected) required',
+        })
     }
     const userRepository = require('../repositories/userRepository')
     const updated = await userRepository.updateCandidateAccessRequest(requestId, userId, status)

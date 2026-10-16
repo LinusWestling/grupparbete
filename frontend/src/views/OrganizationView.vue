@@ -39,8 +39,7 @@ async function fetchProspects() {
 const filteredProspects = computed(() => {
   if (!selectedMinLevel.value) return prospects.value
   return prospects.value.filter(
-    (p) =>
-      p.access_status === 'approved' && p.overall_level >= Number(selectedMinLevel.value),
+    (p) => p.access_status === 'approved' && p.overall_level >= Number(selectedMinLevel.value),
   )
 })
 
