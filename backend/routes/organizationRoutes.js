@@ -4,6 +4,11 @@ const organizationController = require('../controllers/organizationController')
 const { requireOrganization } = require('../middleware/auth')
 
 router.get('/api/organization/prospects', requireOrganization, organizationController.getProspects)
+router.post(
+  '/api/organization/prospects/:id/request-access',
+  requireOrganization,
+  organizationController.requestProspectAccess,
+)
 router.get(
   '/api/organization/prospects/:id',
   requireOrganization,

@@ -61,23 +61,6 @@ app.use(
 app.use('/api/auth', require('./routes/authRoutes'))
 app.use(express.static('public'))
 
-app.use((error, req, res, next) => {
-  if (res.headersSent) {
-    return next(error)
-  }
-
-  const status =
-    Number.isInteger(error.status) && error.status >= 400 && error.status < 500 ? error.status : 500
-
-  if (status === 500) {
-    console.error(error.message)
-  }
-
-  res.status(status).json({
-    message: status === 500 ? 'Ett serverfel uppstod' : error.message,
-  })
-})
-
 // Import domain routes
 const topicRoutes = require('./routes/topicRoutes')
 const questionRoutes = require('./routes/questionRoutes')
@@ -101,6 +84,23 @@ app.use(organizationRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'SkillSwap API Server Running' })
+})
+
+app.use((error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error)
+  }
+
+  const status =
+    Number.isInteger(error.status) && error.status >= 400 && error.status < 500 ? error.status : 500
+
+  if (status === 500) {
+    console.error(error.message)
+  }
+
+  res.status(status).json({
+    message: status === 500 ? 'Ett serverfel uppstod' : error.message,
+  })
 })
 
 app.listen(port, () => console.log(`SkillSwap backend listening on port ${port}!`))

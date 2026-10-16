@@ -25,14 +25,48 @@ const pendingDelete = ref(null)
 const deleting = ref(false)
 const cancelDeleteButton = ref(null)
 
+const orgRequests = ref([])
+const loadingOrgRequests = ref(false)
+const updatingOrgId = ref(null)
+
 onMounted(async () => {
   try {
     topics.value = await api.getTopics()
   } catch (err) {
     error.value = 'Could not load topics: ' + err.message
   }
-  await loadQuestions()
+  await Promise.all([loadQuestions(), loadOrgRequests()])
 })
+
+async function loadOrgRequests() {
+  loadingOrgRequests.value = true
+  try {
+    orgRequests.value = await api.getOrganizationRequests()
+  } catch (err) {
+    // Non-blocking if org requests fail
+  } finally {
+    loadingOrgRequests.value = false
+  }
+}
+
+async function handleOrgRequest(userId, action) {
+  if (updatingOrgId.value) return
+  updatingOrgId.value = userId
+  error.value = ''
+  successMsg.value = ''
+  try {
+    await api.updateOrganizationRequestStatus(userId, action)
+    successMsg.value =
+      action === 'approve'
+        ? 'Organization account approved.'
+        : 'Organization account request declined / revoked.'
+    await loadOrgRequests()
+  } catch (err) {
+    error.value = 'Could not update organization request: ' + err.message
+  } finally {
+    updatingOrgId.value = null
+  }
+}
 
 async function loadQuestions() {
   loading.value = true
@@ -113,11 +147,10 @@ async function confirmDelete() {
   <div class="admin-questions-page">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">ADMIN · QUIZ CONTENT</p>
-        <h1>Manage questions</h1>
+        <p class="eyebrow">ADMIN · PLATFORM & QUIZ CONTENT</p>
+        <h1>Manage questions & organizations</h1>
         <p class="heading-description">
-          Add, edit and remove the questions used in quizzes. Deleted questions disappear from new
-          quizzes but stay in players' quiz history.
+          Review pending organization account applications, and add, edit or remove quiz questions.
         </p>
       </div>
       <button v-if="editing !== 'new'" class="button button-accent" @click="openForm(null)">
@@ -127,6 +160,78 @@ async function confirmDelete() {
 
     <div v-if="error" class="banner error-banner" role="alert">{{ error }}</div>
     <div v-if="successMsg" class="banner success-banner" role="status">{{ successMsg }}</div>
+
+    <!-- Admin Organization Account Approval Section -->
+    <section class="admin-org-panel" aria-labelledby="org-requests-heading">
+      <div class="admin-org-header">
+        <div>
+          <h2 id="org-requests-heading">Organization Account Applications</h2>
+          <p class="text-muted">
+            Sign off on organization accounts before they can access candidate prospect insights.
+          </p>
+        </div>
+      </div>
+
+      <p v-if="loadingOrgRequests" class="text-muted">Loading organization requests…</p>
+      <div v-else-if="orgRequests.length > 0" class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Organization / Username</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Active Role</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="org in orgRequests" :key="org.id">
+              <td>#{{ org.id }}</td>
+              <td>
+                <strong>{{ org.username }}</strong>
+              </td>
+              <td>{{ org.email }}</td>
+              <td>
+                <span :class="['status-pill', org.org_request_status]">
+                  {{
+                    org.org_request_status === 'pending'
+                      ? '⏳ Pending Sign-Off'
+                      : org.org_request_status === 'approved'
+                        ? '✅ Approved'
+                        : '✕ Declined'
+                  }}
+                </span>
+              </td>
+              <td>
+                <span class="chip">{{ org.role }}</span>
+              </td>
+              <td class="row-actions">
+                <button
+                  v-if="org.role !== 'organization'"
+                  type="button"
+                  class="button button-accent button-sm"
+                  :disabled="updatingOrgId === org.id"
+                  @click="handleOrgRequest(org.id, 'approve')"
+                >
+                  Approve Org ✓
+                </button>
+                <button
+                  v-if="org.org_request_status === 'pending' || org.role === 'organization'"
+                  type="button"
+                  class="button-danger button-sm"
+                  :disabled="updatingOrgId === org.id"
+                  @click="handleOrgRequest(org.id, 'reject')"
+                >
+                  {{ org.role === 'organization' ? 'Revoke Org' : 'Reject ✕' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p v-else class="text-muted">No organization applications or accounts found.</p>
+    </section>
 
     <div v-if="editing" ref="formCard">
       <QuestionForm
