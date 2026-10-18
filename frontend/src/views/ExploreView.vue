@@ -362,11 +362,11 @@ async function exitQuiz() {
       <p v-else role="status">Results confirmed and saved to your account.</p>
 
       <!-- 80% Qualification Badge -->
-      <div v-if="quizResult?.percentage >= 80" class="qualification-badge">
+      <div v-if="quizResult?.meets_80_percent === true" class="qualification-badge">
         ✓ {{ quizResult.percentage }}% - Uppfyller 80%-kravet för PT-utbildning
       </div>
       <div
-        v-else-if="quizResult?.percentage !== undefined && quizResult.percentage < 80"
+        v-else-if="quizResult?.meets_80_percent === false"
         class="qualification-warning"
       >
         {{ quizResult.percentage }}% - Behöver {{ 80 - quizResult.percentage }}% till för
