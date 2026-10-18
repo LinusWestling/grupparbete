@@ -365,10 +365,7 @@ async function exitQuiz() {
       <div v-if="quizResult?.meets_80_percent === true" class="qualification-badge">
         ✓ {{ quizResult.percentage }}% - Uppfyller 80%-kravet för PT-utbildning
       </div>
-      <div
-        v-else-if="quizResult?.meets_80_percent === false"
-        class="qualification-warning"
-      >
+      <div v-else-if="quizResult?.meets_80_percent === false" class="qualification-warning">
         {{ quizResult.percentage }}% - Behöver {{ 80 - quizResult.percentage }}% till för
         PT-kvalificering
       </div>
