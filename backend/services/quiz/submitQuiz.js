@@ -31,10 +31,13 @@ function evaluate(question, item) {
 
 function summarize(quiz, results) {
   const correctCount = results.filter((result) => result.is_correct).length
+  const percentage = results.length > 0 ? correctCount / results.length : 0
   return {
     quiz_id: quiz.id,
     total_questions: results.length,
     correct_count: correctCount,
+    percentage: Math.round(percentage * 100),
+    meets_80_percent: percentage >= 0.8,
     skipped_count: results.filter((result) => result.is_skipped).length,
     xp_earned: correctCount * 10 * quiz.difficulty,
     results,

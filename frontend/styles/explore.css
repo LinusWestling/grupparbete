@@ -207,6 +207,28 @@
   box-shadow: var(--shadow-sm);
 }
 
+.qualification-badge {
+  background: #22c55e;
+  color: white;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.qualification-warning {
+  background: #f59e0b;
+  color: white;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
+  box-shadow: var(--shadow-sm);
+}
+
 .score-summary {
   display: flex;
   justify-content: center;
