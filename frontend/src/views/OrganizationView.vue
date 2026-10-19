@@ -10,6 +10,7 @@ const error = ref(null)
 
 const selectedProspectDetails = ref(null)
 const loadingDetails = ref(false)
+const requestingId = ref(null)
 
 onMounted(() => {
   fetchProspects()
@@ -37,8 +38,23 @@ async function fetchProspects() {
 
 const filteredProspects = computed(() => {
   if (!selectedMinLevel.value) return prospects.value
-  return prospects.value.filter((p) => p.overall_level >= Number(selectedMinLevel.value))
+  return prospects.value.filter(
+    (p) => p.access_status === 'approved' && p.overall_level >= Number(selectedMinLevel.value),
+  )
 })
+
+async function requestAccess(prospect) {
+  if (requestingId.value) return
+  try {
+    requestingId.value = prospect.id
+    const res = await api.requestProspectAccess(prospect.id)
+    prospect.access_status = res.access_status || 'pending'
+  } catch (err) {
+    alert('Could not request access: ' + err.message)
+  } finally {
+    requestingId.value = null
+  }
+}
 
 async function inspectProspect(prospectId) {
   try {
@@ -54,43 +70,6 @@ async function inspectProspect(prospectId) {
 function closeDetailsModal() {
   selectedProspectDetails.value = null
 }
-
-const showCreateModal = ref(false)
-const newUsername = ref('')
-const newEmail = ref('')
-const newPassword = ref('')
-const createError = ref(null)
-const createSuccess = ref(null)
-const creating = ref(false)
-
-async function handleCreateUser() {
-  try {
-    creating.value = true
-    createError.value = null
-    createSuccess.value = null
-
-    if (newUsername.value.trim().length < 3) {
-      createError.value = 'Username must be at least 3 characters long.'
-      return
-    }
-    if (newPassword.value.length < 15) {
-      createError.value = 'Password must be at least 15 characters long.'
-      return
-    }
-
-    await api.register(newUsername.value.trim(), newEmail.value.trim(), newPassword.value)
-
-    createSuccess.value = 'Candidate account created successfully!'
-    newUsername.value = ''
-    newEmail.value = ''
-    newPassword.value = ''
-    await fetchProspects()
-  } catch (err) {
-    createError.value = 'Failed to create user: ' + err.message
-  } finally {
-    creating.value = false
-  }
-}
 </script>
 
 <template>
@@ -100,8 +79,8 @@ async function handleCreateUser() {
         <p class="eyebrow">ORGANIZATION RECRUITMENT & PROSPECT INSIGHTS</p>
         <h1>Candidate Knowledge Overview</h1>
         <p class="heading-description">
-          Inspect quiz performance, topic mastery levels, and detailed test history of candidates
-          (prospects) to evaluate theoretical knowledge.
+          Discover candidates who have opted in as prospects, request permission to view their quiz
+          results, and inspect approved candidates' topic mastery and test history.
         </p>
       </div>
     </div>
@@ -116,19 +95,16 @@ async function handleCreateUser() {
         aria-label="Search prospects"
       />
       <div class="filter-group">
-        <label for="level-filter" class="text-sm font-semibold">Min Level:</label>
+        <label for="level-filter" class="text-sm font-semibold">Min Approved Level:</label>
         <select id="level-filter" v-model="selectedMinLevel" class="filter-select">
-          <option :value="0">All Levels</option>
-          <option :value="1">Level 1+</option>
-          <option :value="2">Level 2+</option>
-          <option :value="3">Level 3+</option>
-          <option :value="4">Level 4+</option>
-          <option :value="5">Level 5 (PT Master)</option>
+          <option :value="0">All Prospects</option>
+          <option :value="1">Approved Level 1+</option>
+          <option :value="2">Approved Level 2+</option>
+          <option :value="3">Approved Level 3+</option>
+          <option :value="4">Approved Level 4+</option>
+          <option :value="5">Approved Level 5 (PT Master)</option>
         </select>
       </div>
-      <button @click="showCreateModal = true" class="button button-accent button-sm">
-        + Create New User / Candidate ✨
-      </button>
     </div>
 
     <!-- Error Banner -->
@@ -151,33 +127,79 @@ async function handleCreateUser() {
           </div>
           <div class="prospect-info">
             <span class="prospect-name">{{ p.username }}</span>
+            <span :class="['status-pill', p.access_status]">
+              {{
+                p.access_status === 'approved'
+                  ? '✅ Access Approved'
+                  : p.access_status === 'pending'
+                    ? '⏳ Approval Pending'
+                    : p.access_status === 'rejected'
+                      ? '✕ Access Declined'
+                      : '🔒 Results Locked'
+              }}
+            </span>
           </div>
         </div>
 
-        <div class="prospect-stats-row">
-          <div class="p-stat">
-            <span class="p-val">Lvl {{ p.overall_level }}</span>
-            <span class="p-lbl">Overall Tier</span>
+        <!-- Approved Candidate View -->
+        <template v-if="p.access_status === 'approved'">
+          <div class="prospect-stats-row">
+            <div class="p-stat">
+              <span class="p-val">Lvl {{ p.overall_level }}</span>
+              <span class="p-lbl">Overall Tier</span>
+            </div>
+            <div class="p-stat">
+              <span class="p-val">{{ p.quizzes_completed }}</span>
+              <span class="p-lbl">Quizzes</span>
+            </div>
+            <div class="p-stat">
+              <span class="p-val">{{ p.accuracy_percentage }}%</span>
+              <span class="p-lbl">Accuracy</span>
+            </div>
           </div>
-          <div class="p-stat">
-            <span class="p-val">{{ p.quizzes_completed }}</span>
-            <span class="p-lbl">Quizzes</span>
-          </div>
-          <div class="p-stat">
-            <span class="p-val">{{ p.accuracy_percentage }}%</span>
-            <span class="p-lbl">Accuracy</span>
-          </div>
-        </div>
 
-        <div v-if="p.topic_progress && p.topic_progress.length > 0" class="topic-pills">
-          <span v-for="tp in p.topic_progress" :key="tp.topic_id" class="topic-pill">
-            {{ tp.topic_name }}: ⭐ Lvl {{ tp.level }}
-          </span>
-        </div>
+          <div v-if="p.topic_progress && p.topic_progress.length > 0" class="topic-pills">
+            <span v-for="tp in p.topic_progress" :key="tp.topic_id" class="topic-pill">
+              {{ tp.topic_name }}: ⭐ Lvl {{ tp.level }}
+            </span>
+          </div>
 
-        <button @click="inspectProspect(p.id)" class="button button-outline button-sm">
-          Inspect Full Report ↗
-        </button>
+          <button @click="inspectProspect(p.id)" class="button button-outline button-sm">
+            Inspect Full Report ↗
+          </button>
+        </template>
+
+        <!-- Unapproved / Locked Candidate View -->
+        <template v-else>
+          <div class="prospect-locked-box">
+            <p class="text-muted">
+              Detailed quiz scores and topic progression are private until
+              <strong>{{ p.username }}</strong> approves your organization's request.
+            </p>
+          </div>
+
+          <button
+            v-if="p.access_status === 'pending'"
+            class="button button-outline button-sm"
+            disabled
+          >
+            ⏳ Waiting for Candidate Approval
+          </button>
+          <button
+            v-else
+            @click="requestAccess(p)"
+            class="button button-accent button-sm"
+            :disabled="requestingId === p.id"
+          >
+            {{
+              requestingId === p.id
+                ? 'Sending Request...'
+                : p.access_status === 'rejected'
+                  ? 'Request Access Again 🔒'
+                  : 'Request Access to Results 🔒'
+            }}
+          </button>
+        </template>
       </div>
     </div>
 
@@ -276,58 +298,6 @@ async function handleCreateUser() {
 
         <div class="modal-footer">
           <button @click="closeDetailsModal" class="button button-outline">Close Report</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Create User Modal -->
-    <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Create New User / Candidate</h2>
-          <button @click="showCreateModal = false" class="button-text">✕ Close</button>
-        </div>
-
-        <div class="modal-body">
-          <div v-if="createError" class="error-banner">⚠️ {{ createError }}</div>
-          <div v-if="createSuccess" class="success-banner">✅ {{ createSuccess }}</div>
-
-          <form @submit.prevent="handleCreateUser" class="login-form">
-            <div class="form-group">
-              <label>Username:</label>
-              <input
-                type="text"
-                v-model="newUsername"
-                placeholder="e.g. candidate_user"
-                minlength="3"
-                maxlength="50"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>Email Address:</label>
-              <input type="email" v-model="newEmail" placeholder="user@example.com" required />
-            </div>
-            <div class="form-group">
-              <label>Password:</label>
-              <input
-                type="password"
-                v-model="newPassword"
-                placeholder="Min 15 characters"
-                minlength="15"
-                required
-              />
-              <span class="form-help-text">Password must be at least 15 characters long.</span>
-            </div>
-            <div class="modal-footer">
-              <button type="submit" class="button button-accent" :disabled="creating">
-                {{ creating ? 'Creating...' : 'Create Account ✨' }}
-              </button>
-              <button type="button" @click="showCreateModal = false" class="button button-outline">
-                Cancel
-              </button>
-            </div>
-          </form>
         </div>
       </div>
     </div>

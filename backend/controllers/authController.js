@@ -2,17 +2,22 @@ const { promisify } = require('node:util')
 const authService = require('../services/authService')
 
 async function register(req, res) {
-  const { username, email, password } = req.body || {}
+  const { username, email, password, requestOrganization } = req.body || {}
 
   const user = await authService.register({
     username,
     email,
     password,
+    requestOrganization: requestOrganization === true,
   })
 
   res.status(201).json({
     id: user.id,
-    message: 'Kontot har skapats. Du kan nu logga in.',
+    org_request_status: user.org_request_status,
+    message:
+      user.org_request_status === 'pending'
+        ? 'Kontot har skapats och ansökan om organisationskonto inväntar godkännande från administratör.'
+        : 'Kontot har skapats. Du kan nu logga in.',
   })
 }
 

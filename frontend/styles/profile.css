@@ -570,3 +570,102 @@
   font-weight: var(--font-weight-semibold);
   margin-bottom: var(--space-4);
 }
+
+.org-signup-box {
+  background: var(--color-surface-muted);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.org-status-banner {
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.org-status-banner.pending {
+  border-color: var(--color-primary);
+  background: var(--color-surface-soft);
+}
+
+.org-status-banner.rejected {
+  border-color: var(--color-error-text);
+  background: var(--color-error);
+}
+
+.access-requests-panel {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.access-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.access-request-item {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.access-request-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.access-request-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.status-pill.approved {
+  background: var(--color-surface-soft);
+  color: var(--color-success-text);
+  border-color: var(--color-success-text);
+}
+
+.status-pill.pending {
+  background: var(--color-warning);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning-text);
+}
+
+.status-pill.rejected {
+  background: var(--color-error);
+  color: var(--color-error-text);
+  border-color: var(--color-error-text);
+}

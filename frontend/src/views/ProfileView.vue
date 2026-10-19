@@ -9,6 +9,7 @@ const router = useRouter()
 const user = ref(null)
 const progress = ref(null)
 const history = ref([])
+const accessRequests = ref([])
 const selectedQuizDetails = ref(null)
 const showLevelModal = ref(false)
 const loading = ref(true)
@@ -21,6 +22,7 @@ const regUsername = ref('')
 const regEmail = ref('')
 const regPassword = ref('')
 const regConfirmPassword = ref('')
+const regRequestOrg = ref(false)
 const registering = ref(false)
 const regError = ref(null)
 const regSuccess = ref(null)
@@ -101,12 +103,16 @@ async function loadUserData() {
     loading.value = true
     user.value = await loadCurrentUser({ force: true })
     if (user.value) {
-      const [progData, histData] = await Promise.all([
+      const [progData, histData, reqData] = await Promise.all([
         api.getUserProgress(user.value.id),
         api.getQuizHistory(),
+        user.value.role === 'user'
+          ? api.getMyAccessRequests().catch(() => [])
+          : Promise.resolve([]),
       ])
       progress.value = progData
       history.value = histData
+      accessRequests.value = reqData || []
     }
   } catch (err) {
     // Guest mode
@@ -146,9 +152,16 @@ async function handleRegister() {
 
   registering.value = true
   try {
-    await api.register(regUsername.value.trim(), regEmail.value.trim(), regPassword.value)
+    await api.register(
+      regUsername.value.trim(),
+      regEmail.value.trim(),
+      regPassword.value,
+      regRequestOrg.value,
+    )
 
-    regSuccess.value = 'Account created successfully! Logging you in...'
+    regSuccess.value = regRequestOrg.value
+      ? 'Account created! Your organization application is pending admin approval. Logging you in...'
+      : 'Account created successfully! Logging you in...'
     user.value = await api.login(regEmail.value.trim(), regPassword.value)
     await loadUserData()
   } catch (err) {
@@ -168,6 +181,15 @@ async function handlePrivacyToggle(event) {
   } catch (err) {
     alert('Failed to update privacy settings: ' + err.message)
     event.target.checked = !isChecked
+  }
+}
+
+async function handleAccessRequestResponse(requestId, status) {
+  try {
+    await api.respondToAccessRequest(requestId, status)
+    accessRequests.value = await api.getMyAccessRequests()
+  } catch (err) {
+    alert('Failed to update organization access request: ' + err.message)
   }
 }
 
@@ -247,20 +269,91 @@ function getSourceUrl(url) {
         </div>
       </div>
 
-      <!-- Prospect Privacy Setting -->
-      <div class="privacy-section">
+      <!-- Organization Account Application Status -->
+      <div
+        v-if="user.role === 'user' && user.org_request_status === 'pending'"
+        class="org-status-banner pending"
+      >
+        <strong>⏳ Organization Account Application Pending</strong>
+        <p class="text-muted">
+          Your request to upgrade this account to an Organization account is awaiting administrator
+          approval. Once approved, you will gain access to the Prospect Insights portal.
+        </p>
+      </div>
+      <div
+        v-else-if="user.role === 'user' && user.org_request_status === 'rejected'"
+        class="org-status-banner rejected"
+      >
+        <strong>✕ Organization Account Application Declined</strong>
+        <p class="text-muted">
+          Your request for an Organization account was declined by an administrator.
+        </p>
+      </div>
+
+      <!-- Prospect Privacy & Per-Organization Consent (Regular Users) -->
+      <div v-if="user.role === 'user'" class="privacy-section">
         <label class="privacy-toggle">
           <input
             type="checkbox"
             :checked="!!user.is_public_prospect"
             @change="handlePrivacyToggle($event)"
           />
-          <span>Visible as public prospect candidate to organizations</span>
+          <span>Visible as a prospect candidate to verified organizations</span>
         </label>
         <p class="text-muted">
-          When enabled, organizations (e.g. gym owners, recruiters) can view your quiz mastery &
-          accuracy statistics for candidate insights.
+          When enabled, verified organizations can discover your username and send a request to view
+          your quiz results. Your scores and history are only shared with organizations you
+          explicitly approve below.
         </p>
+
+        <div class="access-requests-panel">
+          <h4>Organization Access Requests & Permissions</h4>
+          <div v-if="accessRequests.length > 0" class="access-requests-list">
+            <div v-for="req in accessRequests" :key="req.id" class="access-request-item">
+              <div class="access-request-info">
+                <strong>🏢 {{ req.organization_username }}</strong>
+                <span :class="['status-pill', req.status]">
+                  {{
+                    req.status === 'pending'
+                      ? '⏳ Pending Approval'
+                      : req.status === 'approved'
+                        ? '✅ Approved'
+                        : '✕ Declined / Revoked'
+                  }}
+                </span>
+              </div>
+              <div class="access-request-actions">
+                <button
+                  v-if="req.status !== 'approved'"
+                  type="button"
+                  class="button button-accent button-sm"
+                  @click="handleAccessRequestResponse(req.id, 'approved')"
+                >
+                  Approve Access ✓
+                </button>
+                <button
+                  v-if="req.status === 'pending'"
+                  type="button"
+                  class="button button-outline button-sm"
+                  @click="handleAccessRequestResponse(req.id, 'rejected')"
+                >
+                  Decline ✕
+                </button>
+                <button
+                  v-if="req.status === 'approved'"
+                  type="button"
+                  class="button button-outline button-sm"
+                  @click="handleAccessRequestResponse(req.id, 'rejected')"
+                >
+                  Revoke Access
+                </button>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-muted">
+            No organizations have requested access to your results yet.
+          </p>
+        </div>
       </div>
 
       <!-- XP Progression Overview Bar -->
@@ -614,11 +707,11 @@ function getSourceUrl(url) {
 
         <form @submit.prevent="handleRegister" class="login-form">
           <div class="form-group">
-            <label>Username:</label>
+            <label>{{ regRequestOrg ? 'Organization Name / Username:' : 'Username:' }}</label>
             <input
               type="text"
               v-model="regUsername"
-              placeholder="e.g. johndoe"
+              :placeholder="regRequestOrg ? 'e.g. nordic_gym' : 'e.g. johndoe'"
               minlength="3"
               maxlength="50"
               required
@@ -648,6 +741,16 @@ function getSourceUrl(url) {
               minlength="15"
               required
             />
+          </div>
+          <div class="org-signup-box">
+            <label class="privacy-toggle">
+              <input type="checkbox" v-model="regRequestOrg" />
+              <span>Apply for an Organization Account (e.g. Gym / Employer)</span>
+            </label>
+            <span class="form-help-text">
+              Organization accounts require administrator sign-off before accessing candidate
+              prospect insights.
+            </span>
           </div>
           <button type="submit" class="button button-accent" :disabled="registering">
             {{ registering ? 'Registering...' : 'Register & Sign In ✨' }}

@@ -48,8 +48,49 @@ async function updateUserPrivacy(req, res) {
   }
 }
 
+async function getAccessRequests(req, res) {
+  try {
+    const userId = req.session?.userId
+    if (!userId) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    }
+    const userRepository = require('../repositories/userRepository')
+    const requests = await userRepository.getCandidateAccessRequests(userId)
+    res.json({ status: 'success', data: requests })
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message })
+  }
+}
+
+async function respondToAccessRequest(req, res) {
+  try {
+    const userId = req.session?.userId
+    if (!userId) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    }
+    const requestId = Number(req.params.requestId)
+    const { status } = req.body || {}
+    if (!Number.isInteger(requestId) || !['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Valid requestId and status (approved/rejected) required',
+      })
+    }
+    const userRepository = require('../repositories/userRepository')
+    const updated = await userRepository.updateCandidateAccessRequest(requestId, userId, status)
+    if (!updated) {
+      return res.status(404).json({ status: 'error', message: 'Access request not found' })
+    }
+    res.json({ status: 'success', message: `Access request ${status}` })
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message })
+  }
+}
+
 module.exports = {
   getDashboardStats,
   getUserProgress,
   updateUserPrivacy,
+  getAccessRequests,
+  respondToAccessRequest,
 }
