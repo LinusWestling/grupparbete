@@ -207,6 +207,30 @@
   box-shadow: var(--shadow-sm);
 }
 
+.qualification-badge {
+  background: var(--color-success);
+  color: var(--color-success-text);
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
+  box-shadow: var(--shadow-sm);
+  border: var(--border-width) solid var(--color-success-text);
+}
+
+.qualification-warning {
+  background: var(--color-warning);
+  color: var(--color-warning-text);
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-lg);
+  box-shadow: var(--shadow-sm);
+  border: var(--border-width) solid var(--color-warning-text);
+}
+
 .score-summary {
   display: flex;
   justify-content: center;

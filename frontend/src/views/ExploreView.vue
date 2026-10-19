@@ -360,6 +360,16 @@ async function exitQuiz() {
         {{ syncingCompletion ? 'Syncing…' : 'Connect to the server and retry saving.' }}
       </p>
       <p v-else role="status">Results confirmed and saved to your account.</p>
+
+      <!-- 80% Qualification Badge -->
+      <div v-if="quizResult?.meets_80_percent === true" class="qualification-badge">
+        ✓ {{ quizResult.percentage }}% - Uppfyller 80%-kravet för PT-utbildning
+      </div>
+      <div v-else-if="quizResult?.meets_80_percent === false" class="qualification-warning">
+        {{ quizResult.percentage }}% - Behöver {{ 80 - quizResult.percentage }}% till för
+        PT-kvalificering
+      </div>
+
       <div class="score-summary">
         <div class="stat">
           <span class="stat-value"

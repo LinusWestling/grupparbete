@@ -188,7 +188,9 @@ export function createQuizStore(
         isSkipped: question.is_skipped,
       }))
       const confirmed = await submitQuiz(activeQuizSession.value.quiz_id, submissions)
+      // Preserve local result fields in case server response is incomplete
       quizResult.value = {
+        ...quizResult.value,
         ...confirmed,
         confirmation_status: 'confirmed',
       }
