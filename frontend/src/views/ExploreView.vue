@@ -431,6 +431,9 @@ async function exitQuiz() {
         <h2 id="unfinished-title">Continue an unfinished quiz</h2>
         <div v-for="quiz in unfinishedQuizzes" :key="quiz.quiz_id">
           <p>
+            <strong v-if="quiz.organization_name"
+              >Assigned by {{ quiz.organization_name }} ·
+            </strong>
             {{ quiz.topic_name }} · Level {{ quiz.difficulty }} · {{ quiz.answered_count }}/{{
               quiz.total_cnt
             }}

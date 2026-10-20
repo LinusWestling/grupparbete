@@ -41,6 +41,7 @@ async function requireOrganization(req, res, next) {
     if (user.role !== 'organization' && user.role !== 'admin') {
       return res.status(403).json({ status: 'error', message: 'Organization access required' })
     }
+    req.user = user
     next()
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message })
