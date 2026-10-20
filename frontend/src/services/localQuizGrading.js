@@ -1,3 +1,5 @@
+import { matchAcceptedAnswer } from '../../../shared/freeTextGrading.mjs'
+
 // Keep these rules aligned with the backend quiz engines. These results are
 // provisional; official grading and XP remain the backend's responsibility.
 export function gradeQuizLocally(quiz, selectedAnswers) {
@@ -9,15 +11,13 @@ export function gradeQuizLocally(quiz, selectedAnswers) {
       question.answers.find((option) => Boolean(option.is_correct)) ||
       (freeText ? question.answers[0] : null)
     const chosen = freeText ? null : question.answers.find((option) => option.id === Number(answer))
-    const input = String(answer || '')
-      .trim()
-      .toLowerCase()
+    const acceptedAnswers = question.answers
+      .filter((option) => Boolean(option.is_correct))
+      .map((option) => option.answer_text)
     const isCorrect =
       !isSkipped &&
       Boolean(correct) &&
-      (freeText
-        ? input.length > 0 && input === String(correct.answer_text).trim().toLowerCase()
-        : correct.id === Number(answer))
+      (freeText ? matchAcceptedAnswer(answer, acceptedAnswers) : correct.id === Number(answer))
     return {
       question_id: question.id,
       question_text: question.question_text,
@@ -31,7 +31,7 @@ export function gradeQuizLocally(quiz, selectedAnswers) {
           ? String(answer)
           : chosen?.answer_text || '',
       correct_answer_id: correct?.id ?? null,
-      correct_answer_text: correct?.answer_text || '',
+      correct_answer_text: freeText ? acceptedAnswers.join(' / ') : correct?.answer_text || '',
       explanation: question.sources[0]?.source_text ?? null,
       sources: question.sources,
     }

@@ -73,7 +73,11 @@ function markCorrect(index) {
 }
 
 function addAnswer() {
-  form.value.answers.push({ id: null, answer_text: '', is_correct: false })
+  form.value.answers.push({
+    id: null,
+    answer_text: '',
+    is_correct: form.value.question_type === 'free_text',
+  })
 }
 
 function removeAnswer(index) {
@@ -177,17 +181,39 @@ async function submit() {
       </div>
 
       <fieldset class="form-section">
-        <legend>{{ form.question_type === 'free_text' ? 'Model answer' : 'Answers' }}</legend>
+        <legend>{{ form.question_type === 'free_text' ? 'Accepted answers' : 'Answers' }}</legend>
 
         <div v-if="form.question_type === 'free_text'" class="form-group">
-          <input
-            v-model="form.answers[0].answer_text"
-            aria-label="Model answer"
-            placeholder="The answer players must type"
-            maxlength="500"
-            required
-          />
-          <p class="form-hint">Graded as an exact match, ignoring case and extra spaces.</p>
+          <p class="form-hint">Add accepted answers. Matching ignores case and extra spaces.</p>
+
+          <div v-for="(answer, index) in form.answers" :key="index" class="answer-row">
+            <input
+              v-model="answer.answer_text"
+              :aria-label="`Accepted answer ${index + 1}`"
+              placeholder="An accepted answer"
+              maxlength="500"
+              required
+            />
+
+            <button
+              type="button"
+              class="button-icon"
+              :disabled="form.answers.length <= 1"
+              :aria-label="`Remove accepted anser ${index + 1}`"
+              @click="removeAnswer(index)"
+            >
+              ✕
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="button button-outline button-sm align-start"
+            :disabled="form.answers.length >= MAX_ANSWERS"
+            @click="addAnswer"
+          >
+            + Add accepted answer
+          </button>
         </div>
 
         <template v-else>
