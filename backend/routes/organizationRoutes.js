@@ -21,12 +21,10 @@ router.post(
         limit < 1 ||
         limit > 50
       ) {
-        return res
-          .status(400)
-          .json({
-            message:
-              'Valid candidate, topic, difficulty (1–5) and question count (1–50) are required',
-          })
+        return res.status(400).json({
+          message:
+            'Valid candidate, topic, difficulty (1–5) and question count (1–50) are required',
+        })
       }
       const quiz = await quizService.startQuiz(
         candidateId,
@@ -35,13 +33,11 @@ router.post(
         limit,
         req.session.userId,
       )
-      res
-        .status(201)
-        .json({
-          quiz_id: quiz.quiz_id,
-          difficulty: quiz.difficulty,
-          total_questions: quiz.total_questions,
-        })
+      res.status(201).json({
+        quiz_id: quiz.quiz_id,
+        difficulty: quiz.difficulty,
+        total_questions: quiz.total_questions,
+      })
     } catch (err) {
       next(err)
     }
