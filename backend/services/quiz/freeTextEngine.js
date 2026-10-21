@@ -5,7 +5,9 @@ function evaluate(question, userResponse) {
     .filter((answer) => Boolean(answer.is_correct))
     .map((answer) => answer.answer_text)
 
-  const isCorrect = matchAcceptedAnswer(userResponse, acceptedAnswers)
+  const isCorrect = matchAcceptedAnswer(userResponse, acceptedAnswers, {
+    allowTypos: question.allow_typos === true || question.allow_typos === 1,
+  })
 
   return {
     question_id: question.id,

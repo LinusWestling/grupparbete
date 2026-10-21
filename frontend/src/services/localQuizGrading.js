@@ -17,7 +17,11 @@ export function gradeQuizLocally(quiz, selectedAnswers) {
     const isCorrect =
       !isSkipped &&
       Boolean(correct) &&
-      (freeText ? matchAcceptedAnswer(answer, acceptedAnswers) : correct.id === Number(answer))
+      (freeText
+        ? matchAcceptedAnswer(answer, acceptedAnswers, {
+            allowTypos: question.allow_typos === true || question.allow_typos === 1,
+          })
+        : correct.id === Number(answer))
     return {
       question_id: question.id,
       question_text: question.question_text,

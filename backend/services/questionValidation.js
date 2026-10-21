@@ -135,6 +135,14 @@ function validateQuestion(body) {
     errors.push('Difficulty must be a whole number from 1 to 5')
   }
 
+  if (data.allow_typos !== undefined && typeof data.allow_typos !== 'boolean') {
+    errors.push('allow_typos must be true or false')
+  }
+
+  if (type !== 'free_text' && data.allow_typos === true) {
+    errors.push('Typo tolerance is only available for free text questions')
+  }
+
   const answers = QUESTION_TYPES.includes(type) ? validateAnswers(type, data.answers, errors) : []
   const sources = validateSources(data.sources, errors)
 
@@ -147,6 +155,7 @@ function validateQuestion(body) {
     question_type: type,
     question_text: text,
     difficulty_level: difficulty,
+    allow_typos: type === 'free_text' && data.allow_typos === true,
     answers,
     sources,
   }
