@@ -61,7 +61,12 @@ export function createQuizStore(
     revision = Math.max(0, ...payload.questions.map((question) => question.progress_revision || 0))
     for (const question of payload.questions) {
       if (question.is_answered) {
-        selectedAnswers.value[question.id] = question.free_text_answer ?? question.chosen_answer_id
+        selectedAnswers.value[question.id] =
+          question.question_type === 'matching'
+            ? { ...(question.submitted_answer || {}) }
+            : (question.free_text_answer ?? question.chosen_answer_id)
+      } else if (question.question_type === 'matching') {
+        selectedAnswers.value[question.id] = {}
       }
       confirmedProgress.value[question.id] = {
         answer: selectedAnswers.value[question.id],
@@ -81,23 +86,49 @@ export function createQuizStore(
     }
   }
 
+  function isAnswerComplete(question, answer) {
+    if (!question || answer === undefined || answer === null) return false
+    if (question.question_type === 'matching') {
+      if (typeof answer !== 'object' || Array.isArray(answer)) return false
+      return (
+        question.answers.length > 0 &&
+        question.answers.every((opt) => {
+          const val = answer[opt.id] ?? answer[String(opt.id)]
+          return typeof val === 'string' && val.trim() !== ''
+        })
+      )
+    }
+    return String(answer).trim() !== ''
+  }
+
   function recordProgress(questionId, answer, isSkipped = false) {
     const question = activeQuizSession.value?.questions.find((q) => q.id === questionId)
     if (!question || pendingCompletion.value || quizResult.value) return
+    const isMatching = question.question_type === 'matching'
     if (
       question.is_skipped === isSkipped &&
-      (isSkipped || selectedAnswers.value[questionId] === answer)
+      (isSkipped || (!isMatching && selectedAnswers.value[questionId] === answer))
     )
       return
-    if (isSkipped) delete selectedAnswers.value[questionId]
-    else selectedAnswers.value[questionId] = answer
-    question.is_answered = !isSkipped && answer !== undefined && String(answer).trim() !== ''
+    if (isSkipped) {
+      if (isMatching) selectedAnswers.value[questionId] = {}
+      else delete selectedAnswers.value[questionId]
+    } else {
+      selectedAnswers.value[questionId] = isMatching && answer ? { ...answer } : answer
+    }
+    const complete = !isSkipped && isAnswerComplete(question, selectedAnswers.value[questionId])
+    question.is_answered = complete
     question.is_skipped = isSkipped
     question.chosen_answer_id =
-      question.question_type === 'free_text' || !question.is_answered ? null : answer
-    question.free_text_answer =
-      question.question_type === 'free_text' && question.is_answered ? answer : null
-    pendingChanges.value[questionId] = { answer, isSkipped, revision: ++revision }
+      question.question_type === 'free_text' || isMatching || !complete ? null : answer
+    question.free_text_answer = question.question_type === 'free_text' && complete ? answer : null
+    question.submitted_answer = complete ? selectedAnswers.value[questionId] : null
+    pendingChanges.value[questionId] = {
+      answer: selectedAnswers.value[questionId],
+      isSkipped,
+      isComplete: complete,
+      revision: ++revision,
+    }
   }
 
   // Serialize writes and only acknowledge the revision actually sent. Editing
@@ -112,11 +143,9 @@ export function createQuizStore(
       try {
         while (Object.keys(pendingChanges.value).length) {
           if (pendingCompletion.value) return false
-          // Empty free-text drafts stay local until answered or explicitly skipped.
+          // Empty free-text or incomplete matching drafts stay local until complete or skipped.
           const next = Object.entries(pendingChanges.value).find(
-            ([, change]) =>
-              change.isSkipped ||
-              (change.answer !== undefined && String(change.answer).trim() !== ''),
+            ([, change]) => change.isSkipped || change.isComplete,
           )
           if (!next) return false
           const [questionId, change] = next

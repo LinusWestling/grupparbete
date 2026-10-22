@@ -38,6 +38,19 @@ function validateAnswer(question, { answer, isSkipped }) {
     if (typeof answer !== 'string' || !answer.trim() || answer.length > 10000) {
       throw httpError(400, 'Enter a valid text answer or skip the question')
     }
+  } else if (question.question_type === 'matching') {
+    if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
+      throw httpError(400, 'Match every item in the question or skip it')
+    }
+    const validMatches = new Set(
+      question.answers.map((option) => String(option.match_text ?? '').trim()),
+    )
+    for (const option of question.answers) {
+      const selected = answer[option.id] ?? answer[String(option.id)]
+      if (typeof selected !== 'string' || !validMatches.has(selected.trim())) {
+        throw httpError(400, 'Match every item in the question or skip it')
+      }
+    }
   } else if (
     !Number.isInteger(answer) ||
     !question.answers.some((option) => option.id === answer)

@@ -19,14 +19,20 @@ const typeLocked = computed(() => isEdit.value && props.question.usage_count > 0
 function answersFor(type) {
   if (type === 'yes_no') {
     return [
-      { id: null, answer_text: 'Ja', is_correct: true },
-      { id: null, answer_text: 'Nej', is_correct: false },
+      { id: null, answer_text: 'Ja', match_text: '', is_correct: true },
+      { id: null, answer_text: 'Nej', match_text: '', is_correct: false },
     ]
   }
-  if (type === 'free_text') return [{ id: null, answer_text: '', is_correct: true }]
+  if (type === 'free_text') return [{ id: null, answer_text: '', match_text: '', is_correct: true }]
+  if (type === 'matching') {
+    return [
+      { id: null, answer_text: '', match_text: '', is_correct: true },
+      { id: null, answer_text: '', match_text: '', is_correct: true },
+    ]
+  }
   return [
-    { id: null, answer_text: '', is_correct: true },
-    { id: null, answer_text: '', is_correct: false },
+    { id: null, answer_text: '', match_text: '', is_correct: true },
+    { id: null, answer_text: '', match_text: '', is_correct: false },
   ]
 }
 
@@ -51,6 +57,7 @@ function initialForm() {
     answers: q.answers.map((a) => ({
       id: a.id,
       answer_text: a.answer_text,
+      match_text: a.match_text || '',
       is_correct: Boolean(a.is_correct),
     })),
     sources: q.sources.map((s) => ({ source_text: s.source_text, url: s.url || '' })),
@@ -73,7 +80,12 @@ function markCorrect(index) {
 }
 
 function addAnswer() {
-  form.value.answers.push({ id: null, answer_text: '', is_correct: false })
+  form.value.answers.push({
+    id: null,
+    answer_text: '',
+    match_text: '',
+    is_correct: form.value.question_type === 'matching',
+  })
 }
 
 function removeAnswer(index) {
@@ -154,6 +166,7 @@ async function submit() {
             <option value="multiple_choice">Multiple choice</option>
             <option value="yes_no">Yes / no</option>
             <option value="free_text">Free text</option>
+            <option value="matching">Matching (Samband)</option>
           </select>
         </div>
 
@@ -177,7 +190,15 @@ async function submit() {
       </div>
 
       <fieldset class="form-section">
-        <legend>{{ form.question_type === 'free_text' ? 'Model answer' : 'Answers' }}</legend>
+        <legend>
+          {{
+            form.question_type === 'free_text'
+              ? 'Model answer'
+              : form.question_type === 'matching'
+                ? 'Matching pairs (Samband)'
+                : 'Answers'
+          }}
+        </legend>
 
         <div v-if="form.question_type === 'free_text'" class="form-group">
           <input
@@ -189,6 +210,49 @@ async function submit() {
           />
           <p class="form-hint">Graded as an exact match, ignoring case and extra spaces.</p>
         </div>
+
+        <template v-else-if="form.question_type === 'matching'">
+          <p class="form-hint">
+            Enter 2–6 pairs that belong together. The right-hand options are shuffled automatically
+            during quizzes.
+          </p>
+          <div v-for="(answer, index) in form.answers" :key="index" class="answer-row">
+            <input
+              v-model="answer.answer_text"
+              class="flex-1"
+              :aria-label="`Pair ${index + 1} left item`"
+              placeholder="Left item (e.g. Muscle or concept)"
+              maxlength="500"
+              required
+            />
+            <span aria-hidden="true">↔</span>
+            <input
+              v-model="answer.match_text"
+              class="flex-1"
+              :aria-label="`Pair ${index + 1} matching item`"
+              placeholder="Matching item (e.g. Function or definition)"
+              maxlength="500"
+              required
+            />
+            <button
+              type="button"
+              class="button-icon"
+              :disabled="form.answers.length <= 2"
+              :aria-label="`Remove pair ${index + 1}`"
+              @click="removeAnswer(index)"
+            >
+              ✕
+            </button>
+          </div>
+          <button
+            type="button"
+            class="button button-outline button-sm align-start"
+            :disabled="form.answers.length >= MAX_ANSWERS"
+            @click="addAnswer"
+          >
+            + Add pair
+          </button>
+        </template>
 
         <template v-else>
           <p class="form-hint">Select the correct answer.</p>

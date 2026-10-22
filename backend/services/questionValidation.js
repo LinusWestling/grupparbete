@@ -2,7 +2,7 @@
 // so the rules are the same. Returns cleaned data or throws a 400 error that
 // lists every problem, so the admin form can show them all at once.
 
-const QUESTION_TYPES = ['multiple_choice', 'yes_no', 'free_text']
+const QUESTION_TYPES = ['multiple_choice', 'yes_no', 'free_text', 'matching']
 const MAX_QUESTION_LENGTH = 1000
 const MAX_ANSWER_LENGTH = 500
 const MAX_ANSWERS = 6
@@ -44,14 +44,22 @@ function validateAnswers(type, answers, errors) {
     else if (text.length > MAX_ANSWER_LENGTH) {
       errors.push(`${label} can be at most ${MAX_ANSWER_LENGTH} characters`)
     }
-    if (type !== 'free_text' && typeof answer.is_correct !== 'boolean') {
+    const matchText = typeof answer.match_text === 'string' ? answer.match_text.trim() : ''
+    if (type === 'matching') {
+      if (!matchText) errors.push(`${label} needs a matching text`)
+      else if (matchText.length > MAX_ANSWER_LENGTH) {
+        errors.push(`${label} matching text can be at most ${MAX_ANSWER_LENGTH} characters`)
+      }
+    }
+    if (type !== 'free_text' && type !== 'matching' && typeof answer.is_correct !== 'boolean') {
       errors.push(`${label} must say whether it is correct (true/false)`)
     }
     cleaned.push({
       id: answer.id ? Number(answer.id) : null,
       answer_text: text,
-      // A free text question's only answer is the model answer.
-      is_correct: type === 'free_text' ? true : answer.is_correct === true,
+      match_text: type === 'matching' ? matchText : null,
+      // Free text and matching answers always represent the correct model/pair.
+      is_correct: type === 'free_text' || type === 'matching' ? true : answer.is_correct === true,
     })
   })
 
@@ -66,6 +74,14 @@ function validateAnswers(type, answers, errors) {
     if (correctCount !== 1) errors.push('Yes/no needs exactly one correct answer')
   } else if (type === 'free_text') {
     if (cleaned.length !== 1) errors.push('Free text needs exactly one model answer')
+  } else if (type === 'matching') {
+    if (cleaned.length < 2 || cleaned.length > MAX_ANSWERS) {
+      errors.push(`Matching needs 2-${MAX_ANSWERS} pairs`)
+    }
+    const matchTexts = cleaned.map((a) => (a.match_text || '').toLowerCase()).filter(Boolean)
+    if (new Set(matchTexts).size !== matchTexts.length) {
+      errors.push('Matching targets must be different')
+    }
   }
 
   // Players pick between these options, so two with the same text make no sense.
