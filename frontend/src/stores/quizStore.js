@@ -2,6 +2,14 @@ import { computed, ref, watch } from 'vue'
 import { gradeQuizLocally } from '../services/localQuizGrading.js'
 import { startQuizUnloadWarning } from '../services/quizNavigationSafety.js'
 
+function browserStorage() {
+  try {
+    return globalThis.localStorage
+  } catch {
+    return null
+  }
+}
+
 export function createQuizStore(
   saveProgress = async (...args) => {
     const { api } = await import('../services/api.js')
@@ -11,7 +19,10 @@ export function createQuizStore(
     const { api } = await import('../services/api.js')
     return api.submitQuizSession(...args)
   },
+  storage = browserStorage(),
 ) {
+  let ownerId = null
+  const locallySaved = ref(false)
   const activeQuizSession = ref(null)
   const currentQuestionIndex = ref(0)
   const selectedAnswers = ref({})
@@ -34,13 +45,18 @@ export function createQuizStore(
   const saveMessage = computed(() =>
     Object.keys(pendingChanges.value).length
       ? saving.value
-        ? 'Saved in this tab — syncing…'
-        : 'Saved in this tab — waiting to sync. Keep this tab open.'
+        ? locallySaved.value
+          ? 'Saved on this device — syncing…'
+          : 'Saved in this tab — syncing…'
+        : locallySaved.value
+          ? 'Saved on this device — waiting to sync.'
+          : 'Saved in this tab — waiting to sync. Keep this tab open.'
       : 'Saved to your account',
   )
 
-  function loadQuiz(payload) {
+  function loadQuiz(payload, userId = ownerId) {
     assertCanReplaceQuiz()
+    ownerId = userId
     if (
       payload.payload_version !== 1 ||
       !Array.isArray(payload.questions) ||
@@ -71,6 +87,71 @@ export function createQuizStore(
     const first = payload.questions.findIndex((q) => !q.is_answered && !q.is_skipped)
     currentQuestionIndex.value = first < 0 ? 0 : first
     activeQuizSession.value = payload
+  }
+
+  // Persist synchronously: shutdown must not depend on a timer or network request.
+  watch(
+    [
+      activeQuizSession,
+      currentQuestionIndex,
+      selectedAnswers,
+      pendingChanges,
+      confirmedProgress,
+      quizResult,
+      pendingCompletion,
+    ],
+    () => {
+      locallySaved.value = false
+      if (!ownerId || !storage) return
+      try {
+        const key = `skillswap:quiz:${ownerId}`
+        if (!activeQuizSession.value) storage.removeItem(key)
+        else
+          storage.setItem(
+            key,
+            JSON.stringify({
+              version: 1,
+              quiz: activeQuizSession.value,
+              index: currentQuestionIndex.value,
+              answers: selectedAnswers.value,
+              pending: pendingChanges.value,
+              confirmed: confirmedProgress.value,
+              result: quizResult.value,
+              completion: pendingCompletion.value,
+              revision,
+            }),
+          )
+        locallySaved.value = Boolean(activeQuizSession.value)
+      } catch {
+        // Storage can be unavailable or full; retain the existing unload warning.
+      }
+    },
+    { deep: true, flush: 'sync' },
+  )
+
+  function restoreQuiz(userId) {
+    if (!userId || activeQuizSession.value || !storage) return false
+    try {
+      const saved = JSON.parse(storage.getItem(`skillswap:quiz:${userId}`))
+      if (!saved || saved.version !== 1 || !saved.quiz?.questions?.length) return false
+      // Keep persistence disabled until the entire snapshot has been restored.
+      loadQuiz(saved.quiz, null)
+      currentQuestionIndex.value = Math.max(
+        0,
+        Math.min(saved.index || 0, saved.quiz.questions.length - 1),
+      )
+      selectedAnswers.value = saved.answers || {}
+      pendingChanges.value = saved.pending || {}
+      confirmedProgress.value = saved.confirmed || {}
+      quizResult.value = saved.result || null
+      pendingCompletion.value = Boolean(saved.completion)
+      revision = Math.max(revision, saved.revision || 0)
+      ownerId = userId
+      locallySaved.value = true
+      return true
+    } catch {
+      return false
+    }
   }
 
   function assertCanReplaceQuiz() {
@@ -261,6 +342,8 @@ export function createQuizStore(
     confirmedProgress,
     saving,
     saveMessage,
+    locallySaved,
+    restoreQuiz,
     loadQuiz,
     recordProgress,
     flushPending,

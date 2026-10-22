@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import { browserOnline, backendAvailable } from '../services/connectionStatus.js'
 import { quizStore } from '../stores/quizStore.js'
 
-const { hasUnsyncedData, syncState, isSyncing, pendingCompletion, syncError } = quizStore
+const { hasUnsyncedData, syncState, isSyncing, pendingCompletion, syncError, locallySaved } =
+  quizStore
 const unavailable = computed(() => !browserOnline.value || backendAvailable.value === false)
 const needsLogin = computed(() => syncError.value?.status === 401)
 const needsAttention = computed(() => [400, 403, 409].includes(syncError.value?.status))
@@ -39,11 +40,15 @@ function retry() {
     <p v-else-if="syncError && !unavailable">
       Saving failed. Your progress is still in this tab; you can retry.
     </p>
-    <p v-if="hasUnsyncedData" class="tab-warning">
+    <p v-if="hasUnsyncedData && locallySaved">
+      Your progress and results are saved on this device. You can close your browser and continue
+      from Explore skills after signing in with the same account. We’ll sync when connected.
+    </p>
+    <p v-else-if="hasUnsyncedData" class="tab-warning">
       Keep this tab open. Do not refresh or close it until the status says Saved; unsaved progress
       and results exist only in this tab.
     </p>
-    <p v-else>Your quiz progress is saved to your account.</p>
+    <p v-else>Your quiz progress is saved to your account. You can return later to continue.</p>
     <button
       v-if="hasUnsyncedData"
       class="button button-outline"
