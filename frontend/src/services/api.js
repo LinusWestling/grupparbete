@@ -89,6 +89,13 @@ export const api = {
       method: 'POST',
     }),
   getProspectDetails: (prospectId) => request(`/organization/prospects/${prospectId}`),
+  assignTest: (prospectId, settings) =>
+    request(`/organization/prospects/${prospectId}/tests`, {
+      method: 'POST',
+      body: JSON.stringify(settings),
+    }),
+  getAssignedTestReport: (prospectId, quizId) =>
+    request(`/organization/prospects/${prospectId}/tests/${quizId}`),
 
   // Auth
   register: (username, email, password, requestOrganization = false) =>
