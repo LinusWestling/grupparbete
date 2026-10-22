@@ -37,6 +37,7 @@ function initialForm() {
       topic_id: props.topics[0]?.id ?? '',
       question_type: 'multiple_choice',
       difficulty_level: 1,
+      allow_typos: false,
       question_text: '',
       answers: answersFor('multiple_choice'),
       sources: [],
@@ -46,6 +47,7 @@ function initialForm() {
     topic_id: q.topic_id,
     question_type: q.question_type,
     difficulty_level: q.difficulty_level,
+    allow_typos: q.question_type === 'free_text' && (q.allow_typos === true || q.allow_typos === 1),
     question_text: q.question_text,
     // Keeping answer ids lets the backend update answers in place.
     answers: q.answers.map((a) => ({
@@ -66,6 +68,7 @@ const errorBanner = ref(null)
 function changeType(type) {
   form.value.question_type = type
   form.value.answers = answersFor(type)
+  form.value.allow_typos = false
 }
 
 function markCorrect(index) {
@@ -73,7 +76,11 @@ function markCorrect(index) {
 }
 
 function addAnswer() {
-  form.value.answers.push({ id: null, answer_text: '', is_correct: false })
+  form.value.answers.push({
+    id: null,
+    answer_text: '',
+    is_correct: form.value.question_type === 'free_text',
+  })
 }
 
 function removeAnswer(index) {
@@ -177,17 +184,49 @@ async function submit() {
       </div>
 
       <fieldset class="form-section">
-        <legend>{{ form.question_type === 'free_text' ? 'Model answer' : 'Answers' }}</legend>
+        <legend>{{ form.question_type === 'free_text' ? 'Accepted answers' : 'Answers' }}</legend>
 
         <div v-if="form.question_type === 'free_text'" class="form-group">
-          <input
-            v-model="form.answers[0].answer_text"
-            aria-label="Model answer"
-            placeholder="The answer players must type"
-            maxlength="500"
-            required
-          />
-          <p class="form-hint">Graded as an exact match, ignoring case and extra spaces.</p>
+          <label>
+            <input type="checkbox" v-model="form.allow_typos" />
+            Allow minor spelling mistakes
+          </label>
+
+          <p class="form-hint">
+            Allows one character difference in answers with least eigth letters. Does not apply to
+            numbers. Leave disabpled for easily confused terms, sush as adduktion and abduktion.
+          </p>
+
+          <p class="form-hint">Add accepted answers. Matching ignores case and extra spaces.</p>
+
+          <div v-for="(answer, index) in form.answers" :key="index" class="answer-row">
+            <input
+              v-model="answer.answer_text"
+              :aria-label="`Accepted answer ${index + 1}`"
+              placeholder="An accepted answer"
+              maxlength="500"
+              required
+            />
+
+            <button
+              type="button"
+              class="button-icon"
+              :disabled="form.answers.length <= 1"
+              :aria-label="`Remove accepted anser ${index + 1}`"
+              @click="removeAnswer(index)"
+            >
+              ✕
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="button button-outline button-sm align-start"
+            :disabled="form.answers.length >= MAX_ANSWERS"
+            @click="addAnswer"
+          >
+            + Add accepted answer
+          </button>
         </div>
 
         <template v-else>

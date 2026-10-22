@@ -50,7 +50,7 @@ function validateAnswers(type, answers, errors) {
     cleaned.push({
       id: answer.id ? Number(answer.id) : null,
       answer_text: text,
-      // A free text question's only answer is the model answer.
+      // Every free text answer is an accepted answer.
       is_correct: type === 'free_text' ? true : answer.is_correct === true,
     })
   })
@@ -65,7 +65,9 @@ function validateAnswers(type, answers, errors) {
     if (cleaned.length !== 2) errors.push('Yes/no needs exactly two answers')
     if (correctCount !== 1) errors.push('Yes/no needs exactly one correct answer')
   } else if (type === 'free_text') {
-    if (cleaned.length !== 1) errors.push('Free text needs exactly one model answer')
+    if (cleaned.length < 1 || cleaned.length > MAX_ANSWERS) {
+      errors.push('Free text needs 1-${MAX_ANSWERS} accepted answers')
+    }
   }
 
   // Players pick between these options, so two with the same text make no sense.
@@ -133,6 +135,14 @@ function validateQuestion(body) {
     errors.push('Difficulty must be a whole number from 1 to 5')
   }
 
+  if (data.allow_typos !== undefined && typeof data.allow_typos !== 'boolean') {
+    errors.push('allow_typos must be true or false')
+  }
+
+  if (type !== 'free_text' && data.allow_typos === true) {
+    errors.push('Typo tolerance is only available for free text questions')
+  }
+
   const answers = QUESTION_TYPES.includes(type) ? validateAnswers(type, data.answers, errors) : []
   const sources = validateSources(data.sources, errors)
 
@@ -145,6 +155,7 @@ function validateQuestion(body) {
     question_type: type,
     question_text: text,
     difficulty_level: difficulty,
+    allow_typos: type === 'free_text' && data.allow_typos === true,
     answers,
     sources,
   }
