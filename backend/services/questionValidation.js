@@ -65,8 +65,8 @@ function validateAnswers(type, answers, errors) {
 
   const correctCount = cleaned.filter((a) => a.is_correct).length
   if (type === 'multiple_choice') {
-    if (cleaned.length < 2 || cleaned.length > MAX_ANSWERS) {
-      errors.push(`Multiple choice needs 2-${MAX_ANSWERS} answers`)
+    if (cleaned.length < 1 || cleaned.length > MAX_ANSWERS) {
+      errors.push('Free text needs 1-${MAX_ANSWERS} accepted answers')
     }
     if (correctCount !== 1) errors.push('Multiple choice needs exactly one correct answer')
   } else if (type === 'yes_no') {

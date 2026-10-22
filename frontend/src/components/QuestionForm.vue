@@ -84,7 +84,7 @@ function addAnswer() {
     id: null,
     answer_text: '',
     match_text: '',
-    is_correct: form.value.question_type === 'matching',
+    is_correct: form.value.question_type === 'matching' || form.value.question_type === 'free_text',
   })
 }
 
