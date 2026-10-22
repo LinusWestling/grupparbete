@@ -27,6 +27,7 @@ async function getQuestions(filters = {}, options = {}) {
       q.question_type,
       q.question_text,
       q.difficulty_level,
+      q.allow_typos,
       q.created_at
     FROM questions q
     JOIN topics t ON q.topic_id = t.id
@@ -177,14 +178,15 @@ async function createQuestion(data) {
     await assertTopicExists(connection, data.topic_id)
 
     const [qResult] = await connection.execute(
-      `INSERT INTO questions (topic_id, created_by, question_type, question_text, difficulty_level)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO questions (topic_id, created_by, question_type, question_text, difficulty_level, allow_typos)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         data.topic_id,
         data.created_by || null,
         data.question_type,
         data.question_text,
         data.difficulty_level,
+        data.allow_typos ? 1 : 0,
       ],
     )
     questionId = qResult.insertId
@@ -281,9 +283,16 @@ async function updateQuestion(id, data) {
 
     await connection.execute(
       `UPDATE questions
-       SET topic_id = ?, question_type = ?, question_text = ?, difficulty_level = ?
+       SET topic_id = ?, question_type = ?, question_text = ?, difficulty_level = ?, allow_typos = ?
        WHERE id = ?`,
-      [data.topic_id, data.question_type, data.question_text, data.difficulty_level, id],
+      [
+        data.topic_id,
+        data.question_type,
+        data.question_text,
+        data.difficulty_level,
+        data.allow_typos ? 1 : 0,
+        id,
+      ],
     )
 
     for (const ans of data.answers.filter((a) => a.id !== null)) {

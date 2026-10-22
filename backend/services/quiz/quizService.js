@@ -7,7 +7,7 @@ const { orderQuizAnswers, orderMatchOptions } = require('../../utils/quizAnswerO
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
 
-async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
+async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizationId = null) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
   let questions = await questionService.getQuestions(
     { topic_id: topicId, difficulty: difficulty, limit: limit },
@@ -39,7 +39,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
   }
 
   if (questions.length === 0) {
-    throw new Error('No questions found for the selected topic and difficulty level')
+    throw httpError(400, 'No questions found for the selected topic and difficulty level')
   }
 
   const previousQuestionIds = await quizRepository.getLatestQuizQuestionIds(
@@ -76,11 +76,27 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
   try {
     await connection.beginTransaction()
 
+    if (organizationId !== null) {
+      const [access] = await connection.execute(
+        `SELECT u.id FROM users u JOIN prospect_access_requests par ON par.candidate_id = u.id
+         WHERE u.id = ? AND u.role = 'user' AND u.is_public_prospect = TRUE
+         AND par.organization_id = ? AND par.status = 'approved' FOR SHARE`,
+        [userId, organizationId],
+      )
+      if (!access.length) throw httpError(403, 'Candidate approval is required to assign a test')
+    }
+
     // Insert quiz session into database
     const [qResult] = await connection.execute(
-      `INSERT INTO quizzes (user_id, topic_id, difficulty, total_cnt, status)
-       VALUES (?, ?, ?, ?, 'in_progress')`,
-      [userId || null, topicId || questions[0].topic_id, actualDifficulty || 1, questions.length],
+      `INSERT INTO quizzes (user_id, topic_id, difficulty, total_cnt, organization_id, status)
+       VALUES (?, ?, ?, ?, ?, 'in_progress')`,
+      [
+        userId || null,
+        topicId || questions[0].topic_id,
+        actualDifficulty || 1,
+        questions.length,
+        organizationId,
+      ],
     )
     quizId = qResult.insertId
 
@@ -200,11 +216,13 @@ async function getQuizDetails(quizId, userId) {
 async function getUnfinishedQuizzes(userId) {
   const [rows] = await pool.query(
     `SELECT q.id AS quiz_id, q.difficulty, q.total_cnt, t.name AS topic_name,
+      org.username AS organization_name,
       SUM(qq.is_answered) AS answered_count, SUM(qq.is_skipped) AS skipped_count
      FROM quizzes q JOIN topics t ON t.id = q.topic_id
+     LEFT JOIN users org ON org.id = q.organization_id
      JOIN quiz_questions qq ON qq.quiz_id = q.id
      WHERE q.user_id = ? AND q.status = 'in_progress'
-     GROUP BY q.id, q.difficulty, q.total_cnt, t.name ORDER BY q.created_at DESC`,
+     GROUP BY q.id, q.difficulty, q.total_cnt, t.name, org.username ORDER BY q.created_at DESC`,
     [userId],
   )
   return rows

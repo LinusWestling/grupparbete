@@ -186,6 +186,14 @@ async function getProspectDetails(viewerUser, prospectId) {
     [prospectId],
   )
 
+  const [assignments] = await pool.execute(
+    `SELECT q.id AS quiz_id, t.name AS topic_name, q.difficulty, q.total_cnt,
+       q.correct_cnt, q.status, q.created_at, q.completed_at
+     FROM quizzes q JOIN topics t ON t.id = q.topic_id
+     WHERE q.user_id = ? AND q.organization_id = ? ORDER BY q.created_at DESC, q.id DESC`,
+    [prospectId, viewerUser.id],
+  )
+
   const [[stats]] = await pool.query(
     'SELECT COUNT(*) AS total, SUM(is_correct) AS correct FROM user_answers WHERE user_id = ?',
     [prospectId],
@@ -208,6 +216,7 @@ async function getProspectDetails(viewerUser, prospectId) {
     accuracy_percentage: accuracy,
     topic_progress: topicProgress,
     quiz_history: history,
+    assignments,
   }
 }
 
