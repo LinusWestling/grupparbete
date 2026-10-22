@@ -177,6 +177,11 @@ export function createQuizStore(
   }
 
   function clearQuiz() {
+    for (const [questionId, change] of Object.entries(pendingChanges.value)) {
+      if (!change.isSkipped && !change.isComplete) {
+        delete pendingChanges.value[questionId]
+      }
+    }
     if (
       pendingCompletion.value ||
       syncingCompletion.value ||

@@ -85,16 +85,19 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10) {
     quizId = qResult.insertId
 
     // Freeze the same ordered content used by the browser and server grading.
-    questions = questions.map((question) => ({
-      ...question,
-      answers:
+    questions = questions.map((question) => {
+      const orderedAnswers =
         question.question_type === 'multiple_choice' || question.question_type === 'matching'
           ? orderQuizAnswers(question.answers, quizId, question.id)
-          : question.answers,
-      ...(question.question_type === 'matching'
-        ? { match_options: orderMatchOptions(question.answers, quizId, question.id) }
-        : {}),
-    }))
+          : question.answers
+      return {
+        ...question,
+        answers: orderedAnswers,
+        ...(question.question_type === 'matching'
+          ? { match_options: orderMatchOptions(orderedAnswers, quizId, question.id) }
+          : {}),
+      }
+    })
     // Link questions to quiz session
     for (let i = 0; i < questions.length; i++) {
       await connection.execute(
