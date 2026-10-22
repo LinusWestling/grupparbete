@@ -123,7 +123,8 @@ async function navigateQuestion(direction, skip = false) {
   const hasAnswer =
     question.question_type === 'matching'
       ? Boolean(question.is_answered)
-      : selectedAnswers.value[question.id] !== undefined && selectedAnswers.value[question.id] !== ''
+      : selectedAnswers.value[question.id] !== undefined &&
+        selectedAnswers.value[question.id] !== ''
 
   // Stoppa NEXT om ingen svar har valats.
   if (direction > 0 && !skip && !hasAnswer && !question.is_skipped) {
@@ -281,7 +282,10 @@ async function exitQuiz() {
             <select
               class="matching-select"
               :disabled="submitting"
-              :value="selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id]?.[ans.id] ?? ''"
+              :value="
+                selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id]?.[ans.id] ??
+                ''
+              "
               :aria-label="`Välj samband för ${ans.answer_text}`"
               @change="
                 selectMatchPair(
@@ -305,7 +309,9 @@ async function exitQuiz() {
 
         <!-- 2. Multiple Choice & Yes/No -->
         <div
-          v-else-if="activeQuizSession.questions[currentQuestionIndex].question_type !== 'free_text'"
+          v-else-if="
+            activeQuizSession.questions[currentQuestionIndex].question_type !== 'free_text'
+          "
           class="options-grid"
         >
           <button

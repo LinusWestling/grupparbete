@@ -22,10 +22,7 @@ function orderMatchOptions(answers, quizId, questionId) {
     .map(({ matchText }) => matchText)
     .filter(Boolean)
 
-  if (
-    ordered.length > 1 &&
-    ordered.every((text, index) => text === answers[index]?.match_text)
-  ) {
+  if (ordered.length > 1 && ordered.every((text, index) => text === answers[index]?.match_text)) {
     ordered.push(ordered.shift())
   }
   return ordered

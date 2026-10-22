@@ -223,7 +223,8 @@ function getUserAnswerText(q) {
   }
   if (q.question_type === 'matching') {
     if (q.is_skipped) return 'Skipped'
-    const map = q.submitted_answer && typeof q.submitted_answer === 'object' ? q.submitted_answer : null
+    const map =
+      q.submitted_answer && typeof q.submitted_answer === 'object' ? q.submitted_answer : null
     if (!map) return 'No answer selected'
     return (q.answers || [])
       .map((a) => `${a.answer_text} → ${map[a.id] ?? map[String(a.id)] ?? '—'}`)
