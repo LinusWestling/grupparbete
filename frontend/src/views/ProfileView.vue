@@ -221,11 +221,23 @@ function getUserAnswerText(q) {
         ? 'Skipped'
         : 'No answer entered'
   }
+  if (q.question_type === 'matching') {
+    if (q.is_skipped) return 'Skipped'
+    const map =
+      q.submitted_answer && typeof q.submitted_answer === 'object' ? q.submitted_answer : null
+    if (!map) return 'No answer selected'
+    return (q.answers || [])
+      .map((a) => `${a.answer_text} → ${map[a.id] ?? map[String(a.id)] ?? '—'}`)
+      .join(' | ')
+  }
   const opt = q.answers?.find((a) => a.id === q.chosen_answer_id)
   return opt ? opt.answer_text : q.is_skipped ? 'Skipped' : 'No answer selected'
 }
 
 function getCorrectAnswerText(q) {
+  if (q.question_type === 'matching') {
+    return (q.answers || []).map((a) => `${a.answer_text} → ${a.match_text}`).join(' | ')
+  }
   const opt = q.answers?.find((a) => a.is_correct)
   return opt ? opt.answer_text : 'N/A'
 }

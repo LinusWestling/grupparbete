@@ -7,6 +7,7 @@ const TYPE_LABELS = {
   multiple_choice: 'Multiple choice',
   yes_no: 'Yes / no',
   free_text: 'Free text',
+  matching: 'Matching (Samband)',
 }
 
 const questions = ref([])
@@ -95,6 +96,9 @@ function clearFilters() {
 }
 
 function correctAnswerText(question) {
+  if (question.question_type === 'matching') {
+    return question.answers.map((a) => `${a.answer_text} ↔ ${a.match_text}`).join(' · ')
+  }
   return question.answers.find((a) => a.is_correct)?.answer_text ?? '—'
 }
 

@@ -3,7 +3,7 @@ const pool = require('../../database/pool')
 const questionService = require('../questionService')
 const { submitQuizSession, existingAnswerId } = require('./submitQuiz')
 const { httpError, readJson, validateAnswer } = require('./quizSubmission')
-const { orderQuizAnswers } = require('../../utils/quizAnswerOrder')
+const { orderQuizAnswers, orderMatchOptions } = require('../../utils/quizAnswerOrder')
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
 
@@ -101,13 +101,19 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
     quizId = qResult.insertId
 
     // Freeze the same ordered content used by the browser and server grading.
-    questions = questions.map((question) => ({
-      ...question,
-      answers:
-        question.question_type === 'multiple_choice'
+    questions = questions.map((question) => {
+      const orderedAnswers =
+        question.question_type === 'multiple_choice' || question.question_type === 'matching'
           ? orderQuizAnswers(question.answers, quizId, question.id)
-          : question.answers,
-    }))
+          : question.answers
+      return {
+        ...question,
+        answers: orderedAnswers,
+        ...(question.question_type === 'matching'
+          ? { match_options: orderMatchOptions(orderedAnswers, quizId, question.id) }
+          : {}),
+      }
+    })
     // Link questions to quiz session
     for (let i = 0; i < questions.length; i++) {
       await connection.execute(
@@ -135,13 +141,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
       requested_difficulty: Number(difficulty),
       total_questions: questions.length,
     },
-    questions.map((question) => ({
-      ...question,
-      answers:
-        question.question_type === 'multiple_choice'
-          ? orderQuizAnswers(question.answers, quizId, question.id)
-          : question.answers,
-    })),
+    questions,
   )
 }
 
@@ -194,6 +194,7 @@ async function getQuizDetails(quizId, userId) {
     const snapshot = readJson(row.question_snapshot)
     if (!snapshot) throw httpError(409, 'Quiz content snapshot is unavailable')
     const isFreeText = snapshot.question_type === 'free_text'
+    const isMatching = snapshot.question_type === 'matching'
     const answer = isFreeText ? null : readJson(row.submitted_answer)
     return {
       ...snapshot,
@@ -203,8 +204,9 @@ async function getQuizDetails(quizId, userId) {
       progress_revision: row.progress_revision,
       is_answered: Boolean(row.is_answered),
       is_skipped: Boolean(row.is_skipped),
-      chosen_answer_id: isFreeText ? null : (answer ?? row.chosen_answer_id),
+      chosen_answer_id: isFreeText || isMatching ? null : (answer ?? row.chosen_answer_id),
       free_text_answer: isFreeText ? row.free_text_answer : null,
+      submitted_answer: answer,
     }
   })
   const { result_snapshot, ...metadata } = quiz
