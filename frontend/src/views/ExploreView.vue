@@ -5,6 +5,7 @@ import { api } from '../services/api'
 import { quizStore } from '../stores/quizStore'
 import QuizSyncStatus from '../components/QuizSyncStatus.vue'
 import { confirmQuizNavigation } from '../services/quizNavigationSafety.js'
+import { offlineQuizAccount } from '../services/quizIdentity.js'
 
 const route = useRoute()
 
@@ -45,7 +46,8 @@ onMounted(async () => {
       const user = await api.getMe()
       quizUserId.value = user.id
       loggedIn.value = true
-    } catch {
+    } catch (err) {
+      quizUserId.value = offlineQuizAccount(err)
       loggedIn.value = false
     }
     if (quizStore.restoreQuiz(quizUserId.value)) return
