@@ -6,6 +6,7 @@ import { loadCurrentUser } from '../services/auth'
 import { quizStore } from '../stores/quizStore'
 import QuizSyncStatus from '../components/QuizSyncStatus.vue'
 import { confirmQuizNavigation } from '../services/quizNavigationSafety.js'
+import { offlineQuizAccount } from '../services/quizIdentity.js'
 
 const route = useRoute()
 
@@ -32,6 +33,7 @@ const activeTopicName = computed(() => activeQuizSession.value?.topic_name || ''
 const submitting = ref(false)
 const unfinishedQuizzes = ref([])
 const loggedIn = ref(false)
+const quizUserId = ref(null)
 
 onMounted(async () => {
   await loadCurrentUser()
@@ -42,13 +44,16 @@ onMounted(async () => {
     return
   }
   try {
-    topics.value = await api.getTopics()
     try {
-      await api.getMe()
+      const user = await api.getMe()
+      quizUserId.value = user.id
       loggedIn.value = true
-    } catch {
+    } catch (err) {
+      quizUserId.value = offlineQuizAccount(err)
       loggedIn.value = false
     }
+    if (quizStore.restoreQuiz(quizUserId.value)) return
+    topics.value = await api.getTopics()
     if (loggedIn.value) {
       try {
         unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
@@ -80,7 +85,7 @@ async function startQuizSession(topic) {
     loading.value = true
     error.value = null
     const payload = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
-    quizStore.loadQuiz(payload)
+    quizStore.loadQuiz(payload, quizUserId.value)
   } catch (err) {
     error.value = 'Failed to generate quiz: ' + err.message
   } finally {
@@ -153,7 +158,7 @@ async function resumeQuiz(quizId) {
     quizStore.assertCanReplaceQuiz()
     const quiz = await api.getQuizDetails(quizId)
     if (quiz.status !== 'in_progress') throw new Error('This quiz is already completed')
-    quizStore.loadQuiz(quiz)
+    quizStore.loadQuiz(quiz, quizUserId.value)
   } catch (err) {
     error.value = 'Could not resume quiz: ' + err.message
   } finally {
@@ -187,7 +192,8 @@ async function exitQuiz() {
     if (!topics.value.length) topics.value = await api.getTopics()
     if (!loggedIn.value) {
       try {
-        await api.getMe()
+        const user = await api.getMe()
+        quizUserId.value = user.id
         loggedIn.value = true
       } catch {
         loggedIn.value = false

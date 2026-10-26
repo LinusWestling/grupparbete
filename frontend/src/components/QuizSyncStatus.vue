@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import { browserOnline, backendAvailable } from '../services/connectionStatus.js'
 import { quizStore } from '../stores/quizStore.js'
 
-const { hasUnsyncedData, syncState, isSyncing, pendingCompletion, syncError } = quizStore
+const { hasUnsyncedData, syncState, isSyncing, pendingCompletion, syncError, locallySaved } =
+  quizStore
 const unavailable = computed(() => !browserOnline.value || backendAvailable.value === false)
 const needsLogin = computed(() => syncError.value?.status === 401)
 const needsAttention = computed(() => [400, 403, 409].includes(syncError.value?.status))
@@ -41,7 +42,7 @@ function retry() {
     <p v-else-if="hasUnsyncedData">
       Progress and results are saved on this device. Return to this app to sync them when connected.
     </p>
-    <p v-else>Your quiz progress is saved to your account.</p>
+    <p v-else>Your quiz progress is saved to your account. You can return later to continue.</p>
     <button
       v-if="hasUnsyncedData"
       class="button button-outline"

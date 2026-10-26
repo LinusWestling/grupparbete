@@ -3,6 +3,27 @@ import { gradeQuizLocally } from '../services/localQuizGrading.js'
 import { startQuizUnloadWarning } from '../services/quizNavigationSafety.js'
 import { currentUser, authResolved, authState, offlineAccountId } from '../services/auth.js'
 
+function browserStorage() {
+  try {
+    return globalThis.localStorage
+  } catch {
+    return null
+  }
+}
+
+function snapshotTabId() {
+  const freshId = globalThis.crypto.randomUUID()
+  try {
+    const key = 'skillswap:quiz-tab'
+    const previousId = globalThis.sessionStorage.getItem(key)
+    return { id: freshId, previousId }
+  } catch {
+    return { id: freshId, previousId: null }
+  }
+}
+
+const tabSnapshot = snapshotTabId()
+
 export function createQuizStore(
   saveProgress = async (...args) => {
     const { api } = await import('../services/api.js')
@@ -232,6 +253,7 @@ export function createQuizStore(
   function loadQuiz(payload) {
     if (!authResolved.value || accountId === null) throw new Error('Sign in before loading a quiz')
     assertCanReplaceQuiz()
+    ownerId = userId
     if (
       payload.payload_version !== 1 ||
       !Array.isArray(payload.questions) ||
@@ -272,6 +294,88 @@ export function createQuizStore(
     activeQuizSession.value = payload
     restoring = false
     persist()
+  }
+
+  // Persist synchronously: shutdown must not depend on a timer or network request.
+  watch(
+    [
+      activeQuizSession,
+      currentQuestionIndex,
+      selectedAnswers,
+      pendingChanges,
+      confirmedProgress,
+      quizResult,
+      pendingCompletion,
+    ],
+    () => {
+      locallySaved.value = false
+      if (!ownerId || !storage) return
+      try {
+        const key = `skillswap:quiz:${ownerId}:${snapshotOwner}`
+        // A tombstone prevents reload from reviving an older shared snapshot.
+        if (!activeQuizSession.value)
+          storage.setItem(key, JSON.stringify({ version: 1, quiz: null }))
+        else
+          storage.setItem(
+            key,
+            JSON.stringify({
+              version: 1,
+              quiz: activeQuizSession.value,
+              index: currentQuestionIndex.value,
+              answers: selectedAnswers.value,
+              pending: pendingChanges.value,
+              confirmed: confirmedProgress.value,
+              result: quizResult.value,
+              completion: pendingCompletion.value,
+              revision,
+            }),
+          )
+        locallySaved.value = Boolean(activeQuizSession.value)
+        if (snapshotOwner === tabSnapshot.id) {
+          try {
+            globalThis.sessionStorage.setItem('skillswap:quiz-tab', snapshotOwner)
+          } catch {
+            // The snapshot is saved even if reload discovery is unavailable.
+          }
+        }
+      } catch {
+        // Storage can be unavailable or full; retain the existing unload warning.
+      }
+    },
+    { deep: true, flush: 'sync' },
+  )
+
+  function restoreQuiz(userId) {
+    if (!userId || activeQuizSession.value || !storage) return false
+    try {
+      const saved = JSON.parse(
+        storage.getItem(`skillswap:quiz:${userId}:${snapshotOwner}`) ||
+          (snapshotOwner === tabSnapshot.id &&
+            tabSnapshot.previousId &&
+            storage.getItem(`skillswap:quiz:${userId}:${tabSnapshot.previousId}`)) ||
+          storage.getItem(`skillswap:quiz:${userId}`),
+      )
+      if (!saved || saved.version !== 1 || !saved.quiz?.questions?.length) return false
+      // Keep persistence disabled until the entire snapshot has been restored.
+      loadQuiz(saved.quiz, null)
+      currentQuestionIndex.value = Math.max(
+        0,
+        Math.min(saved.index || 0, saved.quiz.questions.length - 1),
+      )
+      selectedAnswers.value = saved.answers || {}
+      pendingChanges.value = saved.pending || {}
+      confirmedProgress.value = saved.confirmed || {}
+      quizResult.value = saved.result || null
+      pendingCompletion.value = Boolean(saved.completion)
+      revision = Math.max(revision, saved.revision || 0)
+      ownerId = userId
+      // Copy legacy/shared snapshots into this tab's ownership before editing.
+      // Never remove the shared copy: another tab may still depend on it.
+      activeQuizSession.value = { ...activeQuizSession.value }
+      return true
+    } catch {
+      return false
+    }
   }
 
   function assertCanReplaceQuiz() {
@@ -531,6 +635,8 @@ export function createQuizStore(
     confirmedProgress,
     saving,
     saveMessage,
+    locallySaved,
+    restoreQuiz,
     loadQuiz,
     recordProgress,
     flushPending,
