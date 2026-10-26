@@ -112,4 +112,8 @@ export const api = {
     return result
   },
   getMe: () => request('/auth/me'),
+  logout: () =>
+    request('/auth/logout', {
+      method: 'POST',
+    }),
 }
