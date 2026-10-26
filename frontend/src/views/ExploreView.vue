@@ -178,7 +178,7 @@ async function exitQuiz() {
     }
   }
   if (!quizStore.clearQuiz()) {
-    error.value = 'Progress is saved in this tab. Sync it before leaving the quiz.'
+    error.value = 'Your quiz has pending saves. Sync it to your account before leaving the quiz.'
     return
   }
   try {
@@ -419,8 +419,7 @@ async function exitQuiz() {
     <div v-else-if="quizResult" class="results-card">
       <h2>🎉 Quiz Complete!</h2>
       <p v-if="pendingCompletion" role="status" aria-live="polite">
-        Completed in this tab. Results and estimated XP are awaiting confirmation. Keep this tab
-        open until your results are saved.
+        Results and estimated XP are awaiting confirmation.
         {{ syncingCompletion ? 'Syncing…' : 'Connect to the server and retry saving.' }}
       </p>
       <p v-else role="status">Results confirmed and saved to your account.</p>

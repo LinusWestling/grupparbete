@@ -30,18 +30,16 @@ function retry() {
       You can continue this loaded quiz and view its summary. We’ll retry saving when the connection
       returns.
     </p>
-    <p v-if="needsLogin">
-      Your login expired. Sign in again to save your quiz. Your progress is still in this tab.
-    </p>
+    <p v-if="needsLogin">Your login expired. Sign in again to save your quiz to your account.</p>
     <p v-else-if="needsAttention">
-      We could not save your quiz: {{ syncError.message }}. Your progress is still in this tab.
+      We could not save your quiz to your account: {{ syncError.message }}.
     </p>
-    <p v-else-if="syncError && !unavailable">
-      Saving failed. Your progress is still in this tab; you can retry.
+    <p v-else-if="syncError && !unavailable">Saving to your account failed; you can retry.</p>
+    <p v-if="quizStore.persistenceError.value" class="tab-warning">
+      {{ quizStore.persistenceError.value }}
     </p>
-    <p v-if="hasUnsyncedData" class="tab-warning">
-      Keep this tab open. Do not refresh or close it until the status says Saved; unsaved progress
-      and results exist only in this tab.
+    <p v-else-if="hasUnsyncedData">
+      Progress and results are saved on this device. Return to this app to sync them when connected.
     </p>
     <p v-else>Your quiz progress is saved to your account.</p>
     <button

@@ -41,4 +41,9 @@ newer progress. The Vue store retries transient failures while online and retrie
 on reconnect, focus, and successful login. Authentication or validation failures
 retain local data while waiting for user action. A completed quiz sends all answers
 and skips directly, so final submission does not depend on individual saves.
-Browser memory still requires keeping the tab open until confirmation.
+The frontend saves the loaded quiz, answers, position, revisions, and pending
+completion in localStorage and restores them after refresh or browser restart.
+Reopening the app retries pending saves. Clearing browser site data removes this
+local copy. If localStorage is unavailable or full, the UI warns to keep the tab
+open until server confirmation. Loading the app itself offline still requires
+the app assets to be available; quiz persistence does not provide an offline app cache.

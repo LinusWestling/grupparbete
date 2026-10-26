@@ -11,7 +11,15 @@ export function createQuizStore(
     const { api } = await import('../services/api.js')
     return api.submitQuizSession(...args)
   },
+  storage = undefined,
 ) {
+  const storageKey = 'skillswap.quiz.v1'
+  try {
+    storage ??= globalThis.window?.localStorage
+  } catch {
+    storage = null
+  }
+  const persistenceError = ref(null)
   const activeQuizSession = ref(null)
   const currentQuestionIndex = ref(0)
   const selectedAnswers = ref({})
@@ -24,6 +32,69 @@ export function createQuizStore(
   const syncError = ref(null)
   let revision = 0
   let flushPromise = null
+  const persistedState = {
+    activeQuizSession,
+    currentQuestionIndex,
+    selectedAnswers,
+    quizResult,
+    pendingChanges,
+    confirmedProgress,
+    pendingCompletion,
+  }
+  try {
+    const raw = storage?.getItem(storageKey)
+    if (raw) {
+      const saved = JSON.parse(raw)
+      if (
+        saved.version !== 1 ||
+        saved.activeQuizSession?.payload_version !== 1 ||
+        !Array.isArray(saved.activeQuizSession.questions) ||
+        !saved.activeQuizSession.questions.length ||
+        !Number.isSafeInteger(saved.revision) ||
+        saved.revision < 0 ||
+        !Number.isInteger(saved.currentQuestionIndex) ||
+        saved.currentQuestionIndex < 0 ||
+        saved.currentQuestionIndex >= saved.activeQuizSession.questions.length ||
+        typeof saved.pendingCompletion !== 'boolean' ||
+        !['selectedAnswers', 'pendingChanges', 'confirmedProgress'].every(
+          (key) => saved[key] && typeof saved[key] === 'object' && !Array.isArray(saved[key]),
+        ) ||
+        !saved.activeQuizSession.questions.every(
+          (q) => Array.isArray(q.answers) && Array.isArray(q.sources),
+        )
+      )
+        throw new Error('Invalid saved quiz')
+      for (const [key, state] of Object.entries(persistedState)) state.value = saved[key]
+      revision = saved.revision
+    }
+  } catch {
+    persistenceError.value = 'Could not restore the saved quiz on this device.'
+  }
+  watch(
+    Object.values(persistedState),
+    () => {
+      try {
+        if (!storage) throw new Error('Local storage unavailable')
+        if (!activeQuizSession.value) storage.removeItem(storageKey)
+        else
+          storage.setItem(
+            storageKey,
+            JSON.stringify({
+              version: 1,
+              revision,
+              ...Object.fromEntries(
+                Object.entries(persistedState).map(([key, state]) => [key, state.value]),
+              ),
+            }),
+          )
+        persistenceError.value = null
+      } catch {
+        persistenceError.value =
+          'Could not save on this device. Keep this tab open until your progress is saved to your account.'
+      }
+    },
+    { deep: true, flush: 'sync' },
+  )
   const hasUnsyncedData = computed(
     () => pendingCompletion.value || Object.keys(pendingChanges.value).length > 0,
   )
@@ -32,11 +103,13 @@ export function createQuizStore(
     isSyncing.value ? 'Syncing' : hasUnsyncedData.value ? 'Waiting to sync' : 'Saved',
   )
   const saveMessage = computed(() =>
-    Object.keys(pendingChanges.value).length
-      ? saving.value
-        ? 'Saved in this tab — syncing…'
-        : 'Saved in this tab — waiting to sync. Keep this tab open.'
-      : 'Saved to your account',
+    persistenceError.value && hasUnsyncedData.value
+      ? 'Saved in this tab only — device storage unavailable'
+      : Object.keys(pendingChanges.value).length
+        ? saving.value
+          ? 'Saved on this device — syncing…'
+          : 'Saved on this device — waiting to sync.'
+        : 'Saved to your account',
   )
 
   function loadQuiz(payload) {
@@ -81,7 +154,7 @@ export function createQuizStore(
   function assertCanReplaceQuiz() {
     if (hasUnsyncedData.value || isSyncing.value) {
       throw new Error(
-        'Your current quiz has unsaved data. Keep this tab open and finish saving before starting another quiz.',
+        'Your current quiz has pending saves. Sync it to your account before starting another quiz.',
       )
     }
   }
@@ -287,6 +360,7 @@ export function createQuizStore(
   }
 
   return {
+    persistenceError,
     activeQuizSession,
     currentQuestionIndex,
     selectedAnswers,
