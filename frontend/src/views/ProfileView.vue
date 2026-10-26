@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
-import { loadCurrentUser } from '../services/auth'
+import { currentUser, loadCurrentUser, clearCurrentUser } from '../services/auth'
 
 const router = useRouter()
 
@@ -100,10 +100,25 @@ onMounted(async () => {
   await loadUserData()
 })
 
-async function loadUserData() {
+watch(currentUser, (newUser) => {
+  if (!newUser) {
+    user.value = null
+    progress.value = null
+    history.value = []
+    accessRequests.value = []
+    selectedQuizDetails.value = null
+    showLevelModal.value = false
+    loginPassword.value = ''
+    regPassword.value = ''
+    regConfirmPassword.value = ''
+    authMode.value = 'login'
+  }
+})
+
+async function loadUserData({ force = false } = {}) {
   try {
     loading.value = true
-    user.value = await loadCurrentUser({ force: true })
+    user.value = await loadCurrentUser({ force })
     if (user.value) {
       const [progData, histData, reqData] = await Promise.all([
         api.getUserProgress(user.value.id),
@@ -144,7 +159,7 @@ async function handleLogout() {
     regConfirmPassword.value = ''
     authMode.value = 'login'
 
-    await loadCurrentUser({ force: true })
+    clearCurrentUser()
   } catch (error) {
     logoutError.value = 'Logout failed: ' + error.message
   } finally {
@@ -156,7 +171,7 @@ async function handleLogin() {
   try {
     loginError.value = null
     user.value = await api.login(loginEmail.value, loginPassword.value)
-    await loadUserData()
+    await loadUserData({ force: true })
   } catch (err) {
     loginError.value = 'Login failed: ' + err.message
   }
@@ -194,7 +209,7 @@ async function handleRegister() {
       ? 'Account created! Your organization application is pending admin approval. Logging you in...'
       : 'Account created successfully! Logging you in...'
     user.value = await api.login(regEmail.value.trim(), regPassword.value)
-    await loadUserData()
+    await loadUserData({ force: true })
   } catch (err) {
     regError.value = 'Registration failed: ' + err.message
   } finally {
@@ -295,14 +310,7 @@ function getSourceUrl(url) {
 
     <!-- Logged in state -->
     <div v-if="user" class="profile-card">
-      <button
-        type="button"
-        class="button button-outline"
-        :disabled="loggingOut"
-        @click="handleLogout"
-      >
-        {{ loggingOut ? 'Logging out...' : 'Log out' }}
-      </button>
+    
 
       <p v-if="logoutError" class="error-banner" role="alert">
         {{ logoutError }}
@@ -543,6 +551,14 @@ function getSourceUrl(url) {
           No completed quizzes found yet. Start a quiz under Explore skills!
         </p>
       </div>
+        <button
+        type="button"
+        class="button button-outline button-logout"
+        :disabled="loggingOut"
+        @click="handleLogout"
+      >
+        {{ loggingOut ? 'Logging out...' : 'Log out' }}
+      </button>
     </div>
 
     <!-- Quiz Inspection Modal -->

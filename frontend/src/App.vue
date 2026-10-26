@@ -1,14 +1,35 @@
 <script setup>
-import { computed, onMounted } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { navigation } from './router'
-import { isAdmin, isOrganization, loadCurrentUser } from './services/auth'
+import { currentUser, isAdmin, isOrganization, loadCurrentUser, clearCurrentUser } from './services/auth'
+import { api } from './services/api'
+
+const router = useRouter()
 
 const visibleNavigation = computed(() =>
   navigation.filter(
     (item) => (!item.adminOnly || isAdmin.value) && (!item.orgOnly || isOrganization.value),
   ),
 )
+
+const loggingOut = ref(false)
+
+async function handleLogout() {
+  if (loggingOut.value) return
+
+  loggingOut.value = true
+
+  try {
+    await api.logout()
+    clearCurrentUser()
+    router.push('/profile')
+  } catch (error) {
+    console.error('Logout failed:', error)
+  } finally {
+    loggingOut.value = false
+  }
+}
 
 onMounted(loadCurrentUser)
 </script>
@@ -43,10 +64,24 @@ onMounted(loadCurrentUser)
     </aside>
     <div class="workspace">
       <header class="topbar">
-        <span>Learn together. Grow together.</span
-        ><RouterLink to="/profile" class="profile-link"
-          ><span class="avatar" aria-hidden="true">Y</span> Your profile ↗</RouterLink
+        <span>Learn together. Grow together.</span>
+        <div class="profile-div">
+        <RouterLink to="/profile" class="profile-link">
+          <span class="avatar" aria-hidden="true">{{
+            currentUser?.username ? currentUser.username[0].toUpperCase() : '→'
+          }}</span>
+          {{ currentUser?.username ? `${currentUser.username} ↗` : 'Your profile ↗' }}
+        </RouterLink>
+        <button
+          v-if="currentUser"
+          type="button"
+          class="button button-outline"
+          :disabled="loggingOut"
+          @click="handleLogout"
         >
+          {{ loggingOut ? 'Logging out...' : 'Log out' }}
+        </button>
+        </div>
       </header>
       <main id="main-content" tabindex="-1"><RouterView /></main>
       <footer class="page-footer">

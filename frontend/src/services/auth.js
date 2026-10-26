@@ -25,6 +25,14 @@ export const isOrganization = computed(
 
 let pending = null
 
+export function clearCurrentUser() {
+  currentUser.value = null
+  authState.value = 'signed-out'
+  authResolved.value = true
+  rememberAccount(null)
+  pending = Promise.resolve(null)
+}
+
 // Cached after the first call; pass force after login/logout to refresh.
 export function loadCurrentUser({ force = false } = {}) {
   if (!pending || force) {
