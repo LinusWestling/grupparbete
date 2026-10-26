@@ -16,6 +16,8 @@ const loading = ref(true)
 const loginEmail = ref('')
 const loginPassword = ref('')
 const loginError = ref(null)
+const loggingOut = ref(false)
+const logoutError = ref('')
 
 const authMode = ref('login')
 const regUsername = ref('')
@@ -121,6 +123,35 @@ async function loadUserData() {
   }
 }
 
+async function handleLogout() {
+  if (loggingOut.value) return
+
+  loggingOut.value = true
+  logoutError.value = ''
+
+  try {
+    await api.logout()
+
+    user.value = null
+    progress.value = null
+    history.value = []
+    accessRequests.value = []
+    selectedQuizDetails.value = null
+    showLevelModal.value = false
+
+    loginPassword.value = ''
+    regPassword.value = ''
+    regConfirmPassword.value = ''
+    authMode.value = 'login'
+
+    await loadCurrentUser({ force: true })
+  } catch (error) {
+    logoutError.value = 'Logout failed: ' + error.message
+  } finally {
+    loggingOut.value = false
+  }
+}
+
 async function handleLogin() {
   try {
     loginError.value = null
@@ -221,11 +252,23 @@ function getUserAnswerText(q) {
         ? 'Skipped'
         : 'No answer entered'
   }
+  if (q.question_type === 'matching') {
+    if (q.is_skipped) return 'Skipped'
+    const map =
+      q.submitted_answer && typeof q.submitted_answer === 'object' ? q.submitted_answer : null
+    if (!map) return 'No answer selected'
+    return (q.answers || [])
+      .map((a) => `${a.answer_text} → ${map[a.id] ?? map[String(a.id)] ?? '—'}`)
+      .join(' | ')
+  }
   const opt = q.answers?.find((a) => a.id === q.chosen_answer_id)
   return opt ? opt.answer_text : q.is_skipped ? 'Skipped' : 'No answer selected'
 }
 
 function getCorrectAnswerText(q) {
+  if (q.question_type === 'matching') {
+    return (q.answers || []).map((a) => `${a.answer_text} → ${a.match_text}`).join(' | ')
+  }
   const opt = q.answers?.find((a) => a.is_correct)
   return opt ? opt.answer_text : 'N/A'
 }
@@ -252,6 +295,18 @@ function getSourceUrl(url) {
 
     <!-- Logged in state -->
     <div v-if="user" class="profile-card">
+      <button
+        type="button"
+        class="button button-outline"
+        :disabled="loggingOut"
+        @click="handleLogout"
+      >
+        {{ loggingOut ? 'Logging out...' : 'Log out' }}
+      </button>
+
+      <p v-if="logoutError" class="error-banner" role="alert">
+        {{ logoutError }}
+      </p>
       <div class="user-header">
         <div class="avatar-large">{{ user.username ? user.username[0].toUpperCase() : 'U' }}</div>
         <div>
@@ -657,7 +712,7 @@ function getSourceUrl(url) {
     </div>
 
     <!-- Login / Registration form -->
-    <div v-else class="login-card">
+    <div v-if="!user" class="login-card">
       <div class="auth-tabs">
         <button
           type="button"

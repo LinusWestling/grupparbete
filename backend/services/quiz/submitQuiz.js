@@ -3,14 +3,17 @@ const { httpError, readJson, validateSubmission } = require('./quizSubmission')
 const multipleChoice = require('./multipleChoiceEngine')
 const yesNo = require('./yesNoEngine')
 const freeText = require('./freeTextEngine')
+const matching = require('./matchingEngine')
 
 function evaluate(question, item) {
   const engine =
     question.question_type === 'free_text'
       ? freeText
-      : question.question_type === 'yes_no'
-        ? yesNo
-        : multipleChoice
+      : question.question_type === 'matching'
+        ? matching
+        : question.question_type === 'yes_no'
+          ? yesNo
+          : multipleChoice
   const evaluation = engine.evaluate(question, item.isSkipped ? undefined : item.answer)
   const selected = question.answers.find((option) => option.id === item.answer)
   return {
@@ -24,7 +27,9 @@ function evaluate(question, item) {
       ? null
       : question.question_type === 'free_text'
         ? item.answer
-        : selected?.answer_text || '',
+        : question.question_type === 'matching'
+          ? evaluation.selected_answer_text
+          : selected?.answer_text || '',
     sources: question.sources,
   }
 }
@@ -45,7 +50,12 @@ function summarize(quiz, results) {
 }
 
 async function existingAnswerId(connection, question, item) {
-  if (item.isSkipped || question.question_type === 'free_text') return null
+  if (
+    item.isSkipped ||
+    question.question_type === 'free_text' ||
+    question.question_type === 'matching'
+  )
+    return null
   // Preserve old option IDs in submitted_answer even if an admin removed them.
   const [answers] = await connection.execute(
     'SELECT id FROM answers WHERE id = ? AND question_id = ? FOR SHARE',

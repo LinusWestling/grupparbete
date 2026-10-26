@@ -7,6 +7,49 @@ export function gradeQuizLocally(quiz, selectedAnswers) {
     const answer = selectedAnswers[question.id]
     const isSkipped = question.is_skipped || !question.is_answered
     const freeText = question.question_type === 'free_text'
+    const isMatching = question.question_type === 'matching'
+
+    if (isMatching) {
+      const responseMap =
+        answer && typeof answer === 'object' && !Array.isArray(answer) ? answer : {}
+      const pairs = Array.isArray(question.answers) ? question.answers : []
+      const isCorrect =
+        !isSkipped &&
+        pairs.length > 0 &&
+        pairs.every((pair) => {
+          const selected = String(responseMap[pair.id] ?? responseMap[String(pair.id)] ?? '')
+            .trim()
+            .toLowerCase()
+          const expected = String(pair.match_text ?? '')
+            .trim()
+            .toLowerCase()
+          return selected.length > 0 && selected === expected
+        })
+
+      return {
+        question_id: question.id,
+        question_text: question.question_text,
+        is_correct: isCorrect,
+        is_skipped: isSkipped,
+        chosen_answer_id: null,
+        user_input: !isSkipped ? responseMap : null,
+        selected_answer_text: isSkipped
+          ? null
+          : pairs
+              .map(
+                (pair) =>
+                  `${pair.answer_text} → ${responseMap[pair.id] ?? responseMap[String(pair.id)] ?? '—'}`,
+              )
+              .join(' | '),
+        correct_answer_id: null,
+        correct_answer_text: pairs
+          .map((pair) => `${pair.answer_text} → ${pair.match_text}`)
+          .join(' | '),
+        explanation: question.sources[0]?.source_text ?? null,
+        sources: question.sources,
+      }
+    }
+
     const correct =
       question.answers.find((option) => Boolean(option.is_correct)) ||
       (freeText ? question.answers[0] : null)

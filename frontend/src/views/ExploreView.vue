@@ -96,6 +96,26 @@ function selectAnswer(questionId, answerVal) {
   void quizStore.flushPending()
 }
 
+function selectMatchPair(questionId, answerId, matchValue) {
+  const existing = selectedAnswers.value[questionId]
+  const currentMap =
+    existing && typeof existing === 'object' && !Array.isArray(existing) ? { ...existing } : {}
+  if (matchValue) {
+    currentMap[answerId] = matchValue
+  } else {
+    delete currentMap[answerId]
+  }
+  quizStore.recordProgress(questionId, currentMap)
+  void quizStore.flushPending()
+}
+
+function getMatchOptions(question) {
+  if (Array.isArray(question?.match_options) && question.match_options.length > 0) {
+    return question.match_options
+  }
+  return (question?.answers || []).map((a) => a.match_text).filter(Boolean)
+}
+
 function saveCurrentQuestion(isSkipped = false) {
   const question = activeQuizSession.value?.questions[currentQuestionIndex.value]
   if (!question) return Promise.resolve(false)
@@ -106,11 +126,17 @@ function saveCurrentQuestion(isSkipped = false) {
 async function navigateQuestion(direction, skip = false) {
   const question = activeQuizSession.value.questions[currentQuestionIndex.value]
   const hasAnswer =
-    selectedAnswers.value[question.id] !== undefined && selectedAnswers.value[question.id] !== ''
+    question.question_type === 'matching'
+      ? Boolean(question.is_answered)
+      : selectedAnswers.value[question.id] !== undefined &&
+        selectedAnswers.value[question.id] !== ''
 
   // Stoppa NEXT om ingen svar har valats.
   if (direction > 0 && !skip && !hasAnswer && !question.is_skipped) {
-    error.value = 'Välj ett svar eller hoppa över frågan'
+    error.value =
+      question.question_type === 'matching'
+        ? 'Para ihop alla alternativ eller hoppa över frågan'
+        : 'Välj ett svar eller hoppa över frågan'
     return
   }
   if (hasAnswer || skip) void saveCurrentQuestion(skip)
@@ -152,11 +178,7 @@ async function handleSubmitQuiz() {
 async function exitQuiz() {
   if (!quizResult.value) {
     const question = activeQuizSession.value?.questions[currentQuestionIndex.value]
-    if (
-      question &&
-      selectedAnswers.value[question.id] !== undefined &&
-      selectedAnswers.value[question.id] !== ''
-    ) {
+    if (question && question.is_answered) {
       if (!(await saveCurrentQuestion())) return
     }
   }
@@ -251,9 +273,51 @@ async function exitQuiz() {
         <h2>{{ activeQuizSession.questions[currentQuestionIndex].question_text }}</h2>
 
         <!-- Answer Rendering by Type -->
-        <!-- 1. Multiple Choice & Yes/No -->
+        <!-- 1. Matching Pairs ("Frågor med samband") -->
         <div
-          v-if="activeQuizSession.questions[currentQuestionIndex].question_type !== 'free_text'"
+          v-if="activeQuizSession.questions[currentQuestionIndex].question_type === 'matching'"
+          class="matching-pairs-list"
+        >
+          <div
+            v-for="ans in activeQuizSession.questions[currentQuestionIndex].answers"
+            :key="ans.id"
+            class="matching-pair-row"
+          >
+            <div class="matching-prompt">{{ ans.answer_text }}</div>
+            <span class="matching-arrow" aria-hidden="true">↔</span>
+            <select
+              class="matching-select"
+              :disabled="submitting"
+              :value="
+                selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id]?.[ans.id] ??
+                ''
+              "
+              :aria-label="`Välj samband för ${ans.answer_text}`"
+              @change="
+                selectMatchPair(
+                  activeQuizSession.questions[currentQuestionIndex].id,
+                  ans.id,
+                  $event.target.value,
+                )
+              "
+            >
+              <option value="">— Välj samband —</option>
+              <option
+                v-for="opt in getMatchOptions(activeQuizSession.questions[currentQuestionIndex])"
+                :key="opt"
+                :value="opt"
+              >
+                {{ opt }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. Multiple Choice & Yes/No -->
+        <div
+          v-else-if="
+            activeQuizSession.questions[currentQuestionIndex].question_type !== 'free_text'
+          "
           class="options-grid"
         >
           <button

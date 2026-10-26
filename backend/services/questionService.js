@@ -78,7 +78,7 @@ async function getQuestions(filters = {}, options = {}) {
   // Bulk fetch answers and sources for all question IDs
   const qIds = questions.map((q) => q.id)
   const [allAnswers] = await pool.query(
-    'SELECT id, question_id, answer_text, is_correct FROM answers WHERE question_id IN (?)',
+    'SELECT id, question_id, answer_text, match_text, is_correct FROM answers WHERE question_id IN (?)',
     [qIds],
   )
   const [allSources] = await pool.query(
@@ -121,7 +121,7 @@ async function getQuestionById(id, options = {}) {
   const question = rows[0]
 
   const [answers] = await pool.query(
-    'SELECT id, answer_text, is_correct FROM answers WHERE question_id = ?',
+    'SELECT id, answer_text, match_text, is_correct FROM answers WHERE question_id = ?',
     [id],
   )
   const [sources] = await pool.query(
@@ -152,8 +152,8 @@ async function assertTopicExists(connection, topicId) {
 async function insertAnswers(connection, questionId, answers) {
   for (const ans of answers) {
     await connection.execute(
-      'INSERT INTO answers (question_id, answer_text, is_correct) VALUES (?, ?, ?)',
-      [questionId, ans.answer_text, ans.is_correct ? 1 : 0],
+      'INSERT INTO answers (question_id, answer_text, match_text, is_correct) VALUES (?, ?, ?, ?)',
+      [questionId, ans.answer_text, ans.match_text || null, ans.is_correct ? 1 : 0],
     )
   }
 }
@@ -297,8 +297,8 @@ async function updateQuestion(id, data) {
 
     for (const ans of data.answers.filter((a) => a.id !== null)) {
       await connection.execute(
-        'UPDATE answers SET answer_text = ?, is_correct = ? WHERE id = ? AND question_id = ?',
-        [ans.answer_text, ans.is_correct ? 1 : 0, ans.id, id],
+        'UPDATE answers SET answer_text = ?, match_text = ?, is_correct = ? WHERE id = ? AND question_id = ?',
+        [ans.answer_text, ans.match_text || null, ans.is_correct ? 1 : 0, ans.id, id],
       )
     }
     await insertAnswers(
