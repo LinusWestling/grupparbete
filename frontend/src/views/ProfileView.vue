@@ -310,8 +310,6 @@ function getSourceUrl(url) {
 
     <!-- Logged in state -->
     <div v-if="user" class="profile-card">
-    
-
       <p v-if="logoutError" class="error-banner" role="alert">
         {{ logoutError }}
       </p>
@@ -551,7 +549,7 @@ function getSourceUrl(url) {
           No completed quizzes found yet. Start a quiz under Explore skills!
         </p>
       </div>
-        <button
+      <button
         type="button"
         class="button button-outline button-logout"
         :disabled="loggingOut"

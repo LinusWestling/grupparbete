@@ -9,7 +9,7 @@
   flex-direction: column;
   gap: var(--space-6);
   .button-logout {
-    width:fit-content;
+    width: fit-content;
     margin: 0 auto;
   }
 }
