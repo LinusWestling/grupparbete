@@ -115,7 +115,7 @@ export const api = {
     window.dispatchEvent(new Event('quiz-auth-restored'))
     return result
   },
-  logout: () => 
+  logout: () =>
     request('/auth/logout', {
       method: 'POST',
     }),
