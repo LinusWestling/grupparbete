@@ -1,4 +1,5 @@
 import { createApiService } from './apiFactory.js'
+import { rememberQuizAccount } from './quizIdentity.js'
 
 const { request } = createApiService('')
 
@@ -108,12 +109,18 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
+    rememberQuizAccount(result.id)
     window.dispatchEvent(new Event('quiz-auth-restored'))
     return result
   },
-  getMe: () => request('/auth/me'),
-  logout: () =>
-    request('/auth/logout', {
-      method: 'POST',
-    }),
+  getMe: async () => {
+    try {
+      const user = await request('/auth/me')
+      rememberQuizAccount(user.id)
+      return user
+    } catch (error) {
+      if ([401, 403].includes(error.status)) rememberQuizAccount(null)
+      throw error
+    }
+  },
 }
