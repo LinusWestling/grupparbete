@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { gradeQuizLocally } from '../services/localQuizGrading.js'
 import { startQuizUnloadWarning } from '../services/quizNavigationSafety.js'
-import { currentUser, authResolved } from '../services/auth.js'
+import { currentUser, authResolved, authState, offlineAccountId } from '../services/auth.js'
 
 export function createQuizStore(
   saveProgress = async (...args) => {
@@ -20,17 +20,59 @@ export function createQuizStore(
   let entryKey = null
   let ancestors = []
   let savedAt = 0
+  let hasAccountEntries = false
+  function hasValidEntryMetadata(saved) {
+    return (
+      saved?.version === 1 &&
+      (saved.ancestors === undefined ||
+        (Array.isArray(saved.ancestors) &&
+          saved.ancestors.every((key) => typeof key === 'string'))) &&
+      (saved.savedAt === undefined || (Number.isFinite(saved.savedAt) && saved.savedAt >= 0))
+    )
+  }
+  function isValidQuizEntry(saved) {
+    return (
+      hasValidEntryMetadata(saved) &&
+      saved.activeQuizSession?.payload_version === 1 &&
+      Array.isArray(saved.activeQuizSession.questions) &&
+      saved.activeQuizSession.questions.length > 0 &&
+      Number.isSafeInteger(saved.revision) &&
+      saved.revision >= 0 &&
+      Number.isInteger(saved.currentQuestionIndex) &&
+      saved.currentQuestionIndex >= 0 &&
+      saved.currentQuestionIndex < saved.activeQuizSession.questions.length &&
+      typeof saved.pendingCompletion === 'boolean' &&
+      ['selectedAnswers', 'pendingChanges', 'confirmedProgress'].every(
+        (key) => saved[key] && typeof saved[key] === 'object' && !Array.isArray(saved[key]),
+      ) &&
+      saved.activeQuizSession.questions.every(
+        (q) => q && Array.isArray(q.answers) && Array.isArray(q.sources),
+      )
+    )
+  }
   function readEntries() {
     const entries = []
-    for (let index = 0; index < (storage?.length ?? 0); index++) {
-      const key = storage.key(index)
-      if (!key?.startsWith(`${storageKey}:`)) continue
-      try {
-        const value = JSON.parse(storage.getItem(key))
-        if (value.accountId === accountId) entries.push({ key, value })
-      } catch {
-        // A malformed entry must not prevent other quizzes from being recovered.
+    hasAccountEntries = false
+    try {
+      for (let index = 0; index < (storage?.length ?? 0); index++) {
+        const key = storage.key(index)
+        if (!key?.startsWith(`${storageKey}:`)) continue
+        try {
+          const value = JSON.parse(storage.getItem(key))
+          if (value?.accountId === accountId && hasValidEntryMetadata(value)) {
+            hasAccountEntries = true
+            // Cleared entries still supersede their ancestors, but malformed
+            // active quizzes must never hide valid entries or reach either restore path.
+            if (value.activeQuizSession === null || isValidQuizEntry(value))
+              entries.push({ key, value })
+          }
+        } catch {
+          // A malformed entry must not prevent other quizzes from being recovered.
+        }
       }
+    } catch {
+      persistenceError.value = 'Could not read saved quizzes on this device.'
+      return []
     }
     const superseded = new Set(entries.flatMap(({ value }) => value.ancestors || []))
     return entries.filter(({ key, value }) => !superseded.has(key) && value.activeQuizSession)
@@ -66,9 +108,18 @@ export function createQuizStore(
     pendingCompletion,
   }
   function restoreAccount() {
+    const resolvedAccountId =
+      currentUser.value?.id ?? (authState.value === 'unavailable' ? offlineAccountId.value : null)
+    // A failed lookup is not proof of sign-out. Preserve the current quiz and
+    // stored entries when there is no remembered account to restore safely.
+    if (
+      authState.value === 'unavailable' &&
+      (resolvedAccountId === null || resolvedAccountId === accountId)
+    )
+      return
     restoring = true
     const previousAccountId = accountId
-    accountId = currentUser.value?.id ?? null
+    accountId = resolvedAccountId
     accountGeneration++
     activeQuizSession.value = null
     currentQuestionIndex.value = 0
@@ -83,7 +134,7 @@ export function createQuizStore(
     ancestors = []
     try {
       if (accountId === null || (previousAccountId !== null && previousAccountId !== accountId)) {
-        storage?.removeItem(storageKey)
+        if (authState.value === 'signed-out') storage?.removeItem(storageKey)
         const prefix = `${storageKey}:${previousAccountId}:`
         const keys = []
         for (let index = 0; index < (storage?.length ?? 0); index++) {
@@ -101,32 +152,18 @@ export function createQuizStore(
         )
       })
       const candidate = candidates[0]
-      const raw = candidate ? JSON.stringify(candidate.value) : storage?.getItem(storageKey)
+      const raw = candidate
+        ? JSON.stringify(candidate.value)
+        : !hasAccountEntries
+          ? storage?.getItem(storageKey)
+          : null
       if (raw) {
         const saved = JSON.parse(raw)
         if (accountId === null || saved.accountId !== accountId) {
-          storage.removeItem(storageKey)
+          if (authState.value === 'signed-out') storage.removeItem(storageKey)
           return
         }
-        if (
-          saved.version !== 1 ||
-          saved.activeQuizSession?.payload_version !== 1 ||
-          !Array.isArray(saved.activeQuizSession.questions) ||
-          !saved.activeQuizSession.questions.length ||
-          !Number.isSafeInteger(saved.revision) ||
-          saved.revision < 0 ||
-          !Number.isInteger(saved.currentQuestionIndex) ||
-          saved.currentQuestionIndex < 0 ||
-          saved.currentQuestionIndex >= saved.activeQuizSession.questions.length ||
-          typeof saved.pendingCompletion !== 'boolean' ||
-          !['selectedAnswers', 'pendingChanges', 'confirmedProgress'].every(
-            (key) => saved[key] && typeof saved[key] === 'object' && !Array.isArray(saved[key]),
-          ) ||
-          !saved.activeQuizSession.questions.every(
-            (q) => Array.isArray(q.answers) && Array.isArray(q.sources),
-          )
-        )
-          throw new Error('Invalid saved quiz')
+        if (!isValidQuizEntry(saved)) throw new Error('Invalid saved quiz')
         for (const [key, state] of Object.entries(persistedState)) state.value = saved[key]
         revision = saved.revision
         ancestors = candidate ? [...(saved.ancestors || []), candidate.key] : []
@@ -139,15 +176,6 @@ export function createQuizStore(
       restoring = false
       if (activeQuizSession.value) {
         persist()
-        // Retire the previous single-entry format only after its replacement is durable.
-        if (!persistenceError.value) {
-          try {
-            const legacy = JSON.parse(storage?.getItem(storageKey) || 'null')
-            if (legacy?.accountId === accountId) storage.removeItem(storageKey)
-          } catch {
-            // Leave an unreadable legacy entry alone.
-          }
-        }
       }
     }
   }
