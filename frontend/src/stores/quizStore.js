@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { gradeQuizLocally } from '../services/localQuizGrading.js'
 import { startQuizUnloadWarning } from '../services/quizNavigationSafety.js'
+import { currentUser, authResolved, authState, offlineAccountId } from '../services/auth.js'
 
 function browserStorage() {
   try {
@@ -32,11 +33,77 @@ export function createQuizStore(
     const { api } = await import('../services/api.js')
     return api.submitQuizSession(...args)
   },
-  storage = browserStorage(),
-  snapshotOwner = tabSnapshot.id,
+  storage = undefined,
 ) {
-  let ownerId = null
-  const locallySaved = ref(false)
+  const storageKey = 'skillswap.quiz.v1'
+  // Each page owns its entry, including when two tabs edit the same attempt.
+  const writerId = globalThis.crypto.randomUUID()
+  let entryKey = null
+  let ancestors = []
+  let savedAt = 0
+  let hasAccountEntries = false
+  function hasValidEntryMetadata(saved) {
+    return (
+      saved?.version === 1 &&
+      (saved.ancestors === undefined ||
+        (Array.isArray(saved.ancestors) &&
+          saved.ancestors.every((key) => typeof key === 'string'))) &&
+      (saved.savedAt === undefined || (Number.isFinite(saved.savedAt) && saved.savedAt >= 0))
+    )
+  }
+  function isValidQuizEntry(saved) {
+    return (
+      hasValidEntryMetadata(saved) &&
+      saved.activeQuizSession?.payload_version === 1 &&
+      Array.isArray(saved.activeQuizSession.questions) &&
+      saved.activeQuizSession.questions.length > 0 &&
+      Number.isSafeInteger(saved.revision) &&
+      saved.revision >= 0 &&
+      Number.isInteger(saved.currentQuestionIndex) &&
+      saved.currentQuestionIndex >= 0 &&
+      saved.currentQuestionIndex < saved.activeQuizSession.questions.length &&
+      typeof saved.pendingCompletion === 'boolean' &&
+      ['selectedAnswers', 'pendingChanges', 'confirmedProgress'].every(
+        (key) => saved[key] && typeof saved[key] === 'object' && !Array.isArray(saved[key]),
+      ) &&
+      saved.activeQuizSession.questions.every(
+        (q) => q && Array.isArray(q.answers) && Array.isArray(q.sources),
+      )
+    )
+  }
+  function readEntries() {
+    const entries = []
+    hasAccountEntries = false
+    try {
+      for (let index = 0; index < (storage?.length ?? 0); index++) {
+        const key = storage.key(index)
+        if (!key?.startsWith(`${storageKey}:`)) continue
+        try {
+          const value = JSON.parse(storage.getItem(key))
+          if (value?.accountId === accountId && hasValidEntryMetadata(value)) {
+            hasAccountEntries = true
+            // Cleared entries still supersede their ancestors, but malformed
+            // active quizzes must never hide valid entries or reach either restore path.
+            if (value.activeQuizSession === null || isValidQuizEntry(value))
+              entries.push({ key, value })
+          }
+        } catch {
+          // A malformed entry must not prevent other quizzes from being recovered.
+        }
+      }
+    } catch {
+      persistenceError.value = 'Could not read saved quizzes on this device.'
+      return []
+    }
+    const superseded = new Set(entries.flatMap(({ value }) => value.ancestors || []))
+    return entries.filter(({ key, value }) => !superseded.has(key) && value.activeQuizSession)
+  }
+  try {
+    storage ??= globalThis.window?.localStorage
+  } catch {
+    storage = null
+  }
+  const persistenceError = ref(null)
   const activeQuizSession = ref(null)
   const currentQuestionIndex = ref(0)
   const selectedAnswers = ref({})
@@ -49,6 +116,123 @@ export function createQuizStore(
   const syncError = ref(null)
   let revision = 0
   let flushPromise = null
+  let accountId = null
+  let accountGeneration = 0
+  let restoring = false
+  const persistedState = {
+    activeQuizSession,
+    currentQuestionIndex,
+    selectedAnswers,
+    quizResult,
+    pendingChanges,
+    confirmedProgress,
+    pendingCompletion,
+  }
+  function restoreAccount() {
+    const resolvedAccountId =
+      currentUser.value?.id ?? (authState.value === 'unavailable' ? offlineAccountId.value : null)
+    // A failed lookup is not proof of sign-out. Preserve the current quiz and
+    // stored entries when there is no remembered account to restore safely.
+    if (
+      authState.value === 'unavailable' &&
+      (resolvedAccountId === null || resolvedAccountId === accountId)
+    )
+      return
+    restoring = true
+    const previousAccountId = accountId
+    accountId = resolvedAccountId
+    accountGeneration++
+    activeQuizSession.value = null
+    currentQuestionIndex.value = 0
+    selectedAnswers.value = {}
+    quizResult.value = null
+    pendingChanges.value = {}
+    confirmedProgress.value = {}
+    pendingCompletion.value = false
+    syncError.value = null
+    revision = 0
+    entryKey = null
+    ancestors = []
+    try {
+      if (accountId === null || (previousAccountId !== null && previousAccountId !== accountId)) {
+        if (authState.value === 'signed-out') storage?.removeItem(storageKey)
+        const prefix = `${storageKey}:${previousAccountId}:`
+        const keys = []
+        for (let index = 0; index < (storage?.length ?? 0); index++) {
+          const key = storage.key(index)
+          if (previousAccountId !== null && key?.startsWith(prefix)) keys.push(key)
+        }
+        for (const key of keys) storage.removeItem(key)
+        return
+      }
+      const candidates = readEntries().sort((a, b) => {
+        const pending = (value) =>
+          value.pendingCompletion || Object.keys(value.pendingChanges || {}).length > 0
+        return (
+          Number(pending(b.value)) - Number(pending(a.value)) || b.value.savedAt - a.value.savedAt
+        )
+      })
+      const candidate = candidates[0]
+      const raw = candidate
+        ? JSON.stringify(candidate.value)
+        : !hasAccountEntries
+          ? storage?.getItem(storageKey)
+          : null
+      if (raw) {
+        const saved = JSON.parse(raw)
+        if (accountId === null || saved.accountId !== accountId) {
+          if (authState.value === 'signed-out') storage.removeItem(storageKey)
+          return
+        }
+        if (!isValidQuizEntry(saved)) throw new Error('Invalid saved quiz')
+        for (const [key, state] of Object.entries(persistedState)) state.value = saved[key]
+        revision = saved.revision
+        ancestors = candidate ? [...(saved.ancestors || []), candidate.key] : []
+        savedAt = saved.savedAt || 0
+        entryKey = `${storageKey}:${accountId}:${saved.activeQuizSession.quiz_id}:${writerId}`
+      }
+    } catch {
+      persistenceError.value = 'Could not restore the saved quiz on this device.'
+    } finally {
+      restoring = false
+      if (activeQuizSession.value) {
+        persist()
+      }
+    }
+  }
+  watch(
+    [authResolved, () => currentUser.value?.id ?? null],
+    ([resolved]) => {
+      if (resolved) restoreAccount()
+    },
+    { immediate: true, flush: 'sync' },
+  )
+  function persist() {
+    if (restoring || !authResolved.value) return
+    try {
+      if (!storage) throw new Error('Local storage unavailable')
+      if (accountId === null || !entryKey) return
+      savedAt = Math.max(Date.now(), savedAt + 1)
+      storage.setItem(
+        entryKey,
+        JSON.stringify({
+          version: 1,
+          accountId,
+          ancestors,
+          savedAt,
+          revision,
+          ...Object.fromEntries(
+            Object.entries(persistedState).map(([key, state]) => [key, state.value]),
+          ),
+        }),
+      )
+      persistenceError.value = null
+    } catch {
+      persistenceError.value =
+        'Could not save on this device. Keep this tab open until your progress is saved to your account.'
+    }
+  }
+  watch(Object.values(persistedState), persist, { deep: true, flush: 'sync' })
   const hasUnsyncedData = computed(
     () => pendingCompletion.value || Object.keys(pendingChanges.value).length > 0,
   )
@@ -57,18 +241,17 @@ export function createQuizStore(
     isSyncing.value ? 'Syncing' : hasUnsyncedData.value ? 'Waiting to sync' : 'Saved',
   )
   const saveMessage = computed(() =>
-    Object.keys(pendingChanges.value).length
-      ? saving.value
-        ? locallySaved.value
+    persistenceError.value && hasUnsyncedData.value
+      ? 'Saved in this tab only — device storage unavailable'
+      : Object.keys(pendingChanges.value).length
+        ? saving.value
           ? 'Saved on this device — syncing…'
-          : 'Saved in this tab — syncing…'
-        : locallySaved.value
-          ? 'Saved on this device — waiting to sync.'
-          : 'Saved in this tab — waiting to sync. Keep this tab open.'
-      : 'Saved to your account',
+          : 'Saved on this device — waiting to sync.'
+        : 'Saved to your account',
   )
 
-  function loadQuiz(payload, userId = ownerId) {
+  function loadQuiz(payload) {
+    if (!authResolved.value || accountId === null) throw new Error('Sign in before loading a quiz')
     assertCanReplaceQuiz()
     ownerId = userId
     if (
@@ -83,6 +266,9 @@ export function createQuizStore(
       )
     )
       throw new Error('The complete offline quiz could not be loaded')
+    restoring = true
+    entryKey = `${storageKey}:${accountId}:${payload.quiz_id}:${writerId}`
+    ancestors = []
     selectedAnswers.value = {}
     confirmedProgress.value = {}
     pendingChanges.value = {}
@@ -106,6 +292,8 @@ export function createQuizStore(
     const first = payload.questions.findIndex((q) => !q.is_answered && !q.is_skipped)
     currentQuestionIndex.value = first < 0 ? 0 : first
     activeQuizSession.value = payload
+    restoring = false
+    persist()
   }
 
   // Persist synchronously: shutdown must not depend on a timer or network request.
@@ -193,7 +381,7 @@ export function createQuizStore(
   function assertCanReplaceQuiz() {
     if (hasUnsyncedData.value || isSyncing.value) {
       throw new Error(
-        'Your current quiz has unsaved data. Keep this tab open and finish saving before starting another quiz.',
+        'Your current quiz has pending saves. Sync it to your account before starting another quiz.',
       )
     }
   }
@@ -250,10 +438,12 @@ export function createQuizStore(
     if (flushPromise) return flushPromise
     const quizId = activeQuizSession.value?.quiz_id
     if (!quizId) return Promise.resolve(false)
+    const generation = accountGeneration
     flushPromise = (async () => {
       saving.value = true
       try {
         while (Object.keys(pendingChanges.value).length) {
+          if (generation !== accountGeneration) return false
           if (pendingCompletion.value) return false
           // Empty free-text or incomplete matching drafts stay local until complete or skipped.
           const next = Object.entries(pendingChanges.value).find(
@@ -266,6 +456,7 @@ export function createQuizStore(
             isSkipped: change.isSkipped,
             revision: change.revision,
           })
+          if (generation !== accountGeneration) return false
           syncError.value = null
           confirmedProgress.value[questionId] = {
             answer: change.answer,
@@ -277,6 +468,7 @@ export function createQuizStore(
         }
         return true
       } catch (error) {
+        if (generation !== accountGeneration) return false
         syncError.value = { status: error.status, message: error.message }
         return false
       } finally {
@@ -324,16 +516,19 @@ export function createQuizStore(
   async function syncCompletion() {
     if (!pendingCompletion.value || syncingCompletion.value) return false
     syncingCompletion.value = true
+    const generation = accountGeneration
     try {
       // Finish any in-flight progress write, then send the complete local state
       // in one transaction. Do not discard pending changes before confirmation.
       if (flushPromise) await flushPromise
+      if (generation !== accountGeneration) return false
       const submissions = activeQuizSession.value.questions.map((question) => ({
         question_id: question.id,
         answer: question.is_skipped ? null : selectedAnswers.value[question.id],
         isSkipped: question.is_skipped,
       }))
       const confirmed = await submitQuiz(activeQuizSession.value.quiz_id, submissions)
+      if (generation !== accountGeneration) return false
       // Preserve local result fields in case server response is incomplete
       quizResult.value = {
         ...quizResult.value,
@@ -352,6 +547,7 @@ export function createQuizStore(
       syncError.value = null
       return true
     } catch (error) {
+      if (generation !== accountGeneration) return false
       syncError.value = { status: error.status, message: error.message }
       return false
     } finally {
@@ -381,12 +577,42 @@ export function createQuizStore(
       syncError.value = null
       schedule(0)
     }
+    const reconcile = (event) => {
+      if (
+        event.storageArea !== storage ||
+        (event.key !== null && !event.key.startsWith(`${storageKey}:`))
+      )
+        return
+      // Never replace pending work, including a conflicting edit of the same quiz.
+      // Branch entries preserve both versions without last-writer-wins data loss.
+      if (hasPending() || isSyncing.value) {
+        if (event.key === entryKey && event.newValue === null) persist()
+        return
+      }
+      const quizId = activeQuizSession.value?.quiz_id
+      if (!quizId) return
+      const newer = readEntries().find(
+        ({ value }) =>
+          value.activeQuizSession.quiz_id === quizId &&
+          value.savedAt > savedAt &&
+          !value.pendingCompletion &&
+          !Object.keys(value.pendingChanges || {}).length,
+      )
+      if (!newer) return
+      restoring = true
+      for (const [key, state] of Object.entries(persistedState)) state.value = newer.value[key]
+      revision = newer.value.revision
+      savedAt = newer.value.savedAt
+      ancestors = [...(newer.value.ancestors || []), newer.key]
+      restoring = false
+    }
     const stopWatching = watch([pendingChanges, pendingCompletion], () => schedule(), {
       deep: true,
     })
     target.addEventListener('online', reconnect)
     target.addEventListener('focus', reconnect)
     target.addEventListener('quiz-auth-restored', reconnect)
+    target.addEventListener('storage', reconcile)
     schedule()
     return () => {
       stopped = true
@@ -395,10 +621,12 @@ export function createQuizStore(
       target.removeEventListener('online', reconnect)
       target.removeEventListener('focus', reconnect)
       target.removeEventListener('quiz-auth-restored', reconnect)
+      target.removeEventListener('storage', reconcile)
     }
   }
 
   return {
+    persistenceError,
     activeQuizSession,
     currentQuestionIndex,
     selectedAnswers,

@@ -109,6 +109,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
+    const { loadCurrentUser } = await import('./auth.js')
+    await loadCurrentUser({ force: true })
     rememberQuizAccount(result.id)
     window.dispatchEvent(new Event('quiz-auth-restored'))
     return result
