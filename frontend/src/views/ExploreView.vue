@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { api } from '../services/api'
+import { loadCurrentUser } from '../services/auth'
 import { quizStore } from '../stores/quizStore'
 import QuizSyncStatus from '../components/QuizSyncStatus.vue'
 import { confirmQuizNavigation } from '../services/quizNavigationSafety.js'
@@ -33,6 +34,7 @@ const unfinishedQuizzes = ref([])
 const loggedIn = ref(false)
 
 onMounted(async () => {
+  await loadCurrentUser()
   // The store survives internal navigation. Returning offline must not fetch
   // fresh content or replace a loaded quiz (including its local summary).
   if (activeQuizSession.value) {
