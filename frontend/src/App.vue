@@ -20,11 +20,13 @@ const visibleNavigation = computed(() =>
 )
 
 const loggingOut = ref(false)
+const logoutError = ref('')
 
 async function handleLogout() {
   if (loggingOut.value) return
 
   loggingOut.value = true
+  logoutError.value = ''
 
   try {
     await api.logout()
@@ -32,6 +34,7 @@ async function handleLogout() {
     router.push('/profile')
   } catch (error) {
     console.error('Logout failed:', error)
+    logoutError.value = 'Logout failed: ' + error.message
   } finally {
     loggingOut.value = false
   }
@@ -87,6 +90,7 @@ onMounted(loadCurrentUser)
           >
             {{ loggingOut ? 'Logging out...' : 'Log out' }}
           </button>
+          <span v-if="logoutError" class="error-banner" role="alert">{{ logoutError }}</span>
         </div>
       </header>
       <main id="main-content" tabindex="-1"><RouterView /></main>

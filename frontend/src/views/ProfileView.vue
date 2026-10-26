@@ -96,12 +96,15 @@ const xpToNextLevel = computed(() => {
   return 100 - (totalXp.value % 100)
 })
 
+let profileLoadToken = 0
+
 onMounted(async () => {
   await loadUserData()
 })
 
 watch(currentUser, (newUser) => {
   if (!newUser) {
+    profileLoadToken++
     user.value = null
     progress.value = null
     history.value = []
@@ -116,17 +119,21 @@ watch(currentUser, (newUser) => {
 })
 
 async function loadUserData({ force = false } = {}) {
+  const token = ++profileLoadToken
   try {
     loading.value = true
-    user.value = await loadCurrentUser({ force })
-    if (user.value) {
+    const fetchedUser = await loadCurrentUser({ force })
+    if (token !== profileLoadToken) return
+    user.value = fetchedUser
+    if (fetchedUser) {
       const [progData, histData, reqData] = await Promise.all([
-        api.getUserProgress(user.value.id),
+        api.getUserProgress(fetchedUser.id),
         api.getQuizHistory(),
-        user.value.role === 'user'
+        fetchedUser.role === 'user'
           ? api.getMyAccessRequests().catch(() => [])
           : Promise.resolve([]),
       ])
+      if (token !== profileLoadToken || currentUser.value?.id !== fetchedUser.id) return
       progress.value = progData
       history.value = histData
       accessRequests.value = reqData || []
@@ -134,7 +141,7 @@ async function loadUserData({ force = false } = {}) {
   } catch (err) {
     // Guest mode
   } finally {
-    loading.value = false
+    if (token === profileLoadToken) loading.value = false
   }
 }
 
@@ -146,6 +153,7 @@ async function handleLogout() {
 
   try {
     await api.logout()
+    profileLoadToken++
 
     user.value = null
     progress.value = null
