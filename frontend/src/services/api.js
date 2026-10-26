@@ -115,6 +115,10 @@ export const api = {
     window.dispatchEvent(new Event('quiz-auth-restored'))
     return result
   },
+  logout: () => 
+    request('/auth/logout', {
+      method: 'POST',
+    }),
   getMe: async () => {
     try {
       const user = await request('/auth/me')
