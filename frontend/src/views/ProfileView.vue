@@ -519,31 +519,47 @@ function getSourceUrl(url) {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="q in history" :key="q.quiz_id">
-                <td>#{{ q.quiz_id }}</td>
-                <td>
+              <tr
+                v-for="q in history"
+                :key="q.quiz_id"
+                class="quiz-history-row"
+                @click="inspectQuizDetails(q.quiz_id)"
+              >
+                <td data-label="Quiz">
+                  <button
+                    type="button"
+                    class="button-text quiz-history-link"
+                    :aria-label="`Open report for quiz #${q.quiz_id}: ${q.topic_name}`"
+                    @click.stop="inspectQuizDetails(q.quiz_id)"
+                  >
+                    #{{ q.quiz_id }}
+                  </button>
+                </td>
+                <td data-label="Topic">
                   <span class="badge">{{ q.topic_name }}</span>
                 </td>
-                <td>
+                <td data-label="Difficulty">
                   <button
                     class="level-chip-clickable"
-                    @click="showLevelModal = true"
+                    @click.stop="showLevelModal = true"
                     title="Click for Level diagram"
                   >
                     ⭐ Level {{ q.difficulty }}
                   </button>
                 </td>
-                <td>
-                  <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
-                  <span class="text-muted">
-                    ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
-                    +{{ q.total_score }} XP
-                  </span>
+                <td data-label="Score / Accuracy">
+                  <div>
+                    <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
+                    <span class="text-muted">
+                      ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
+                      +{{ q.total_score }} XP
+                    </span>
+                  </div>
                 </td>
-                <td>{{ new Date(q.completed_at).toLocaleString() }}</td>
-                <td>
+                <td data-label="Date Completed">{{ new Date(q.completed_at).toLocaleString() }}</td>
+                <td data-label="Action">
                   <button
-                    @click="inspectQuizDetails(q.quiz_id)"
+                    @click.stop="inspectQuizDetails(q.quiz_id)"
                     class="button button-outline button-sm"
                   >
                     Inspect Report ↗
