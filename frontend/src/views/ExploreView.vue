@@ -2,11 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { api } from '../services/api'
-import { loadCurrentUser } from '../services/auth'
+import { currentUser, loadCurrentUser } from '../services/auth'
 import { quizStore } from '../stores/quizStore'
 import QuizSyncStatus from '../components/QuizSyncStatus.vue'
 import { confirmQuizNavigation } from '../services/quizNavigationSafety.js'
-import { offlineQuizAccount } from '../services/quizIdentity.js'
 
 const route = useRoute()
 
@@ -33,10 +32,10 @@ const activeTopicName = computed(() => activeQuizSession.value?.topic_name || ''
 const submitting = ref(false)
 const unfinishedQuizzes = ref([])
 const loggedIn = ref(false)
-const quizUserId = ref(null)
 
 onMounted(async () => {
   await loadCurrentUser()
+  loggedIn.value = Boolean(currentUser.value)
   // The store survives internal navigation. Returning offline must not fetch
   // fresh content or replace a loaded quiz (including its local summary).
   if (activeQuizSession.value) {
@@ -44,15 +43,6 @@ onMounted(async () => {
     return
   }
   try {
-    try {
-      const user = await api.getMe()
-      quizUserId.value = user.id
-      loggedIn.value = true
-    } catch (err) {
-      quizUserId.value = offlineQuizAccount(err)
-      loggedIn.value = false
-    }
-    if (quizStore.restoreQuiz(quizUserId.value)) return
     topics.value = await api.getTopics()
     if (loggedIn.value) {
       try {
@@ -85,7 +75,7 @@ async function startQuizSession(topic) {
     loading.value = true
     error.value = null
     const payload = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
-    quizStore.loadQuiz(payload, quizUserId.value)
+    quizStore.loadQuiz(payload)
   } catch (err) {
     error.value = 'Failed to generate quiz: ' + err.message
   } finally {
@@ -126,6 +116,7 @@ function saveCurrentQuestion(isSkipped = false) {
 }
 
 async function navigateQuestion(direction, skip = false) {
+  if (submitting.value) return
   const question = activeQuizSession.value.questions[currentQuestionIndex.value]
   const hasAnswer =
     question.question_type === 'matching'
@@ -141,7 +132,16 @@ async function navigateQuestion(direction, skip = false) {
         : 'Välj ett svar eller hoppa över frågan'
     return
   }
-  if (hasAnswer || skip) void saveCurrentQuestion(skip)
+  if (hasAnswer || skip) {
+    submitting.value = true
+    try {
+      // Keep the local answer even when the server is unavailable.
+      // Wait for the save attempt before displaying the next question.
+      await saveCurrentQuestion(skip)
+    } finally {
+      submitting.value = false
+    }
+  }
 
   error.value = null
 
@@ -158,7 +158,7 @@ async function resumeQuiz(quizId) {
     quizStore.assertCanReplaceQuiz()
     const quiz = await api.getQuizDetails(quizId)
     if (quiz.status !== 'in_progress') throw new Error('This quiz is already completed')
-    quizStore.loadQuiz(quiz, quizUserId.value)
+    quizStore.loadQuiz(quiz)
   } catch (err) {
     error.value = 'Could not resume quiz: ' + err.message
   } finally {
@@ -192,8 +192,7 @@ async function exitQuiz() {
     if (!topics.value.length) topics.value = await api.getTopics()
     if (!loggedIn.value) {
       try {
-        const user = await api.getMe()
-        quizUserId.value = user.id
+        await api.getMe()
         loggedIn.value = true
       } catch {
         loggedIn.value = false
@@ -353,15 +352,7 @@ async function exitQuiz() {
                 $event.target.value,
               )
             "
-            @change="saveCurrentQuestion()"
           />
-          <button
-            class="button button-outline"
-            :disabled="submitting"
-            @click="saveCurrentQuestion()"
-          >
-            Save answer
-          </button>
         </div>
 
         <!-- Sources / Citations -->

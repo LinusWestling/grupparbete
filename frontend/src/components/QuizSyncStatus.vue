@@ -3,8 +3,7 @@ import { computed } from 'vue'
 import { browserOnline, backendAvailable } from '../services/connectionStatus.js'
 import { quizStore } from '../stores/quizStore.js'
 
-const { hasUnsyncedData, syncState, isSyncing, pendingCompletion, syncError, locallySaved } =
-  quizStore
+const { hasUnsyncedData, syncState, isSyncing, pendingCompletion, syncError } = quizStore
 const unavailable = computed(() => !browserOnline.value || backendAvailable.value === false)
 const needsLogin = computed(() => syncError.value?.status === 401)
 const needsAttention = computed(() => [400, 403, 409].includes(syncError.value?.status))
