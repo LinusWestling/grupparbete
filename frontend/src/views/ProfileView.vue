@@ -505,17 +505,17 @@ function getSourceUrl(url) {
 
       <!-- Quiz History Table -->
       <div class="history-section">
-        <h3>Completed Quiz History</h3>
+        <h3>Quizhistorik</h3>
         <div v-if="history.length > 0" class="table-container">
           <table class="data-table">
             <thead>
               <tr>
                 <th>Quiz #</th>
-                <th>Topic</th>
-                <th>Difficulty</th>
-                <th>Score / Accuracy</th>
-                <th>Date Completed</th>
-                <th>Action</th>
+                <th>Ämne</th>
+                <th>Svårighetsgrad</th>
+                <th>Resultat / Andel rätt</th>
+                <th>Slutfört</th>
+                <th>Åtgärd</th>
               </tr>
             </thead>
             <tbody>
@@ -529,25 +529,25 @@ function getSourceUrl(url) {
                   <button
                     type="button"
                     class="button-text quiz-history-link"
-                    :aria-label="`Open report for quiz #${q.quiz_id}: ${q.topic_name}`"
+                    :aria-label="`Öppna rapport för quiz #${q.quiz_id}: ${q.topic_name}`"
                     @click.stop="inspectQuizDetails(q.quiz_id)"
                   >
                     #{{ q.quiz_id }}
                   </button>
                 </td>
-                <td data-label="Topic">
+                <td data-label="Ämne">
                   <span class="badge">{{ q.topic_name }}</span>
                 </td>
-                <td data-label="Difficulty">
+                <td data-label="Svårighetsgrad">
                   <button
                     class="level-chip-clickable"
                     @click.stop="showLevelModal = true"
-                    title="Click for Level diagram"
+                    title="Visa nivådiagram"
                   >
-                    ⭐ Level {{ q.difficulty }}
+                    ⭐ Nivå {{ q.difficulty }}
                   </button>
                 </td>
-                <td data-label="Score / Accuracy">
+                <td data-label="Resultat / Andel rätt">
                   <div>
                     <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
                     <span class="text-muted">
@@ -556,13 +556,15 @@ function getSourceUrl(url) {
                     </span>
                   </div>
                 </td>
-                <td data-label="Date Completed">{{ new Date(q.completed_at).toLocaleString() }}</td>
-                <td data-label="Action">
+                <td data-label="Slutfört">
+                  {{ new Date(q.completed_at).toLocaleString('sv-SE') }}
+                </td>
+                <td data-label="Åtgärd">
                   <button
                     @click.stop="inspectQuizDetails(q.quiz_id)"
                     class="button button-outline button-sm"
                   >
-                    Inspect Report ↗
+                    Visa rapport ↗
                   </button>
                 </td>
               </tr>
@@ -570,7 +572,7 @@ function getSourceUrl(url) {
           </table>
         </div>
         <p v-else class="text-muted">
-          No completed quizzes found yet. Start a quiz under Explore skills!
+          Du har inte slutfört några quiz ännu. Starta ett quiz under Explore skills!
         </p>
       </div>
       <button
