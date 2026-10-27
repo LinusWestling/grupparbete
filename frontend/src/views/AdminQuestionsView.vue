@@ -2,13 +2,10 @@
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { api } from '../services/api'
 import QuestionForm from '../components/QuestionForm.vue'
+import { QUESTION_TYPE_LABELS } from '../services/questionTypes.js'
 
-const TYPE_LABELS = {
-  multiple_choice: 'Multiple choice',
-  yes_no: 'Yes / no',
-  free_text: 'Free text',
-  matching: 'Matching (Samband)',
-}
+const TYPE_LABELS = QUESTION_TYPE_LABELS
+const ROLE_LABELS = { user: 'Användare', admin: 'Administratör', organization: 'Organisation' }
 
 const questions = ref([])
 const topics = ref([])
@@ -34,7 +31,7 @@ onMounted(async () => {
   try {
     topics.value = await api.getTopics()
   } catch (err) {
-    error.value = 'Could not load topics: ' + err.message
+    error.value = 'Det gick inte att läsa in ämnen: ' + err.message
   }
   await Promise.all([loadQuestions(), loadOrgRequests()])
 })
@@ -59,11 +56,11 @@ async function handleOrgRequest(userId, action) {
     await api.updateOrganizationRequestStatus(userId, action)
     successMsg.value =
       action === 'approve'
-        ? 'Organization account approved.'
-        : 'Organization account request declined / revoked.'
+        ? 'Organisationskontot har godkänts.'
+        : 'Ansökan om organisationskonto har avslagits eller åtkomsten har återkallats.'
     await loadOrgRequests()
   } catch (err) {
-    error.value = 'Could not update organization request: ' + err.message
+    error.value = 'Det gick inte att uppdatera organisationsansökan: ' + err.message
   } finally {
     updatingOrgId.value = null
   }
@@ -74,7 +71,7 @@ async function loadQuestions() {
   try {
     questions.value = await api.getAdminQuestions(filters.value)
   } catch (err) {
-    error.value = 'Could not load questions: ' + err.message
+    error.value = 'Det gick inte att läsa in frågor: ' + err.message
   } finally {
     loading.value = false
   }
@@ -111,13 +108,13 @@ async function openForm(question) {
     await nextTick()
     formCard.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch (err) {
-    error.value = 'Could not open the question: ' + err.message
+    error.value = 'Det gick inte att öppna frågan: ' + err.message
   }
 }
 
 async function onSaved(saved) {
   successMsg.value =
-    editing.value === 'new' ? `Question #${saved.id} created.` : `Question #${saved.id} saved.`
+    editing.value === 'new' ? `Fråga #${saved.id} har skapats.` : `Fråga #${saved.id} har sparats.`
   editing.value = null
   await loadQuestions()
 }
@@ -134,12 +131,12 @@ async function confirmDelete() {
   successMsg.value = ''
   try {
     await api.deleteQuestion(pendingDelete.value.id)
-    successMsg.value = `Question #${pendingDelete.value.id} deleted.`
+    successMsg.value = `Fråga #${pendingDelete.value.id} har tagits bort.`
     if (editing.value?.id === pendingDelete.value.id) editing.value = null
     pendingDelete.value = null
     await loadQuestions()
   } catch (err) {
-    error.value = 'Could not delete the question: ' + err.message
+    error.value = 'Det gick inte att ta bort frågan: ' + err.message
     pendingDelete.value = null
   } finally {
     deleting.value = false
@@ -151,14 +148,15 @@ async function confirmDelete() {
   <div class="admin-questions-page">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">ADMIN · PLATFORM & QUIZ CONTENT</p>
-        <h1>Manage questions & organizations</h1>
+        <p class="eyebrow">ADMINISTRATION · PLATTFORM OCH QUIZINNEHÅLL</p>
+        <h1>Hantera frågor och organisationer</h1>
         <p class="heading-description">
-          Review pending organization account applications, and add, edit or remove quiz questions.
+          Granska ansökningar om organisationskonton och lägg till, redigera eller ta bort
+          quizfrågor.
         </p>
       </div>
       <button v-if="editing !== 'new'" class="button button-accent" @click="openForm(null)">
-        + New question
+        + Ny fråga
       </button>
     </div>
 
@@ -169,24 +167,24 @@ async function confirmDelete() {
     <section class="admin-org-panel" aria-labelledby="org-requests-heading">
       <div class="admin-org-header">
         <div>
-          <h2 id="org-requests-heading">Organization Account Applications</h2>
+          <h2 id="org-requests-heading">Ansökningar om organisationskonton</h2>
           <p class="text-muted">
-            Sign off on organization accounts before they can access candidate prospect insights.
+            Godkänn organisationskonton innan de får tillgång till kandidatöversikten.
           </p>
         </div>
       </div>
 
-      <p v-if="loadingOrgRequests" class="text-muted">Loading organization requests…</p>
+      <p v-if="loadingOrgRequests" class="text-muted">Läser in organisationsansökningar…</p>
       <div v-else-if="orgRequests.length > 0" class="table-container">
         <table class="data-table">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Organization / Username</th>
-              <th>Email</th>
+              <th>Organisation / användarnamn</th>
+              <th>E-post</th>
               <th>Status</th>
-              <th>Active Role</th>
-              <th>Actions</th>
+              <th>Aktiv roll</th>
+              <th>Åtgärder</th>
             </tr>
           </thead>
           <tbody>
@@ -200,15 +198,15 @@ async function confirmDelete() {
                 <span :class="['status-pill', org.org_request_status]">
                   {{
                     org.org_request_status === 'pending'
-                      ? '⏳ Pending Sign-Off'
+                      ? '⏳ Väntar på godkännande'
                       : org.org_request_status === 'approved'
-                        ? '✅ Approved'
-                        : '✕ Declined'
+                        ? '✅ Godkänd'
+                        : '✕ Avslagen'
                   }}
                 </span>
               </td>
               <td>
-                <span class="chip">{{ org.role }}</span>
+                <span class="chip">{{ ROLE_LABELS[org.role] ?? 'Okänd roll' }}</span>
               </td>
               <td class="row-actions">
                 <button
@@ -218,7 +216,7 @@ async function confirmDelete() {
                   :disabled="updatingOrgId === org.id"
                   @click="handleOrgRequest(org.id, 'approve')"
                 >
-                  Approve Org ✓
+                  Godkänn organisation ✓
                 </button>
                 <button
                   v-if="org.org_request_status === 'pending' || org.role === 'organization'"
@@ -227,14 +225,16 @@ async function confirmDelete() {
                   :disabled="updatingOrgId === org.id"
                   @click="handleOrgRequest(org.id, 'reject')"
                 >
-                  {{ org.role === 'organization' ? 'Revoke Org' : 'Reject ✕' }}
+                  {{ org.role === 'organization' ? 'Återkalla organisationsåtkomst' : 'Avslå ✕' }}
                 </button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p v-else class="text-muted">No organization applications or accounts found.</p>
+      <p v-else class="text-muted">
+        Inga organisationsansökningar eller organisationskonton hittades.
+      </p>
     </section>
 
     <div v-if="editing" ref="formCard">
@@ -252,15 +252,15 @@ async function confirmDelete() {
         v-model="filters.search"
         type="search"
         class="question-search"
-        placeholder="Search question text…"
-        aria-label="Search question text"
+        placeholder="Sök i frågetext…"
+        aria-label="Sök i frågetext"
       />
-      <select v-model="filters.topicId" class="question-filter" aria-label="Filter by topic">
-        <option value="">All topics</option>
+      <select v-model="filters.topicId" class="question-filter" aria-label="Filtrera efter ämne">
+        <option value="">Alla ämnen</option>
         <option v-for="t in topics" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
-      <select v-model="filters.type" class="question-filter" aria-label="Filter by type">
-        <option value="">All types</option>
+      <select v-model="filters.type" class="question-filter" aria-label="Filtrera efter frågetyp">
+        <option value="">Alla frågetyper</option>
         <option v-for="(label, value) in TYPE_LABELS" :key="value" :value="value">
           {{ label }}
         </option>
@@ -268,18 +268,22 @@ async function confirmDelete() {
       <select
         v-model="filters.difficulty"
         class="question-filter"
-        aria-label="Filter by difficulty"
+        aria-label="Filtrera efter svårighetsgrad"
       >
-        <option value="">All levels</option>
-        <option v-for="level in 5" :key="level" :value="level">Level {{ level }}</option>
+        <option value="">Alla nivåer</option>
+        <option v-for="level in 5" :key="level" :value="level">Nivå {{ level }}</option>
       </select>
       <button type="button" class="button button-outline button-sm" @click="clearFilters">
-        Clear
+        Rensa
       </button>
     </div>
 
     <p class="text-muted" aria-live="polite">
-      {{ loading ? 'Loading questions…' : `${questions.length} question(s)` }}
+      {{
+        loading
+          ? 'Läser in frågor…'
+          : `${questions.length} ${questions.length === 1 ? 'fråga' : 'frågor'}`
+      }}
     </p>
 
     <div v-if="!loading && questions.length" class="table-container">
@@ -287,12 +291,12 @@ async function confirmDelete() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Question</th>
-            <th>Topic</th>
-            <th>Type</th>
-            <th>Level</th>
-            <th>Used</th>
-            <th><span class="sr-only">Actions</span></th>
+            <th>Fråga</th>
+            <th>Ämne</th>
+            <th>Frågetyp</th>
+            <th>Nivå</th>
+            <th>Användningar</th>
+            <th><span class="sr-only">Åtgärder</span></th>
           </tr>
         </thead>
         <tbody>
@@ -309,14 +313,14 @@ async function confirmDelete() {
             <td>{{ q.difficulty_level }}</td>
             <td>{{ q.usage_count }}</td>
             <td class="row-actions">
-              <button class="button button-outline button-sm" @click="openForm(q)">Edit</button>
-              <button class="button-danger button-sm" @click="askDelete(q)">Delete</button>
+              <button class="button button-outline button-sm" @click="openForm(q)">Redigera</button>
+              <button class="button-danger button-sm" @click="askDelete(q)">Ta bort</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p v-else-if="!loading" class="empty-state">No questions match these filters.</p>
+    <p v-else-if="!loading" class="empty-state">Inga frågor matchar filtren.</p>
 
     <div
       v-if="pendingDelete"
@@ -331,17 +335,17 @@ async function confirmDelete() {
         aria-labelledby="delete-title"
         aria-describedby="delete-description"
       >
-        <h2 id="delete-title">Delete question #{{ pendingDelete.id }}?</h2>
+        <h2 id="delete-title">Ta bort fråga #{{ pendingDelete.id }}?</h2>
         <div id="delete-description">
           <p class="delete-question-text">“{{ pendingDelete.question_text }}”</p>
           <p class="text-muted">
-            It will no longer appear in new quizzes. Players who already answered it keep it in
-            their quiz history.
+            Frågan visas inte längre i nya quiz. Användare som redan har besvarat den behåller den i
+            sin quizhistorik.
           </p>
         </div>
         <div class="form-actions">
           <button class="button-danger" :disabled="deleting" @click="confirmDelete">
-            {{ deleting ? 'Deleting…' : 'Delete question' }}
+            {{ deleting ? 'Tar bort…' : 'Ta bort frågan' }}
           </button>
           <button
             ref="cancelDeleteButton"
@@ -349,7 +353,7 @@ async function confirmDelete() {
             :disabled="deleting"
             @click="pendingDelete = null"
           >
-            Cancel
+            Avbryt
           </button>
         </div>
       </div>

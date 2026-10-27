@@ -71,7 +71,7 @@ export function createQuizStore(
         }
       }
     } catch {
-      persistenceError.value = 'Could not read saved quizzes on this device.'
+      persistenceError.value = 'Det gick inte att läsa sparade quiz på den här enheten.'
       return []
     }
     const superseded = new Set(entries.flatMap(({ value }) => value.ancestors || []))
@@ -163,7 +163,7 @@ export function createQuizStore(
           if (authState.value === 'signed-out') storage.removeItem(storageKey)
           return
         }
-        if (!isValidQuizEntry(saved)) throw new Error('Invalid saved quiz')
+        if (!isValidQuizEntry(saved)) throw new Error('Det sparade quizet är ogiltigt.')
         for (const [key, state] of Object.entries(persistedState)) state.value = saved[key]
         revision = saved.revision
         ancestors = candidate ? [...(saved.ancestors || []), candidate.key] : []
@@ -171,7 +171,7 @@ export function createQuizStore(
         entryKey = `${storageKey}:${accountId}:${saved.activeQuizSession.quiz_id}:${writerId}`
       }
     } catch {
-      persistenceError.value = 'Could not restore the saved quiz on this device.'
+      persistenceError.value = 'Det gick inte att återställa det sparade quizet på den här enheten.'
     } finally {
       restoring = false
       if (activeQuizSession.value) {
@@ -189,7 +189,7 @@ export function createQuizStore(
   function persist() {
     if (restoring || !authResolved.value) return
     try {
-      if (!storage) throw new Error('Local storage unavailable')
+      if (!storage) throw new Error('Lokal lagring är inte tillgänglig.')
       if (accountId === null || !entryKey) return
       savedAt = Math.max(Date.now(), savedAt + 1)
       storage.setItem(
@@ -208,7 +208,7 @@ export function createQuizStore(
       persistenceError.value = null
     } catch {
       persistenceError.value =
-        'Could not save on this device. Keep this tab open until your progress is saved to your account.'
+        'Det gick inte att spara på den här enheten. Låt fliken vara öppen tills dina framsteg har sparats på ditt konto.'
     }
   }
   // Save before navigation or shutdown, without waiting for a timer or the network.
@@ -218,20 +218,25 @@ export function createQuizStore(
   )
   const isSyncing = computed(() => saving.value || syncingCompletion.value)
   const syncState = computed(() =>
-    isSyncing.value ? 'Syncing' : hasUnsyncedData.value ? 'Waiting to sync' : 'Saved',
+    isSyncing.value
+      ? 'Synkroniserar'
+      : hasUnsyncedData.value
+        ? 'Väntar på synkronisering'
+        : 'Sparat',
   )
   const saveMessage = computed(() =>
     persistenceError.value && hasUnsyncedData.value
-      ? 'Saved in this tab only — device storage unavailable'
+      ? 'Sparat endast i den här fliken — enhetens lagring är inte tillgänglig'
       : Object.keys(pendingChanges.value).length
         ? saving.value
-          ? 'Saved on this device — syncing…'
-          : 'Saved on this device — waiting to sync.'
-        : 'Saved to your account',
+          ? 'Sparat på den här enheten — synkroniserar…'
+          : 'Sparat på den här enheten — väntar på synkronisering.'
+        : 'Sparat på ditt konto',
   )
 
   function loadQuiz(payload) {
-    if (!authResolved.value || accountId === null) throw new Error('Sign in before loading a quiz')
+    if (!authResolved.value || accountId === null)
+      throw new Error('Logga in innan du hämtar ett quiz.')
     assertCanReplaceQuiz()
     if (
       payload.payload_version !== 1 ||
@@ -244,7 +249,7 @@ export function createQuizStore(
           q.answers.every((a) => typeof a.is_correct === 'boolean'),
       )
     )
-      throw new Error('The complete offline quiz could not be loaded')
+      throw new Error('Det gick inte att hämta hela quizet för användning utan internetanslutning.')
     restoring = true
     entryKey = `${storageKey}:${accountId}:${payload.quiz_id}:${writerId}`
     ancestors = []
@@ -278,7 +283,7 @@ export function createQuizStore(
   function assertCanReplaceQuiz() {
     if (hasUnsyncedData.value || isSyncing.value) {
       throw new Error(
-        'Your current quiz has pending saves. Sync it to your account before starting another quiz.',
+        'Ditt nuvarande quiz har osparade ändringar. Synkronisera dem med ditt konto innan du startar ett nytt quiz.',
       )
     }
   }

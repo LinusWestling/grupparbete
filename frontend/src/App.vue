@@ -34,7 +34,7 @@ async function handleLogout() {
     router.push('/profile')
   } catch (error) {
     console.error('Logout failed:', error)
-    logoutError.value = 'Logout failed: ' + error.message
+    logoutError.value = 'Det gick inte att logga ut: ' + error.message
   } finally {
     loggingOut.value = false
   }
@@ -43,14 +43,14 @@ async function handleLogout() {
 onMounted(loadCurrentUser)
 </script>
 <template>
-  <a class="skip-link" href="#main-content">Skip to content</a>
+  <a class="skip-link" href="#main-content">Hoppa till innehållet</a>
   <div class="app-shell">
     <aside class="sidebar">
-      <RouterLink class="brand" to="/" aria-label="SkillSwap home"
+      <RouterLink class="brand" to="/" aria-label="SkillSwaps startsida"
         ><span class="brand-mark">⇄</span> SkillSwap<span class="brand-dot">.</span></RouterLink
       >
-      <p class="nav-label">YOUR WORKSPACE</p>
-      <nav aria-label="Main navigation">
+      <p class="nav-label">DIN ARBETSYTA</p>
+      <nav aria-label="Huvudnavigering">
         <RouterLink
           v-for="item in visibleNavigation"
           :key="item.path"
@@ -63,23 +63,23 @@ onMounted(loadCurrentUser)
       </nav>
       <div class="sidebar-note">
         <span class="note-symbol" aria-hidden="true">✳</span>
-        <h3>Everyone has something to teach.</h3>
-        <p>And something new to learn.</p>
-        <RouterLink to="/explore">Explore skills ↗</RouterLink>
+        <h3>Alla har något att lära ut.</h3>
+        <p>Och något nytt att lära sig.</p>
+        <RouterLink to="/explore">Utforska kunskap ↗</RouterLink>
       </div>
       <div class="sidebar-footer">
-        <span class="status-dot"></span> A little exchange. A lot of possibility.
+        <span class="status-dot"></span> Ett litet utbyte. Stora möjligheter.
       </div>
     </aside>
     <div class="workspace">
       <header class="topbar">
-        <span>Learn together. Grow together.</span>
+        <span>Lär tillsammans. Utvecklas tillsammans.</span>
         <div class="profile-div">
           <RouterLink to="/profile" class="profile-link">
             <span class="avatar" aria-hidden="true">{{
               currentUser?.username ? currentUser.username[0].toUpperCase() : '→'
             }}</span>
-            {{ currentUser?.username ? `${currentUser.username} ↗` : 'Your profile ↗' }}
+            {{ currentUser?.username ? `${currentUser.username} ↗` : 'Din profil ↗' }}
           </RouterLink>
           <button
             v-if="currentUser"
@@ -88,14 +88,14 @@ onMounted(loadCurrentUser)
             :disabled="loggingOut"
             @click="handleLogout"
           >
-            {{ loggingOut ? 'Logging out...' : 'Log out' }}
+            {{ loggingOut ? 'Loggar ut…' : 'Logga ut' }}
           </button>
           <span v-if="logoutError" class="error-banner" role="alert">{{ logoutError }}</span>
         </div>
       </header>
       <main id="main-content" tabindex="-1"><RouterView /></main>
       <footer class="page-footer">
-        <span>SkillSwap</span><span>Good things happen when we share.</span>
+        <span>SkillSwap</span><span>Bra saker händer när vi delar med oss.</span>
       </footer>
     </div>
   </div>
