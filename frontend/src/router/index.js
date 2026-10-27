@@ -5,7 +5,6 @@ export const navigation = [
   { path: '/', label: 'Overview', icon: '◫' },
   { path: '/explore', label: 'Explore skills', icon: '⌕' },
   { path: '/organization/prospects', label: 'Prospect Insights', icon: 'ϗ', orgOnly: true },
-  { path: '/messages', label: 'Messages', icon: '◌' },
   { path: '/profile', label: 'Profile', icon: '◎' },
   { path: '/admin/questions', label: 'Manage questions', icon: '✎', adminOnly: true },
 ]
@@ -39,12 +38,7 @@ const router = createRouter({
       meta: { title: 'Manage questions', requiresAdmin: true },
     },
     { path: '/my-skills', redirect: '/admin/questions' },
-    {
-      path: '/messages',
-      name: 'messages',
-      component: () => import('../views/MessagesView.vue'),
-      meta: { title: 'Messages' },
-    },
+    { path: '/messages', redirect: '/profile' },
     {
       path: '/profile',
       name: 'profile',

@@ -79,7 +79,7 @@ onMounted(loadCurrentUser)
             <span class="avatar" aria-hidden="true">{{
               currentUser?.username ? currentUser.username[0].toUpperCase() : '→'
             }}</span>
-            {{ currentUser?.username ? `${currentUser.username} ↗` : 'Your profile ↗' }}
+            {{ currentUser?.username ? `${currentUser.username} ↗` : 'Log in / Register ↗' }}
           </RouterLink>
           <button
             v-if="currentUser"
