@@ -507,25 +507,26 @@ function getSourceUrl(url) {
       <div class="history-section">
         <h3>Quizhistorik</h3>
         <div v-if="history.length > 0" class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Quiz #</th>
-                <th>Ämne</th>
-                <th>Svårighetsgrad</th>
-                <th>Resultat / Andel rätt</th>
-                <th>Slutfört</th>
-                <th>Åtgärd</th>
+          <table class="data-table" role="table">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Quiz #</th>
+                <th role="columnheader">Ämne</th>
+                <th role="columnheader">Svårighetsgrad</th>
+                <th role="columnheader">Resultat / Andel rätt</th>
+                <th role="columnheader">Slutfört</th>
+                <th role="columnheader">Åtgärd</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               <tr
                 v-for="q in history"
                 :key="q.quiz_id"
                 class="quiz-history-row"
+                role="row"
                 @click="inspectQuizDetails(q.quiz_id)"
               >
-                <td data-label="Quiz">
+                <td role="cell" data-label="Quiz">
                   <button
                     type="button"
                     class="button-text quiz-history-link"
@@ -535,10 +536,10 @@ function getSourceUrl(url) {
                     #{{ q.quiz_id }}
                   </button>
                 </td>
-                <td data-label="Ämne">
+                <td role="cell" data-label="Ämne">
                   <span class="badge">{{ q.topic_name }}</span>
                 </td>
-                <td data-label="Svårighetsgrad">
+                <td role="cell" data-label="Svårighetsgrad">
                   <button
                     class="level-chip-clickable"
                     @click.stop="showLevelModal = true"
@@ -547,7 +548,7 @@ function getSourceUrl(url) {
                     ⭐ Nivå {{ q.difficulty }}
                   </button>
                 </td>
-                <td data-label="Resultat / Andel rätt">
+                <td role="cell" data-label="Resultat / Andel rätt">
                   <div>
                     <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
                     <span class="text-muted">
@@ -556,10 +557,10 @@ function getSourceUrl(url) {
                     </span>
                   </div>
                 </td>
-                <td data-label="Slutfört">
+                <td role="cell" data-label="Slutfört">
                   {{ new Date(q.completed_at).toLocaleString('sv-SE') }}
                 </td>
-                <td data-label="Åtgärd">
+                <td role="cell" data-label="Åtgärd">
                   <button
                     @click.stop="inspectQuizDetails(q.quiz_id)"
                     class="button button-outline button-sm"
