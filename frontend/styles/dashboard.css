@@ -159,6 +159,22 @@
   color: var(--color-text);
 }
 
+.profile-div {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-6);
+  .button {
+    padding: 12px;
+    border-color: transparent;
+    transition: 300ms ease-in-out;
+  }
+  .button:hover {
+    border-color: var(--color-border-strong);
+    transition: 150ms ease-in-out;
+  }
+}
+
 .avatar {
   width: 32px;
   height: 32px;

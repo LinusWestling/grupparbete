@@ -24,20 +24,33 @@ export const isOrganization = computed(
 )
 
 let pending = null
+let loadGeneration = 0
+
+export function clearCurrentUser() {
+  loadGeneration++
+  currentUser.value = null
+  authState.value = 'signed-out'
+  authResolved.value = true
+  rememberAccount(null)
+  pending = Promise.resolve(null)
+}
 
 // Cached after the first call; pass force after login/logout to refresh.
 export function loadCurrentUser({ force = false } = {}) {
   if (!pending || force) {
+    const generation = ++loadGeneration
     authResolved.value = false
     pending = api
       .getMe()
       .then((user) => {
+        if (generation !== loadGeneration) return currentUser.value
         currentUser.value = user
         authState.value = user?.id != null ? 'authenticated' : 'signed-out'
         rememberAccount(user?.id ?? null)
         return user
       })
       .catch((error) => {
+        if (generation !== loadGeneration) return currentUser.value
         if ([401, 403].includes(error.status)) {
           currentUser.value = null
           authState.value = 'signed-out'
@@ -57,7 +70,9 @@ export function loadCurrentUser({ force = false } = {}) {
         }
         return currentUser.value
       })
-      .finally(() => (authResolved.value = true))
+      .finally(() => {
+        if (generation === loadGeneration) authResolved.value = true
+      })
   }
   return pending
 }
