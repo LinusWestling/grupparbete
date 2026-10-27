@@ -28,6 +28,64 @@ const regRequestOrg = ref(false)
 const registering = ref(false)
 const regError = ref(null)
 const regSuccess = ref(null)
+const regTouched = ref({
+  username: false,
+  email: false,
+  password: false, 
+  confirmPassword: false,
+})
+
+function markRegTouched(field) {
+  regTouched.value[field] = true
+}
+
+const regUsernameError = computed(() => {
+  const username = regUsername.value.trim()
+
+  if (!username) return 'Enter a username.'
+
+  if (username.length < 3 || username.length > 50) {
+    return 'Username must be 3-50 characters long.'
+  }
+
+  return ''
+})
+
+const regEmailError = computed(() => {
+  const email = regEmail.value.trim()
+
+  if (!email) return 'Enter an email address.'
+
+  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    return 'Enter a vailt email address, for example name@example.com.'
+  }
+
+  return ''
+})
+
+const regPasswordError = computed(() => {
+  const password = regPassword.value
+
+  if (!password) return 'Enter a password.'
+
+  if (password.length < 15 || password.length > 128) {
+    return 'Password must be 15-128 characters long.'
+  }
+
+  return ''
+})
+
+const regConfirmPasswordError = computed (() => {
+  if (!regConfirmPassword.value) {
+    return 'Repeat your password.'
+  }
+
+  if (regConfirmPassword.value !== regPassword.value) {
+    return 'Password do not match.'
+  }
+
+  return ''
+})
 
 const levelDefinitions = [
   {
