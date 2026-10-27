@@ -3,10 +3,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
 import { currentUser, loadCurrentUser, clearCurrentUser } from '../services/auth'
+import { ROLE_LABELS } from '../services/roles.js'
 
 const router = useRouter()
-
-const roleLabels = { user: 'Användare', admin: 'Administratör', organization: 'Organisation' }
 
 const user = ref(null)
 const progress = ref(null)
@@ -339,7 +338,7 @@ function getSourceUrl(url) {
             </button>
           </div>
           <p class="text-muted">
-            {{ user.email }} • Roll: {{ roleLabels[user.role] || 'Okänd roll' }}
+            {{ user.email }} • Roll: {{ ROLE_LABELS[user.role] ?? 'Okänd roll' }}
           </p>
         </div>
       </div>

@@ -3,9 +3,7 @@ import { ref, watch, nextTick, onMounted } from 'vue'
 import { api } from '../services/api'
 import QuestionForm from '../components/QuestionForm.vue'
 import { QUESTION_TYPE_LABELS } from '../services/questionTypes.js'
-
-const TYPE_LABELS = QUESTION_TYPE_LABELS
-const ROLE_LABELS = { user: 'Användare', admin: 'Administratör', organization: 'Organisation' }
+import { ROLE_LABELS } from '../services/roles.js'
 
 const questions = ref([])
 const topics = ref([])
@@ -261,7 +259,7 @@ async function confirmDelete() {
       </select>
       <select v-model="filters.type" class="question-filter" aria-label="Filtrera efter frågetyp">
         <option value="">Alla frågetyper</option>
-        <option v-for="(label, value) in TYPE_LABELS" :key="value" :value="value">
+        <option v-for="(label, value) in QUESTION_TYPE_LABELS" :key="value" :value="value">
           {{ label }}
         </option>
       </select>
@@ -309,7 +307,7 @@ async function confirmDelete() {
             <td>
               <span class="chip">{{ q.topic_name }}</span>
             </td>
-            <td>{{ TYPE_LABELS[q.question_type] }}</td>
+            <td>{{ QUESTION_TYPE_LABELS[q.question_type] }}</td>
             <td>{{ q.difficulty_level }}</td>
             <td>{{ q.usage_count }}</td>
             <td class="row-actions">
