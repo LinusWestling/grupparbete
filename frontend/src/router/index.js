@@ -7,6 +7,7 @@ export const navigation = [
   { path: '/organization/prospects', label: 'Prospect Insights', icon: 'ϗ', orgOnly: true },
   { path: '/messages', label: 'Messages', icon: '◌' },
   { path: '/profile', label: 'Profile', icon: '◎' },
+  { path: '/linus-experiment', label: 'Linus experimenting', icon: '⚗' },
   { path: '/admin/questions', label: 'Manage questions', icon: '✎', adminOnly: true },
 ]
 
@@ -50,6 +51,12 @@ const router = createRouter({
       name: 'profile',
       component: () => import('../views/ProfileView.vue'),
       meta: { title: 'Profile' },
+    },
+    {
+      path: '/linus-experiment',
+      name: 'linus-experiment',
+      component: () => import('../views/linusExperiment.vue'),
+      meta: { title: 'Linus experimenting' },
     },
     {
       path: '/:pathMatch(.*)*',
