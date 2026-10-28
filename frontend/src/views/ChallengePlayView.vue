@@ -73,8 +73,7 @@ function goToQuiz() {
                 class="progress-fill"
                 :style="{
                   width:
-                    (progress.your_progress.answered_count /
-                      progress.your_progress.total_count) *
+                    (progress.your_progress.answered_count / progress.your_progress.total_count) *
                       100 +
                     '%',
                 }"

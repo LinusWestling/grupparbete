@@ -207,14 +207,18 @@ async function getChallengeProgress(challengeId, userId) {
     challenge_id: challengeId,
     status: progress.status,
     your_progress: {
-      answered_count: isChallenger ? progress.challenger_answered || 0 : progress.challenged_answered || 0,
+      answered_count: isChallenger
+        ? progress.challenger_answered || 0
+        : progress.challenged_answered || 0,
       total_count: isChallenger ? progress.challenger_total || 10 : progress.challenged_total || 10,
       is_completed: isChallenger
         ? progress.challenger_quiz_status === 'completed'
         : progress.challenged_quiz_status === 'completed',
     },
     opponent_progress: {
-      answered_count: isChallenger ? progress.challenged_answered || 0 : progress.challenger_answered || 0,
+      answered_count: isChallenger
+        ? progress.challenged_answered || 0
+        : progress.challenger_answered || 0,
       total_count: isChallenger ? progress.challenged_total || 10 : progress.challenger_total || 10,
       is_completed: isChallenger
         ? progress.challenged_quiz_status === 'completed'
@@ -316,10 +320,7 @@ async function determineWinnerAndComplete(challengeId, challengerQuiz, challenge
     winnerId = challengedQuiz.user_id
   } else {
     // Tie on score, check time
-    if (
-      challengerQuiz.time_taken_seconds !== null &&
-      challengedQuiz.time_taken_seconds !== null
-    ) {
+    if (challengerQuiz.time_taken_seconds !== null && challengedQuiz.time_taken_seconds !== null) {
       winnerId =
         challengerQuiz.time_taken_seconds < challengedQuiz.time_taken_seconds
           ? challengerQuiz.user_id

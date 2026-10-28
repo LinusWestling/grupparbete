@@ -160,17 +160,11 @@ const activeCount = computed(() => activeChallenges.value.length)
 
     <!-- Tabs -->
     <div class="tabs">
-      <button
-        :class="['tab', { active: activeTab === 'pending' }]"
-        @click="activeTab = 'pending'"
-      >
+      <button :class="['tab', { active: activeTab === 'pending' }]" @click="activeTab = 'pending'">
         Invitations
         <span v-if="pendingCount > 0" class="badge">{{ pendingCount }}</span>
       </button>
-      <button
-        :class="['tab', { active: activeTab === 'active' }]"
-        @click="activeTab = 'active'"
-      >
+      <button :class="['tab', { active: activeTab === 'active' }]" @click="activeTab = 'active'">
         Active
         <span v-if="activeCount > 0" class="badge">{{ activeCount }}</span>
       </button>
@@ -190,11 +184,7 @@ const activeCount = computed(() => activeChallenges.value.length)
         <p>No pending challenges</p>
       </div>
       <div v-else class="challenge-list">
-        <div
-          v-for="challenge in pendingChallenges"
-          :key="challenge.id"
-          class="challenge-card"
-        >
+        <div v-for="challenge in pendingChallenges" :key="challenge.id" class="challenge-card">
           <div class="challenge-info">
             <h3>{{ challenge.challenger_username }} challenges you!</h3>
             <p>Topic: {{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
@@ -236,24 +226,16 @@ const activeCount = computed(() => activeChallenges.value.length)
           class="challenge-card active"
         >
           <div class="challenge-info">
-            <h3>
-              {{ challenge.challenger_username }} vs {{ challenge.challenged_username }}
-            </h3>
+            <h3>{{ challenge.challenger_username }} vs {{ challenge.challenged_username }}</h3>
             <p>{{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
             <div class="status-badges">
-              <span
-                v-if="challenge.challenger_quiz_status === 'completed'"
-                class="badge success"
-              >
+              <span v-if="challenge.challenger_quiz_status === 'completed'" class="badge success">
                 {{ challenge.challenger_username }} finished
               </span>
               <span v-else class="badge warning">
                 {{ challenge.challenger_username }} in progress
               </span>
-              <span
-                v-if="challenge.challenged_quiz_status === 'completed'"
-                class="badge success"
-              >
+              <span v-if="challenge.challenged_quiz_status === 'completed'" class="badge success">
                 {{ challenge.challenged_username }} finished
               </span>
               <span v-else class="badge warning">
@@ -273,11 +255,7 @@ const activeCount = computed(() => activeChallenges.value.length)
             >
               Start Quiz
             </button>
-            <button
-              v-else
-              class="button button-accent"
-              @click="viewResult(challenge.id)"
-            >
+            <button v-else class="button button-accent" @click="viewResult(challenge.id)">
               View Result
             </button>
           </div>
@@ -299,9 +277,7 @@ const activeCount = computed(() => activeChallenges.value.length)
           class="challenge-card history"
         >
           <div class="challenge-info">
-            <h3>
-              {{ challenge.challenger_username }} vs {{ challenge.challenged_username }}
-            </h3>
+            <h3>{{ challenge.challenger_username }} vs {{ challenge.challenged_username }}</h3>
             <p>{{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
             <p v-if="challenge.winner_username" class="winner">
               🏆 Winner: {{ challenge.winner_username }}

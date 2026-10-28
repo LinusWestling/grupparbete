@@ -6,7 +6,10 @@ const { createHash } = require('node:crypto')
  */
 function createSeededRandom(seed) {
   // Convert seed to a number if it's not already
-  let state = typeof seed === 'number' ? seed : parseInt(createHash('sha256').update(String(seed)).digest('hex').slice(0, 8), 16)
+  let state =
+    typeof seed === 'number'
+      ? seed
+      : parseInt(createHash('sha256').update(String(seed)).digest('hex').slice(0, 8), 16)
 
   // LCG parameters (same as used in glibc)
   const a = 1103515245

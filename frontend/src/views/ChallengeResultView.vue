@@ -91,9 +91,7 @@ function backToChallenges() {
 
       <!-- Actions -->
       <div class="actions">
-        <button class="button button-accent" @click="backToChallenges">
-          Back to Challenges
-        </button>
+        <button class="button button-accent" @click="backToChallenges">Back to Challenges</button>
       </div>
     </div>
   </div>
