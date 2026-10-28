@@ -81,6 +81,7 @@ app.use(quizRoutes)
 app.use(userRoutes)
 app.use(authRoutes)
 app.use(organizationRoutes)
+app.use(require('./routes/monitoringRoutes'))
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'SkillSwap API Server Running' })

@@ -11,6 +11,9 @@ function toQuery(params) {
 }
 
 export const api = {
+  // The backend authenticates this read and records access before returning the log.
+  getMonitoringEvents: () => request('/monitoring/events', { cache: 'no-store' }),
+
   // Topics
   getTopics: () => request('/topics'),
   getTopic: (id) => request(`/topics/${id}`),

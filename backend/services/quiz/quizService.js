@@ -6,6 +6,7 @@ const { httpError, readJson, validateAnswer } = require('./quizSubmission')
 const { orderQuizAnswers, orderMatchOptions } = require('../../utils/quizAnswerOrder')
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
+const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
 
 async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizationId = null) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
@@ -123,6 +124,9 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
       )
     }
 
+    if (userId) {
+      await databaseMonitor(connection).log(MONITORING_EVENTS.QUIZ_STARTED, { userId })
+    }
     await connection.commit()
   } catch (err) {
     await connection.rollback()
