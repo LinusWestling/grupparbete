@@ -18,7 +18,6 @@ onMounted(async () => {
   }
 })
 
-import ApiExample from '../components/ApiExample.vue'
 const steps = [
   {
     number: '01',
@@ -113,7 +112,6 @@ const steps = [
     </div>
   </section>
 
-  <ApiExample />
   <section class="community-banner" aria-labelledby="community-title">
     <span class="community-symbol" aria-hidden="true">✳</span>
     <div>
