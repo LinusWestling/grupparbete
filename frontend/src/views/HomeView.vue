@@ -35,9 +35,9 @@ const steps = [
   },
   {
     number: '03',
-    title: 'Track & share your progress',
+    title: 'Se & dela dina framsteg',
     description:
-      'Build your XP level, review your quiz history, and optionally share verified results with organizations.',
+      'Levla upp, se över dina genomförda quiz, och förslagsvis dela dina resultat med organisationer.',
     path: '/profile',
     action: 'Open profile',
   },
