@@ -18,7 +18,6 @@ onMounted(async () => {
   }
 })
 
-import ApiExample from '../components/ApiExample.vue'
 const steps = [
   {
     number: '01',
@@ -36,10 +35,11 @@ const steps = [
   },
   {
     number: '03',
-    title: 'Make a connection',
-    description: 'Start a conversation and turn a shared interest into a skill exchange.',
-    path: '/messages',
-    action: 'Open messages',
+    title: 'Se & dela dina framsteg',
+    description:
+      'Levla upp, se över dina genomförda quiz, och förslagsvis dela dina resultat med organisationer.',
+    path: '/profile',
+    action: 'Open profile',
   },
 ]
 </script>
@@ -110,7 +110,6 @@ const steps = [
     </div>
   </section>
 
-  <ApiExample />
   <section class="community-banner" aria-labelledby="community-title">
     <span class="community-symbol" aria-hidden="true">✳</span>
     <div>
