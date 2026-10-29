@@ -1,10 +1,20 @@
 const quizService = require('../services/quiz/quizService')
 
+function sendError(res, error) {
+  const status =
+    Number.isInteger(error.status) && error.status >= 400 && error.status < 500 ? error.status : 500
+  if (status === 500) console.error(error)
+  res.status(status).json({
+    status: 'error',
+    message: status === 500 ? 'Ett serverfel uppstod. Försök igen senare.' : error.message,
+  })
+}
+
 async function startQuiz(req, res) {
   try {
     const { topicId, difficulty, limit } = req.body || {}
     if (!topicId) {
-      return res.status(400).json({ status: 'error', message: 'topicId is required' })
+      return res.status(400).json({ status: 'error', message: 'Välj ett ämne.' })
     }
     const userId = req.session?.userId || null
     const quizSession = await quizService.startQuiz(
@@ -15,7 +25,7 @@ async function startQuiz(req, res) {
     )
     res.json({ status: 'success', data: quizSession })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    sendError(res, err)
   }
 }
 
@@ -23,17 +33,17 @@ async function submitQuizSession(req, res) {
   try {
     const quizId = Number(req.params.quizId)
     if (!Number.isInteger(quizId) || quizId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid quiz ID' })
+      return res.status(400).json({ status: 'error', message: 'Ogiltigt quiz-ID.' })
     }
     const { submissions } = req.body || {}
     if (!Array.isArray(submissions)) {
-      return res.status(400).json({ status: 'error', message: 'submissions array is required' })
+      return res.status(400).json({ status: 'error', message: 'En lista med svar krävs.' })
     }
     const userId = req.session?.userId || null
     const result = await quizService.submitQuizSession(quizId, userId, submissions)
     res.json({ status: 'success', data: result })
   } catch (err) {
-    res.status(err.status || 500).json({ status: 'error', message: err.message })
+    sendError(res, err)
   }
 }
 
@@ -41,12 +51,12 @@ async function getHistory(req, res) {
   try {
     const userId = req.session?.userId
     if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      return res.status(401).json({ status: 'error', message: 'Du måste vara inloggad.' })
     }
     const history = await quizService.getUserQuizHistory(userId)
     res.json({ status: 'success', data: history })
   } catch (err) {
-    res.status(err.status || 500).json({ status: 'error', message: err.message })
+    sendError(res, err)
   }
 }
 
@@ -56,12 +66,13 @@ async function getQuizDetails(req, res) {
     const userId = req.session?.userId || null
     const details = await quizService.getQuizDetails(quizId, userId)
     if (!details) {
-      return res.status(404).json({ status: 'error', message: 'Quiz history record not found' })
+      return res
+        .status(404)
+        .json({ status: 'error', message: 'Quizet hittades inte i historiken.' })
     }
     res.json({ status: 'success', data: details })
   } catch (err) {
-    const status = err.message === 'Forbidden' ? 403 : 500
-    res.status(status).json({ status: 'error', message: err.message })
+    sendError(res, err)
   }
 }
 
@@ -75,7 +86,7 @@ module.exports = {
       const quizzes = await quizService.getUnfinishedQuizzes(req.session.userId)
       res.json({ status: 'success', data: quizzes })
     } catch (error) {
-      res.status(500).json({ status: 'error', message: error.message })
+      sendError(res, error)
     }
   },
   async saveQuestionProgress(req, res) {
@@ -88,7 +99,7 @@ module.exports = {
         !Number.isInteger(questionId) ||
         questionId < 1
       ) {
-        return res.status(400).json({ status: 'error', message: 'Invalid quiz or question ID' })
+        return res.status(400).json({ status: 'error', message: 'Ogiltigt quiz- eller fråge-ID.' })
       }
       const progress = await quizService.saveQuestionProgress(
         quizId,
@@ -98,7 +109,7 @@ module.exports = {
       )
       res.json({ status: 'success', data: progress })
     } catch (error) {
-      res.status(error.status || 500).json({ status: 'error', message: error.message })
+      sendError(res, error)
     }
   },
 }

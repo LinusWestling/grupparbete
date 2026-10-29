@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 import { api } from '../services/api'
+import { QUESTION_TYPE_LABELS } from '../services/questionTypes.js'
 
 // Shared by create and edit. Pass a question (from getAdminQuestion) to edit it.
 const props = defineProps({
@@ -116,7 +117,7 @@ async function submit() {
     emit('saved', saved)
   } catch (err) {
     fieldErrors.value = err.errors || []
-    errorMessage.value = fieldErrors.value.length ? 'Fix the following and try again:' : err.message
+    errorMessage.value = fieldErrors.value.length ? 'Rätta följande och försök igen:' : err.message
     // The banner is above the form; move focus there so the error is seen and announced.
     await nextTick()
     errorBanner.value?.focus()
@@ -129,11 +130,11 @@ async function submit() {
 <template>
   <section class="form-card" aria-labelledby="question-form-title">
     <h2 id="question-form-title">
-      {{ isEdit ? `Edit question #${question.id}` : 'New question' }}
+      {{ isEdit ? `Redigera fråga #${question.id}` : 'Ny fråga' }}
     </h2>
     <p v-if="isEdit && question.usage_count > 0" class="form-hint">
-      Used in {{ question.usage_count }} quiz attempt(s). You can fix text, but the type and which
-      answer is correct are locked for answers players have chosen.
+      Använd i {{ question.usage_count }} quizförsök. Du kan rätta texten, men frågetypen och
+      rättningsnyckeln för svar som användare redan har valt är låsta.
     </p>
 
     <div
@@ -152,37 +153,36 @@ async function submit() {
     <form class="question-form" @submit.prevent="submit">
       <div class="form-row">
         <div class="form-group">
-          <label for="q-topic">Topic</label>
+          <label for="q-topic">Ämne</label>
           <select id="q-topic" v-model="form.topic_id" required>
             <option v-for="t in topics" :key="t.id" :value="t.id">{{ t.name }}</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="q-type">Type</label>
+          <label for="q-type">Frågetyp</label>
           <select
             id="q-type"
             :value="form.question_type"
             :disabled="typeLocked"
             @change="changeType($event.target.value)"
           >
-            <option value="multiple_choice">Multiple choice</option>
-            <option value="yes_no">Yes / no</option>
-            <option value="free_text">Free text</option>
-            <option value="matching">Matching (Samband)</option>
+            <option v-for="(label, value) in QUESTION_TYPE_LABELS" :key="value" :value="value">
+              {{ label }}
+            </option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="q-difficulty">Difficulty</label>
+          <label for="q-difficulty">Svårighetsgrad</label>
           <select id="q-difficulty" v-model.number="form.difficulty_level">
-            <option v-for="level in 5" :key="level" :value="level">Level {{ level }}</option>
+            <option v-for="level in 5" :key="level" :value="level">Nivå {{ level }}</option>
           </select>
         </div>
       </div>
 
       <div class="form-group">
-        <label for="q-text">Question</label>
+        <label for="q-text">Fråga</label>
         <textarea
           id="q-text"
           v-model="form.question_text"
@@ -196,31 +196,35 @@ async function submit() {
         <legend>
           {{
             form.question_type === 'free_text'
-              ? 'Accepted answers'
+              ? 'Godkända svar'
               : form.question_type === 'matching'
-                ? 'Matching pairs (Samband)'
-                : 'Answers'
+                ? 'Matchningspar'
+                : 'Svar'
           }}
         </legend>
 
         <div v-if="form.question_type === 'free_text'" class="form-group">
           <label>
             <input type="checkbox" v-model="form.allow_typos" />
-            Allow minor spelling mistakes
+            Tillåt mindre stavfel
           </label>
 
           <p class="form-hint">
-            Allows one character difference in answers with least eigth letters. Does not apply to
-            numbers. Leave disabpled for easily confused terms, sush as adduktion and abduktion.
+            Tillåter en skillnad på ett tecken i svar med minst åtta bokstäver. Gäller inte tal. Låt
+            detta vara avstängt för begrepp som lätt förväxlas, till exempel adduktion och
+            abduktion.
           </p>
 
-          <p class="form-hint">Add accepted answers. Matching ignores case and extra spaces.</p>
+          <p class="form-hint">
+            Lägg till godkända svar. Vid rättning ignoreras stora och små bokstäver samt extra
+            blanksteg.
+          </p>
 
           <div v-for="(answer, index) in form.answers" :key="index" class="answer-row">
             <input
               v-model="answer.answer_text"
-              :aria-label="`Accepted answer ${index + 1}`"
-              placeholder="An accepted answer"
+              :aria-label="`Godkänt svar ${index + 1}`"
+              placeholder="Ett godkänt svar"
               maxlength="500"
               required
             />
@@ -229,7 +233,7 @@ async function submit() {
               type="button"
               class="button-icon"
               :disabled="form.answers.length <= 1"
-              :aria-label="`Remove accepted anser ${index + 1}`"
+              :aria-label="`Ta bort godkänt svar ${index + 1}`"
               @click="removeAnswer(index)"
             >
               ✕
@@ -242,21 +246,20 @@ async function submit() {
             :disabled="form.answers.length >= MAX_ANSWERS"
             @click="addAnswer"
           >
-            + Add accepted answer
+            + Lägg till godkänt svar
           </button>
         </div>
 
         <template v-else-if="form.question_type === 'matching'">
           <p class="form-hint">
-            Enter 2–6 pairs that belong together. The right-hand options are shuffled automatically
-            during quizzes.
+            Ange 2–6 par som hör ihop. Alternativen till höger blandas automatiskt i quizet.
           </p>
           <div v-for="(answer, index) in form.answers" :key="index" class="answer-row">
             <input
               v-model="answer.answer_text"
               class="flex-1"
-              :aria-label="`Pair ${index + 1} left item`"
-              placeholder="Left item (e.g. Muscle or concept)"
+              :aria-label="`Par ${index + 1}, vänster led`"
+              placeholder="Vänster led (t.ex. muskel eller begrepp)"
               maxlength="500"
               required
             />
@@ -264,8 +267,8 @@ async function submit() {
             <input
               v-model="answer.match_text"
               class="flex-1"
-              :aria-label="`Pair ${index + 1} matching item`"
-              placeholder="Matching item (e.g. Function or definition)"
+              :aria-label="`Par ${index + 1}, motsvarande led`"
+              placeholder="Motsvarande led (t.ex. funktion eller definition)"
               maxlength="500"
               required
             />
@@ -273,7 +276,7 @@ async function submit() {
               type="button"
               class="button-icon"
               :disabled="form.answers.length <= 2"
-              :aria-label="`Remove pair ${index + 1}`"
+              :aria-label="`Ta bort par ${index + 1}`"
               @click="removeAnswer(index)"
             >
               ✕
@@ -285,24 +288,24 @@ async function submit() {
             :disabled="form.answers.length >= MAX_ANSWERS"
             @click="addAnswer"
           >
-            + Add pair
+            + Lägg till par
           </button>
         </template>
 
         <template v-else>
-          <p class="form-hint">Select the correct answer.</p>
+          <p class="form-hint">Välj rätt svar.</p>
           <div v-for="(answer, index) in form.answers" :key="index" class="answer-row">
             <input
               type="radio"
               name="correct-answer"
               :checked="answer.is_correct"
-              :aria-label="`Answer ${index + 1} is correct`"
+              :aria-label="`Svar ${index + 1} är rätt`"
               @change="markCorrect(index)"
             />
             <input
               v-model="answer.answer_text"
               class="flex-1"
-              :aria-label="`Answer ${index + 1}`"
+              :aria-label="`Svar ${index + 1}`"
               maxlength="500"
               required
             />
@@ -311,7 +314,7 @@ async function submit() {
               type="button"
               class="button-icon"
               :disabled="form.answers.length <= 2"
-              :aria-label="`Remove answer ${index + 1}`"
+              :aria-label="`Ta bort svar ${index + 1}`"
               @click="removeAnswer(index)"
             >
               ✕
@@ -324,33 +327,33 @@ async function submit() {
             :disabled="form.answers.length >= MAX_ANSWERS"
             @click="addAnswer"
           >
-            + Add answer
+            + Lägg till svar
           </button>
         </template>
       </fieldset>
 
       <fieldset class="form-section">
-        <legend>Sources (optional)</legend>
+        <legend>Källor (valfritt)</legend>
         <div v-for="(source, index) in form.sources" :key="index" class="answer-row">
           <input
             v-model="source.source_text"
             class="flex-1"
-            :aria-label="`Source ${index + 1} description`"
-            placeholder="Book, article or page"
+            :aria-label="`Beskrivning av källa ${index + 1}`"
+            placeholder="Bok, artikel eller sida"
             maxlength="255"
           />
           <input
             v-model="source.url"
             type="url"
             class="flex-1"
-            :aria-label="`Source ${index + 1} link`"
-            placeholder="https://… (optional)"
+            :aria-label="`Länk till källa ${index + 1}`"
+            placeholder="https://… (valfritt)"
             maxlength="500"
           />
           <button
             type="button"
             class="button-icon"
-            :aria-label="`Remove source ${index + 1}`"
+            :aria-label="`Ta bort källa ${index + 1}`"
             @click="form.sources.splice(index, 1)"
           >
             ✕
@@ -362,15 +365,15 @@ async function submit() {
           :disabled="form.sources.length >= MAX_SOURCES"
           @click="addSource"
         >
-          + Add source
+          + Lägg till källa
         </button>
       </fieldset>
 
       <div class="form-actions">
         <button type="submit" class="button button-accent" :disabled="saving">
-          {{ saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create question' }}
+          {{ saving ? 'Sparar…' : isEdit ? 'Spara ändringar' : 'Skapa fråga' }}
         </button>
-        <button type="button" class="button button-outline" @click="emit('cancel')">Cancel</button>
+        <button type="button" class="button button-outline" @click="emit('cancel')">Avbryt</button>
       </div>
     </form>
   </section>
