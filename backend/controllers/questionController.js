@@ -8,8 +8,8 @@ function sendError(res, err) {
   if (status === 500) console.error(err)
   res.status(status).json({
     status: 'error',
-    message: status === 500 ? 'Server error' : err.message,
-    ...(err.errors && { errors: err.errors }),
+    message: status === 500 ? 'Ett serverfel uppstod. Försök igen senare.' : err.message,
+    ...(status < 500 && err.errors && { errors: err.errors }),
   })
 }
 
@@ -38,7 +38,7 @@ async function getQuestionById(req, res) {
   try {
     const question = await questionService.getQuestionById(req.params.id)
     if (!question || question.deleted_at) {
-      return res.status(404).json({ status: 'error', message: 'Question not found' })
+      return res.status(404).json({ status: 'error', message: 'Frågan hittades inte.' })
     }
     res.json({ status: 'success', data: question })
   } catch (err) {
@@ -66,7 +66,7 @@ async function getAdminQuestionById(req, res) {
       includeUsage: true,
     })
     if (!question || question.deleted_at) {
-      return res.status(404).json({ status: 'error', message: 'Question not found' })
+      return res.status(404).json({ status: 'error', message: 'Frågan hittades inte.' })
     }
     res.json({ status: 'success', data: question })
   } catch (err) {
@@ -92,7 +92,7 @@ async function updateQuestion(req, res) {
     const data = validateQuestion(req.body)
     const updated = await questionService.updateQuestion(req.params.id, data)
     if (!updated) {
-      return res.status(404).json({ status: 'error', message: 'Question not found' })
+      return res.status(404).json({ status: 'error', message: 'Frågan hittades inte.' })
     }
     res.json({ status: 'success', data: updated })
   } catch (err) {
@@ -106,9 +106,9 @@ async function deleteQuestion(req, res) {
     if (!success) {
       return res
         .status(404)
-        .json({ status: 'error', message: 'Question not found or already deleted' })
+        .json({ status: 'error', message: 'Frågan hittades inte eller har redan tagits bort.' })
     }
-    res.json({ status: 'success', message: 'Question deleted successfully' })
+    res.json({ status: 'success', message: 'Frågan har tagits bort.' })
   } catch (err) {
     sendError(res, err)
   }

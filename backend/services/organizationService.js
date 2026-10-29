@@ -115,11 +115,11 @@ async function requestProspectAccess(organizationId, candidateId) {
   )
 
   if (userRows.length === 0) {
-    throw Object.assign(new Error('Candidate not found'), { status: 404 })
+    throw Object.assign(new Error('Kandidaten hittades inte.'), { status: 404 })
   }
 
   if (!userRows[0].is_public_prospect) {
-    throw Object.assign(new Error('Candidate is not accepting organization requests'), {
+    throw Object.assign(new Error('Kandidaten tar inte emot förfrågningar från organisationer.'), {
       status: 403,
     })
   }
@@ -152,7 +152,7 @@ async function getProspectDetails(viewerUser, prospectId) {
   const prospect = userRows[0]
 
   if (!prospect.is_public_prospect) {
-    throw Object.assign(new Error('Prospect profile is private'), { status: 403 })
+    throw Object.assign(new Error('Kandidatens profil är privat.'), { status: 403 })
   }
 
   if (viewerUser?.role !== 'admin') {
@@ -162,7 +162,7 @@ async function getProspectDetails(viewerUser, prospectId) {
     )
     if (!accessRow || accessRow.status !== 'approved') {
       throw Object.assign(
-        new Error('Access denied: candidate has not approved your organization yet'),
+        new Error('Åtkomst nekad: kandidaten har ännu inte godkänt din organisation.'),
         { status: 403 },
       )
     }
