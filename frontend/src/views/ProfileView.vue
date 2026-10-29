@@ -31,7 +31,7 @@ const regSuccess = ref(null)
 const regTouched = ref({
   username: false,
   email: false,
-  password: false, 
+  password: false,
   confirmPassword: false,
 })
 
@@ -56,7 +56,7 @@ const regEmailError = computed(() => {
 
   if (!email) return 'Enter an email address.'
 
-  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return 'Enter a vailt email address, for example name@example.com.'
   }
 
@@ -75,7 +75,7 @@ const regPasswordError = computed(() => {
   return ''
 })
 
-const regConfirmPasswordError = computed (() => {
+const regConfirmPasswordError = computed(() => {
   if (!regConfirmPassword.value) {
     return 'Repeat your password.'
   }
@@ -255,7 +255,7 @@ async function handleRegister() {
     password: true,
     confirmPassword: true,
   }
-  
+
   if (
     regUsernameError.value ||
     regEmailError.value ||
@@ -867,20 +867,16 @@ function getSourceUrl(url) {
           </div>
           <div class="form-group">
             <label>Email Address:</label>
-            <input 
-              type="email" 
-              v-model="regEmail" 
-              placeholder="john@example.com" 
+            <input
+              type="email"
+              v-model="regEmail"
+              placeholder="john@example.com"
               required
               @blur="markRegTouched('email')"
               :aria-invalid="regTouched.email && !!regEmailError"
               aria-describedby="reg-email-error"
             />
-            <p
-              v-if="regTouched.email && regEmailError"
-              id="reg-email-error"
-              class="field-error"
-            >
+            <p v-if="regTouched.email && regEmailError" id="reg-email-error" class="field-error">
               {{ regEmailError }}
             </p>
           </div>
@@ -897,8 +893,10 @@ function getSourceUrl(url) {
               :aria-invalid="regTouched.password && !!regPasswordError"
               aria-describedby="reg-password-help reg-password-error"
             />
-            <span id="reg-password-help" class="form-help-text">Password must be 15-128 characters long.</span>
-            <p 
+            <span id="reg-password-help" class="form-help-text"
+              >Password must be 15-128 characters long.</span
+            >
+            <p
               v-if="regTouched.password && regPasswordError"
               id="reg-password-error"
               class="field-error"
