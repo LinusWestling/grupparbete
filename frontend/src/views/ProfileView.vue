@@ -57,7 +57,7 @@ const regEmailError = computed(() => {
 
   if (!email) return 'Ange en e-postadress.'
 
-  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return 'Ange en giltig e-postadress, exempelvis john@exempel.se.'
   }
 
@@ -923,8 +923,10 @@ function getSourceUrl(url) {
               :aria-invalid="regTouched.password && !!regPasswordError"
               aria-describedby="reg-password-help reg-password-error"
             />
-            <span id="reg-password-help" class="form-help-text">Lösenordet måste vara 15–128 tecken långt.</span>
-            <p 
+            <span id="reg-password-help" class="form-help-text"
+              >Lösenordet måste vara 15–128 tecken långt.</span
+            >
+            <p
               v-if="regTouched.password && regPasswordError"
               id="reg-password-error"
               class="field-error"
