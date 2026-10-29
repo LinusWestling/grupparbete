@@ -29,6 +29,64 @@ const regRequestOrg = ref(false)
 const registering = ref(false)
 const regError = ref(null)
 const regSuccess = ref(null)
+const regTouched = ref({
+  username: false,
+  email: false,
+  password: false,
+  confirmPassword: false,
+})
+
+function markRegTouched(field) {
+  regTouched.value[field] = true
+}
+
+const regUsernameError = computed(() => {
+  const username = regUsername.value.trim()
+
+  if (!username) return 'Ange ett användarnamn.'
+
+  if (username.length < 3 || username.length > 50) {
+    return 'Användarnamnet måste vara 3–50 tecken långt.'
+  }
+
+  return ''
+})
+
+const regEmailError = computed(() => {
+  const email = regEmail.value.trim()
+
+  if (!email) return 'Ange en e-postadress.'
+
+  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return 'Ange en giltig e-postadress, exempelvis john@exempel.se.'
+  }
+
+  return ''
+})
+
+const regPasswordError = computed(() => {
+  const password = regPassword.value
+
+  if (!password) return 'Ange ett lösenord.'
+
+  if (password.length < 15 || password.length > 128) {
+    return 'Lösenordet måste vara 15–128 tecken långt.'
+  }
+
+  return ''
+})
+
+const regConfirmPasswordError = computed(() => {
+  if (!regConfirmPassword.value) {
+    return 'Upprepa ditt lösenord.'
+  }
+
+  if (regConfirmPassword.value !== regPassword.value) {
+    return 'Lösenorden stämmer inte överens.'
+  }
+
+  return ''
+})
 
 const levelDefinitions = [
   {
@@ -194,16 +252,19 @@ async function handleRegister() {
   regError.value = null
   regSuccess.value = null
 
-  if (regUsername.value.trim().length < 3) {
-    regError.value = 'Användarnamnet måste vara minst 3 tecken långt.'
-    return
+  regTouched.value = {
+    username: true,
+    email: true,
+    password: true,
+    confirmPassword: true,
   }
-  if (regPassword.value.length < 15) {
-    regError.value = 'Lösenordet måste vara minst 15 tecken långt.'
-    return
-  }
-  if (regPassword.value !== regConfirmPassword.value) {
-    regError.value = 'Lösenorden stämmer inte överens.'
+
+  if (
+    regUsernameError.value ||
+    regEmailError.value ||
+    regPasswordError.value ||
+    regConfirmPasswordError.value
+  ) {
     return
   }
 
@@ -810,7 +871,7 @@ function getSourceUrl(url) {
         <div v-if="regError" class="error-banner">⚠️ {{ regError }}</div>
         <div v-if="regSuccess" class="success-banner">✅ {{ regSuccess }}</div>
 
-        <form @submit.prevent="handleRegister" class="login-form">
+        <form @submit.prevent="handleRegister" class="login-form" novalidate>
           <div class="form-group">
             <label>{{
               regRequestOrg ? 'Organisationsnamn / användarnamn:' : 'Användarnamn:'
@@ -822,11 +883,32 @@ function getSourceUrl(url) {
               minlength="3"
               maxlength="50"
               required
+              @blur="markRegTouched('username')"
+              :aria-invalid="regTouched.username && !!regUsernameError"
+              aria-describedby="reg-username-error"
             />
+            <p
+              v-if="regTouched.username && regUsernameError"
+              id="reg-username-error"
+              class="field-error"
+            >
+              {{ regUsernameError }}
+            </p>
           </div>
           <div class="form-group">
             <label>E-postadress:</label>
-            <input type="email" v-model="regEmail" placeholder="anna@exempel.se" required />
+            <input
+              type="email"
+              v-model="regEmail"
+              placeholder="john@example.com"
+              required
+              @blur="markRegTouched('email')"
+              :aria-invalid="regTouched.email && !!regEmailError"
+              aria-describedby="reg-email-error"
+            />
+            <p v-if="regTouched.email && regEmailError" id="reg-email-error" class="field-error">
+              {{ regEmailError }}
+            </p>
           </div>
           <div class="form-group">
             <label>Lösenord:</label>
@@ -835,9 +917,22 @@ function getSourceUrl(url) {
               v-model="regPassword"
               placeholder="Minst 15 tecken"
               minlength="15"
+              maxlength="128"
               required
+              @blur="markRegTouched('password')"
+              :aria-invalid="regTouched.password && !!regPasswordError"
+              aria-describedby="reg-password-help reg-password-error"
             />
-            <span class="form-help-text">Lösenordet måste vara minst 15 tecken långt.</span>
+            <span id="reg-password-help" class="form-help-text"
+              >Lösenordet måste vara 15–128 tecken långt.</span
+            >
+            <p
+              v-if="regTouched.password && regPasswordError"
+              id="reg-password-error"
+              class="field-error"
+            >
+              {{ regPasswordError }}
+            </p>
           </div>
           <div class="form-group">
             <label>Bekräfta lösenord:</label>
@@ -846,8 +941,19 @@ function getSourceUrl(url) {
               v-model="regConfirmPassword"
               placeholder="Upprepa lösenord"
               minlength="15"
+              maxlength="128"
               required
+              @blur="markRegTouched('confirmPassword')"
+              :aria-invalid="regTouched.confirmPassword && !!regConfirmPasswordError"
+              aria-describedby="reg-confirm-password-error"
             />
+            <p
+              v-if="regTouched.confirmPassword && regConfirmPasswordError"
+              id="reg-confirm-password-error"
+              class="field-error"
+            >
+              {{ regConfirmPasswordError }}
+            </p>
           </div>
           <div class="org-signup-box">
             <label class="privacy-toggle">

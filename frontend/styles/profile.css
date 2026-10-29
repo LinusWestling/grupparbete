@@ -673,6 +673,16 @@
   color: var(--color-error-text);
   border-color: var(--color-error-text);
 }
+
+.login-form .field-error {
+  color: #a12622;
+  font-size: 0.875rem;
+  margin: 0.35rem 0 0;
+}
+
+.login-form input[aria-invalid='true'] {
+  border-color: #a12622;
+}
 .history-section .quiz-history-row {
   cursor: pointer;
 }
