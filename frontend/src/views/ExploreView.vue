@@ -261,7 +261,7 @@ async function exitQuiz() {
           <span class="chip margin-left">⭐ Level {{ activeQuizSession.difficulty }}</span>
         </div>
         <span class="quiz-question-counter"
-          >Question {{ currentQuestionIndex + 1 }} of {{ activeQuizSession.questions.length }}</span
+          >Fråga {{ currentQuestionIndex + 1 }} av {{ activeQuizSession.questions.length }}</span
         >
         <button @click="exitQuiz" :disabled="submitting" class="button-text">✕ Exit Quiz</button>
       </div>
@@ -412,9 +412,9 @@ async function exitQuiz() {
 
       <div class="quiz-status-bar">
         <p class="quiz-progress-counts">
-          Answered:
+          Besvarade:
           <strong>{{ activeQuizSession.questions.filter((q) => q.is_answered).length }}</strong>
-          · Skipped:
+          · Överhoppade:
           <strong>{{ activeQuizSession.questions.filter((q) => q.is_skipped).length }}</strong>
         </p>
         <p class="quiz-save-message" role="status" aria-live="polite">{{ saveMessage }}</p>
@@ -484,13 +484,13 @@ async function exitQuiz() {
       </div>
 
       <div class="results-footer">
-        <p class="text-muted">Skipped: {{ quizResult.skipped_count }}</p>
+        <p class="text-muted">Överhoppade: {{ quizResult.skipped_count }}</p>
         <button
           @click="exitQuiz"
           :disabled="pendingCompletion || syncingCompletion"
           class="button button-accent"
         >
-          Back to Topics
+          Tillbaka till ämnen
         </button>
       </div>
     </div>
@@ -498,7 +498,7 @@ async function exitQuiz() {
     <!-- Topics Grid View -->
     <div v-else class="explore-topics-section">
       <p v-if="!loading && !loggedIn" class="guest-login-banner">
-        Log in through your profile to start a quiz and save progress across devices.
+        Logga in via din profil för att starta ett quiz och spara dina framsteg mellan enheter.
       </p>
       <section
         v-if="unfinishedQuizzes.length"
@@ -506,22 +506,22 @@ async function exitQuiz() {
         aria-labelledby="unfinished-title"
       >
         <div class="unfinished-quizzes-header">
-          <h2 id="unfinished-title">Continue an unfinished quiz</h2>
-          <span class="chip">{{ unfinishedQuizzes.length }} in progress</span>
+          <h2 id="unfinished-title">Fortsätt med ett pågående quiz</h2>
+          <span class="chip">{{ unfinishedQuizzes.length }} pågår</span>
         </div>
         <div class="unfinished-quizzes-grid">
           <div v-for="quiz in unfinishedQuizzes" :key="quiz.quiz_id" class="unfinished-quiz-card">
             <div class="unfinished-quiz-details">
               <div class="unfinished-quiz-badges">
                 <span class="badge">{{ quiz.topic_name }}</span>
-                <span class="chip">⭐ Level {{ quiz.difficulty }}</span>
+                <span class="chip">⭐ Nivå {{ quiz.difficulty }}</span>
                 <span v-if="quiz.organization_name" class="status-pill pending">
-                  Assigned by {{ quiz.organization_name }}
+                  Tilldelat av {{ quiz.organization_name }}
                 </span>
               </div>
               <p class="unfinished-quiz-stats">
-                {{ quiz.answered_count }}/{{ quiz.total_cnt }} answered ·
-                {{ quiz.skipped_count }} skipped
+                {{ quiz.answered_count }}/{{ quiz.total_cnt }} besvarade ·
+                {{ quiz.skipped_count }} överhoppade
               </p>
             </div>
             <button
@@ -529,18 +529,18 @@ async function exitQuiz() {
               :disabled="loading || hasUnsyncedData || isSyncing"
               @click="resumeQuiz(quiz.quiz_id)"
             >
-              Resume quiz
+              Återuppta quizet
             </button>
           </div>
         </div>
       </section>
-      <div v-if="loading" class="loading-state">Loading topics from database...</div>
+      <div v-if="loading" class="loading-state">Hämtar ämnen...</div>
 
       <div v-else class="topics-grid">
         <article v-for="topic in topics" :key="topic.id" class="topic-card">
           <div class="topic-header">
             <h3>{{ topic.name }}</h3>
-            <span class="chip">{{ topic.question_count }} Questions</span>
+            <span class="chip">{{ topic.question_count }} Frågor</span>
           </div>
           <p>{{ topic.description || 'Explore and master key concepts in ' + topic.name }}</p>
           <button

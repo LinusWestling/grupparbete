@@ -316,7 +316,7 @@ async function confirmDelete() {
         </tbody>
       </table>
     </div>
-    <p v-else-if="!loading" class="empty-state">No questions match these filters.</p>
+    <p v-else-if="!loading" class="empty-state">Inga frågor hittades med detta filter.</p>
 
     <div
       v-if="pendingDelete"
@@ -332,21 +332,20 @@ async function confirmDelete() {
         aria-describedby="delete-description"
       >
         <div class="modal-header">
-          <h2 id="delete-title">Delete question #{{ pendingDelete.id }}?</h2>
+          <h2 id="delete-title">Ta bort fråga #{{ pendingDelete.id }}?</h2>
           <button
             type="button"
             class="button-text"
             :disabled="deleting"
             @click="pendingDelete = null"
           >
-            ✕ Close
+            ✕ Stäng
           </button>
         </div>
         <div id="delete-description" class="modal-body">
           <p class="delete-question-text">“{{ pendingDelete.question_text }}”</p>
           <p class="text-muted">
-            It will no longer appear in new quizzes. Players who already answered it keep it in
-            their quiz history.
+            Den kommer inte längre dyka upp i nya quiz. Spelare som redan besvarat den behåller den i sin quizhistorik.
           </p>
         </div>
         <div class="modal-footer">
@@ -356,10 +355,10 @@ async function confirmDelete() {
             :disabled="deleting"
             @click="pendingDelete = null"
           >
-            Cancel
+            Avbryt
           </button>
           <button class="button button-danger" :disabled="deleting" @click="confirmDelete">
-            {{ deleting ? 'Deleting…' : 'Delete question' }}
+            {{ deleting ? 'Tar bort…' : 'Ta bort frågan' }}
           </button>
         </div>
       </div>

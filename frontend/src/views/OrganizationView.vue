@@ -44,7 +44,7 @@ async function inspectAssignedTest(quizId) {
 }
 
 function answerText(question) {
-  if (question.is_skipped || !question.is_answered) return 'Skipped'
+  if (question.is_skipped || !question.is_answered) return 'Överhoppade'
   if (question.question_type === 'matching' && question.submitted_answer) {
     return (question.answers || [])
       .map(
@@ -276,25 +276,25 @@ function closeDetailsModal() {
         <div class="modal-body">
           <section class="details-section assign-test-section">
             <div class="assign-test-card">
-              <h3>Assign a test</h3>
+              <h3>Tilldela ett test</h3>
               <form class="assign-test-form" @submit.prevent="assignTest">
                 <label class="form-group">
-                  <span class="form-label">Topic</span>
+                  <span class="form-label">Ämne</span>
                   <select v-model="testSettings.topicId" required class="filter-select">
-                    <option disabled value="">Choose topic</option>
+                    <option disabled value="">Välj ämne</option>
                     <option v-for="topic in topics" :key="topic.id" :value="topic.id">
                       {{ topic.name }}
                     </option>
                   </select>
                 </label>
                 <label class="form-group">
-                  <span class="form-label">Difficulty</span>
+                  <span class="form-label">Svårighetsgrad</span>
                   <select v-model="testSettings.difficulty" class="filter-select">
                     <option v-for="level in 5" :key="level" :value="level">{{ level }}</option>
                   </select>
                 </label>
                 <label class="form-group">
-                  <span class="form-label">Questions</span>
+                  <span class="form-label">Antal frågor</span>
                   <input
                     v-model.number="testSettings.limit"
                     type="number"
@@ -304,12 +304,12 @@ function closeDetailsModal() {
                   />
                 </label>
                 <button class="button button-accent" :disabled="assigning">
-                  {{ assigning ? 'Assigning...' : 'Assign test' }}
+                  {{ assigning ? 'Tilldelar...' : 'Tilldela test' }}
                 </button>
               </form>
               <p class="text-muted form-help-text">
-                Available questions determine the actual count. If the selected level is empty, the
-                closest available level is used.
+                Antalet frågor beror på hur många som finns tillgängliga. Om den valda nivån saknar
+              frågor används den närmaste tillgängliga nivån.
               </p>
               <p v-if="assignmentMessage" role="status" class="success-banner">
                 {{ assignmentMessage }}
@@ -318,9 +318,9 @@ function closeDetailsModal() {
             </div>
 
             <div class="assigned-tests-section">
-              <h3>Assigned tests</h3>
+              <h3>Tilldelade test</h3>
               <p v-if="!selectedProspectDetails.assignments?.length" class="text-muted">
-                No tests assigned yet.
+                Inga test har tilldelats ännu.
               </p>
               <div v-else class="assigned-tests-list">
                 <div
@@ -332,19 +332,19 @@ function closeDetailsModal() {
                     <div class="assigned-test-badges">
                       <strong>#{{ test.quiz_id }}</strong>
                       <span class="badge">{{ test.topic_name }}</span>
-                      <span class="chip">⭐ Level {{ test.difficulty }}</span>
+                      <span class="chip">⭐ Nivå {{ test.difficulty }}</span>
                     </div>
                     <span
                       :class="['status-pill', test.status === 'completed' ? 'approved' : 'pending']"
                     >
-                      {{ test.status === 'completed' ? '✅ Completed' : '⏳ Awaiting completion' }}
+                      {{ test.status === 'completed' ? '✅ Avslutat' : '⏳ Inväntar avslut' }}
                     </span>
                   </div>
                   <p class="assigned-test-meta">
-                    {{ test.total_cnt }} questions
+                    {{ test.total_cnt }} frågor
                     <template v-if="test.status === 'completed'">
-                      · {{ test.correct_cnt }} correct ·
-                      {{ test.total_cnt - test.correct_cnt }} incorrect (including skipped)
+                      · {{ test.correct_cnt }} rätt ·
+                      {{ test.total_cnt - test.correct_cnt }} fel (inklusive överhoppade)
                     </template>
                   </p>
                   <button
@@ -352,7 +352,7 @@ function closeDetailsModal() {
                     class="button button-outline button-sm"
                     @click="inspectAssignedTest(test.quiz_id)"
                   >
-                    View answers
+                    Visa svar
                   </button>
                 </div>
               </div>
@@ -361,15 +361,14 @@ function closeDetailsModal() {
             <section
               v-if="testReport"
               class="assigned-test-report"
-              aria-label="Assigned test results"
+              aria-label="Resultat för tilldelat test"
             >
               <div class="assigned-report-header">
                 <div>
-                  <h3>Test #{{ testReport.quiz_id }} results</h3>
+                  <h3>Resultat för test #{{ testReport.quiz_id }}</h3>
                   <p class="text-muted">
-                    {{ testReport.correct_cnt }} correct ·
-                    {{ testReport.total_cnt - testReport.correct_cnt }} incorrect (including
-                    skipped)
+                    {{ testReport.correct_cnt }} rätt ·
+                    {{ testReport.total_cnt - testReport.correct_cnt }} fel (inklusive överhoppade)
                   </p>
                 </div>
                 <button type="button" class="button-text" @click="testReport = null">
@@ -394,15 +393,15 @@ function closeDetailsModal() {
                     <p>
                       {{
                         question.is_correct
-                          ? 'Correct'
+                          ? 'Rätt'
                           : question.is_skipped || !question.is_answered
-                            ? 'Incorrect (skipped)'
-                            : 'Incorrect'
+                            ? 'Fel (överhoppad)'
+                            : 'Fel'
                       }}
-                      · Candidate answer: {{ answerText(question) }}
+                      · Kandidatens svar: {{ answerText(question) }}
                     </p>
                     <p>
-                      Correct answer:
+                      Rätt svar:
                       {{ correctAnswerForQuestion(question) }}
                     </p>
                   </div>
