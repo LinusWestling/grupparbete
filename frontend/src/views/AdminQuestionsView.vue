@@ -318,7 +318,7 @@ async function confirmDelete() {
         </tbody>
       </table>
     </div>
-    <p v-else-if="!loading" class="empty-state">Inga frågor hittades med detta filter.</p>
+    <p v-else-if="!loading" class="empty-state">Inga frågor matchar filtren.</p>
 
     <div
       v-if="pendingDelete"
@@ -347,8 +347,8 @@ async function confirmDelete() {
         <div id="delete-description" class="modal-body">
           <p class="delete-question-text">“{{ pendingDelete.question_text }}”</p>
           <p class="text-muted">
-            Den kommer inte längre dyka upp i nya quiz. Spelare som redan besvarat den behåller den
-            i sin quizhistorik.
+            Frågan visas inte längre i nya quiz. Användare som redan har besvarat den behåller den i
+            sin quizhistorik.
           </p>
         </div>
         <div class="modal-footer">

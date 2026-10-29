@@ -699,6 +699,9 @@
   .modal-footer {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
 .history-section .quiz-history-row {
   cursor: pointer;
 }

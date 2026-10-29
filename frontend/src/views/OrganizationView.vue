@@ -44,7 +44,7 @@ async function inspectAssignedTest(quizId) {
 }
 
 function answerText(question) {
-  if (question.is_skipped || !question.is_answered) return 'Överhoppade'
+  if (question.is_skipped || !question.is_answered) return 'Överhoppad'
   if (question.question_type === 'matching' && question.submitted_answer) {
     return (question.answers || [])
       .map(
@@ -307,7 +307,7 @@ function closeDetailsModal() {
                   />
                 </label>
                 <button class="button button-accent" :disabled="assigning">
-                  {{ assigning ? 'Tilldelar...' : 'Tilldela test' }}
+                  {{ assigning ? 'Tilldelar…' : 'Tilldela test' }}
                 </button>
               </form>
               <p class="text-muted form-help-text">
@@ -340,7 +340,7 @@ function closeDetailsModal() {
                     <span
                       :class="['status-pill', test.status === 'completed' ? 'approved' : 'pending']"
                     >
-                      {{ test.status === 'completed' ? '✅ Avslutat' : '⏳ Inväntar avslut' }}
+                      {{ test.status === 'completed' ? '✅ Slutfört' : '⏳ Väntar på slutförande' }}
                     </span>
                   </div>
                   <p class="assigned-test-meta">
@@ -375,7 +375,7 @@ function closeDetailsModal() {
                   </p>
                 </div>
                 <button type="button" class="button-text" @click="testReport = null">
-                  ✕ Hide answers
+                  ✕ Dölj svar
                 </button>
               </div>
               <div class="results-list">

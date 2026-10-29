@@ -391,7 +391,7 @@ async function exitQuiz() {
           :disabled="submitting"
           @click="navigateQuestion(1, true)"
         >
-          Skip question
+          Hoppa över frågan
         </button>
 
         <button
@@ -426,13 +426,13 @@ async function exitQuiz() {
 
     <!-- Quiz Results View -->
     <div v-else-if="quizResult" class="results-card">
-      <h2>🎉 Quiz Complete!</h2>
+      <h2>🎉 Quizet är slutfört!</h2>
       <p v-if="pendingCompletion" class="results-status" role="status" aria-live="polite">
-        Results and estimated XP are awaiting confirmation.
-        {{ syncingCompletion ? 'Syncing…' : 'Connect to the server and retry saving.' }}
+        Resultatet och beräknade XP väntar på bekräftelse.
+        {{ syncingCompletion ? 'Synkroniserar…' : 'Anslut till servern och försök spara igen.' }}
       </p>
       <p v-else class="results-status" role="status">
-        Results confirmed and saved to your account.
+        Resultatet är bekräftat och sparat på ditt konto.
       </p>
 
       <!-- 80% Qualification Badge -->
@@ -536,13 +536,13 @@ async function exitQuiz() {
           </div>
         </div>
       </section>
-      <div v-if="loading" class="loading-state">Hämtar ämnen...</div>
+      <div v-if="loading" class="loading-state">Hämtar ämnen…</div>
 
       <div v-else class="topics-grid">
         <article v-for="topic in topics" :key="topic.id" class="topic-card">
           <div class="topic-header">
             <h3>{{ topic.name }}</h3>
-            <span class="chip">{{ topic.question_count }} Frågor</span>
+            <span class="chip">{{ topic.question_count }} frågor</span>
           </div>
           <p>
             {{ topic.description || 'Utforska och lär dig viktiga begrepp inom ' + topic.name }}
