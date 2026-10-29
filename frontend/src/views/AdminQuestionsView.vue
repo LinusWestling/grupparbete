@@ -345,7 +345,8 @@ async function confirmDelete() {
         <div id="delete-description" class="modal-body">
           <p class="delete-question-text">“{{ pendingDelete.question_text }}”</p>
           <p class="text-muted">
-            Den kommer inte längre dyka upp i nya quiz. Spelare som redan besvarat den behåller den i sin quizhistorik.
+            Den kommer inte längre dyka upp i nya quiz. Spelare som redan besvarat den behåller den
+            i sin quizhistorik.
           </p>
         </div>
         <div class="modal-footer">

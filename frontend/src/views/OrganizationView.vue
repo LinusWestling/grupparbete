@@ -309,7 +309,7 @@ function closeDetailsModal() {
               </form>
               <p class="text-muted form-help-text">
                 Antalet frågor beror på hur många som finns tillgängliga. Om den valda nivån saknar
-              frågor används den närmaste tillgängliga nivån.
+                frågor används den närmaste tillgängliga nivån.
               </p>
               <p v-if="assignmentMessage" role="status" class="success-banner">
                 {{ assignmentMessage }}
@@ -343,8 +343,8 @@ function closeDetailsModal() {
                   <p class="assigned-test-meta">
                     {{ test.total_cnt }} frågor
                     <template v-if="test.status === 'completed'">
-                      · {{ test.correct_cnt }} rätt ·
-                      {{ test.total_cnt - test.correct_cnt }} fel (inklusive överhoppade)
+                      · {{ test.correct_cnt }} rätt · {{ test.total_cnt - test.correct_cnt }} fel
+                      (inklusive överhoppade)
                     </template>
                   </p>
                   <button
