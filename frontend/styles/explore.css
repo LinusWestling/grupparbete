@@ -369,3 +369,52 @@
 .quiz-sync-status .tab-warning {
   font-weight: var(--font-weight-semibold);
 }
+
+.question-type-selector {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.question-type-selector legend {
+  padding: 0 var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.question-type-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.question-type-option:has(input:checked) {
+  background: var(--color-surface-soft);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.question-type-option input[type='checkbox'] {
+  width: 1.125rem;
+  height: 1.125rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+}
+
+.question-type-selector > p {
+  flex-basis: 100%;
+  color: var(--color-error-text);
+}

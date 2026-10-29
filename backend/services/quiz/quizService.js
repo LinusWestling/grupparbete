@@ -7,17 +7,22 @@ const { orderQuizAnswers, orderMatchOptions } = require('../../utils/quizAnswerO
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
 
-async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizationId = null) {
+async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizationId = null, questionTypes) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
   let questions = await questionService.getQuestions(
-    { topic_id: topicId, difficulty: difficulty, limit: limit },
+    { 
+      topic_id: topicId,
+      difficulty,
+      limit,
+      question_types: questionTypes,
+     },
     { includeCorrect: true },
   )
 
   let actualDifficulty = Number(difficulty)
 
   if (questions.length === 0 && topicId) {
-    const availableLevels = await questionService.getAvailableDifficulties(topicId)
+    const availableLevels = await questionService.getAvailableDifficulties(topicId, questionTypes,)
 
     if (availableLevels.length > 0) {
       actualDifficulty = availableLevels.reduce((closest, level) => {
@@ -32,6 +37,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
           topic_id: topicId,
           difficulty: actualDifficulty,
           limit,
+          question_types: questionTypes,
         },
         { includeCorrect: true },
       )
@@ -57,6 +63,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
         topic_id: topicId,
         difficulty: actualDifficulty,
         limit,
+        question_types: questionTypes,
       },
       {
         includeCorrect: true,
