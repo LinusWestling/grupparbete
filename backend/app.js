@@ -99,7 +99,14 @@ app.use((error, req, res, next) => {
   }
 
   res.status(status).json({
-    message: status === 500 ? 'Ett serverfel uppstod' : error.message,
+    message:
+      status === 500
+        ? 'Ett serverfel uppstod. Försök igen senare.'
+        : error.type === 'entity.parse.failed'
+          ? 'Begäran innehåller ogiltig JSON.'
+          : error.type === 'entity.too.large'
+            ? 'Begäran är för stor.'
+            : error.message,
   })
 })
 
