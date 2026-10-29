@@ -264,10 +264,11 @@
   max-width: 650px;
   width: min(100%, 650px);
   max-height: calc(100vh - var(--space-8));
+  max-height: calc(100dvh - var(--space-8));
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  overflow: hidden;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
   padding: var(--space-6);
 }
@@ -284,10 +285,12 @@
   gap: var(--space-4);
   padding-bottom: var(--space-4);
   border-bottom: var(--border-width) solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .modal-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 4rem;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -407,6 +410,7 @@
   gap: var(--space-3);
   border-top: var(--border-width) solid var(--color-border);
   padding-top: var(--space-4);
+  flex-shrink: 0;
 }
 
 /* Level Diagram Styling */
