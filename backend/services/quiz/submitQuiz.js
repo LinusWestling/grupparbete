@@ -72,8 +72,8 @@ async function submitQuizSession(quizId, userId, submissions) {
       quizId,
     ])
     const quiz = quizzes[0]
-    if (!quiz) throw httpError(404, 'Quiz session not found')
-    if (!userId || quiz.user_id !== userId) throw httpError(403, 'Forbidden')
+    if (!quiz) throw httpError(404, 'Quizsessionen hittades inte.')
+    if (!userId || quiz.user_id !== userId) throw httpError(403, 'Åtkomst nekad.')
     const [rows] = await connection.query(
       'SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY position',
       [quizId],
@@ -99,7 +99,7 @@ async function submitQuizSession(quizId, userId, submissions) {
       await connection.commit()
       return result
     }
-    if (quiz.status !== 'in_progress') throw httpError(409, 'Quiz is not in progress')
+    if (quiz.status !== 'in_progress') throw httpError(409, 'Quizet pågår inte.')
     const submitted = new Map(submissions.map((item) => [item.question_id, item]))
     const results = []
     for (const row of rows) {

@@ -5,7 +5,7 @@ async function getDashboardStats(req, res) {
     const stats = await userService.getDashboardStats()
     res.json({ status: 'success', data: stats })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    res.status(500).json({ status: 'error', message: 'Ett serverfel uppstod. Försök igen senare.' })
   }
 }
 
@@ -13,18 +13,18 @@ async function getUserProgress(req, res) {
   try {
     const sessionUserId = req.session?.userId
     if (!sessionUserId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      return res.status(401).json({ status: 'error', message: 'Du måste vara inloggad.' })
     }
 
     const requestedUserId = req.params.userId ? Number(req.params.userId) : sessionUserId
     if (requestedUserId !== sessionUserId) {
-      return res.status(403).json({ status: 'error', message: 'Forbidden' })
+      return res.status(403).json({ status: 'error', message: 'Åtkomst nekad.' })
     }
 
     const progress = await userService.getUserProgress(requestedUserId)
     res.json({ status: 'success', data: progress })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    res.status(500).json({ status: 'error', message: 'Ett serverfel uppstod. Försök igen senare.' })
   }
 }
 
@@ -32,19 +32,19 @@ async function updateUserPrivacy(req, res) {
   try {
     const userId = req.session?.userId
     if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      return res.status(401).json({ status: 'error', message: 'Du måste vara inloggad.' })
     }
     const { is_public_prospect } = req.body
     if (typeof is_public_prospect !== 'boolean') {
       return res
         .status(400)
-        .json({ status: 'error', message: 'is_public_prospect must be boolean' })
+        .json({ status: 'error', message: 'Profilens synlighet måste vara på eller av.' })
     }
     const userRepository = require('../repositories/userRepository')
     await userRepository.updateUserPrivacy(userId, is_public_prospect)
-    res.json({ status: 'success', message: 'Privacy setting updated' })
+    res.json({ status: 'success', message: 'Sekretessinställningen har uppdaterats.' })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    res.status(500).json({ status: 'error', message: 'Ett serverfel uppstod. Försök igen senare.' })
   }
 }
 
@@ -52,13 +52,13 @@ async function getAccessRequests(req, res) {
   try {
     const userId = req.session?.userId
     if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      return res.status(401).json({ status: 'error', message: 'Du måste vara inloggad.' })
     }
     const userRepository = require('../repositories/userRepository')
     const requests = await userRepository.getCandidateAccessRequests(userId)
     res.json({ status: 'success', data: requests })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    res.status(500).json({ status: 'error', message: 'Ett serverfel uppstod. Försök igen senare.' })
   }
 }
 
@@ -66,24 +66,27 @@ async function respondToAccessRequest(req, res) {
   try {
     const userId = req.session?.userId
     if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+      return res.status(401).json({ status: 'error', message: 'Du måste vara inloggad.' })
     }
     const requestId = Number(req.params.requestId)
     const { status } = req.body || {}
     if (!Number.isInteger(requestId) || !['approved', 'rejected'].includes(status)) {
       return res.status(400).json({
         status: 'error',
-        message: 'Valid requestId and status (approved/rejected) required',
+        message: 'Ange en giltig förfrågan och välj att godkänna eller avslå den.',
       })
     }
     const userRepository = require('../repositories/userRepository')
     const updated = await userRepository.updateCandidateAccessRequest(requestId, userId, status)
     if (!updated) {
-      return res.status(404).json({ status: 'error', message: 'Access request not found' })
+      return res.status(404).json({ status: 'error', message: 'Åtkomstförfrågan hittades inte.' })
     }
-    res.json({ status: 'success', message: `Access request ${status}` })
+    res.json({
+      status: 'success',
+      message: `Åtkomstförfrågan har ${status === 'approved' ? 'godkänts' : 'avslagits'}.`,
+    })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    res.status(500).json({ status: 'error', message: 'Ett serverfel uppstod. Försök igen senare.' })
   }
 }
 

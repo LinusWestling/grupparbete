@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
 import { currentUser, loadCurrentUser, clearCurrentUser } from '../services/auth'
+import { ROLE_LABELS } from '../services/roles.js'
 
 const router = useRouter()
 
@@ -90,48 +91,50 @@ const regConfirmPasswordError = computed(() => {
 const levelDefinitions = [
   {
     level: 1,
-    name: 'Beginner / Novice',
+    name: 'Nybörjare',
     xpRequired: 0,
     xpRange: '0 – 99 XP',
-    badge: '🔰 Novice Badge',
-    quizAccess: 'Level 1 Quizzes',
-    benefits: 'Basic quiz taking, track progress, access foundational anatomy & exercise concepts.',
+    badge: '🔰 Nybörjarmärke',
+    quizAccess: 'Quiz på nivå 1',
+    benefits: 'Gör quiz, följ dina framsteg och lär dig grunderna i anatomi och träningslära.',
   },
   {
     level: 2,
-    name: 'Intermediate',
+    name: 'Medel',
     xpRequired: 100,
     xpRange: '100 – 199 XP',
-    badge: '🥉 Bronze Scholar',
-    quizAccess: 'Level 2 Quizzes',
-    benefits: 'Unlocks Level 2 intermediate questions & +5% bonus XP reward multiplier.',
+    badge: '🥉 Bronslärd',
+    quizAccess: 'Quiz på nivå 2',
+    benefits: 'Låser upp frågor på medelnivå (nivå 2) och 5 % extra XP.',
   },
   {
     level: 3,
-    name: 'Advanced',
+    name: 'Avancerad',
     xpRequired: 200,
     xpRange: '200 – 299 XP',
-    badge: '🥈 Silver Master',
-    quizAccess: 'Level 3 Quizzes',
-    benefits: 'Unlocks Level 3 advanced scenarios & custom profile badges and titles.',
+    badge: '🥈 Silvermästare',
+    quizAccess: 'Quiz på nivå 3',
+    benefits: 'Låser upp avancerade frågor på nivå 3 samt egna profilmärken och titlar.',
   },
   {
     level: 4,
     name: 'Expert',
     xpRequired: 300,
     xpRange: '300 – 399 XP',
-    badge: '🥇 Gold Expert',
-    quizAccess: 'Level 4 Quizzes',
-    benefits: 'Unlocks Level 4 expert challenges & peer question reviewer privileges.',
+    badge: '🥇 Guldexpert',
+    quizAccess: 'Quiz på nivå 4',
+    benefits:
+      'Låser upp expertutmaningar på nivå 4 och behörighet att granska andra användares frågor.',
   },
   {
     level: 5,
-    name: 'PT Candidate / Master',
+    name: 'PT-kandidat / mästare',
     xpRequired: 400,
     xpRange: '400+ XP',
-    badge: '💎 Diamond Legend',
-    quizAccess: 'Level 5 Quizzes',
-    benefits: 'Unlocks Level 5 PT Candidate exam-level questions & certification readiness status.',
+    badge: '💎 Diamantlegend',
+    quizAccess: 'Quiz på nivå 5',
+    benefits:
+      'Låser upp frågor på PT-provets nivå (nivå 5) och visar om du är redo för certifiering.',
   },
 ]
 
@@ -227,7 +230,7 @@ async function handleLogout() {
 
     clearCurrentUser()
   } catch (error) {
-    logoutError.value = 'Logout failed: ' + error.message
+    logoutError.value = 'Kunde inte logga ut: ' + error.message
   } finally {
     loggingOut.value = false
   }
@@ -239,7 +242,7 @@ async function handleLogin() {
     user.value = await api.login(loginEmail.value, loginPassword.value)
     await loadUserData({ force: true })
   } catch (err) {
-    loginError.value = 'Login failed: ' + err.message
+    loginError.value = 'Kunde inte logga in: ' + err.message
   }
 }
 
@@ -275,12 +278,12 @@ async function handleRegister() {
     )
 
     regSuccess.value = regRequestOrg.value
-      ? 'Account created! Your organization application is pending admin approval. Logging you in...'
-      : 'Account created successfully! Logging you in...'
+      ? 'Kontot har skapats! Din ansökan om organisationskonto väntar på administratörens godkännande. Loggar in…'
+      : 'Kontot har skapats! Loggar in…'
     user.value = await api.login(regEmail.value.trim(), regPassword.value)
     await loadUserData({ force: true })
   } catch (err) {
-    regError.value = 'Registration failed: ' + err.message
+    regError.value = 'Kunde inte skapa kontot: ' + err.message
   } finally {
     registering.value = false
   }
@@ -294,7 +297,7 @@ async function handlePrivacyToggle(event) {
       user.value.is_public_prospect = isChecked
     }
   } catch (err) {
-    alert('Failed to update privacy settings: ' + err.message)
+    alert('Kunde inte uppdatera integritetsinställningarna: ' + err.message)
     event.target.checked = !isChecked
   }
 }
@@ -304,7 +307,7 @@ async function handleAccessRequestResponse(requestId, status) {
     await api.respondToAccessRequest(requestId, status)
     accessRequests.value = await api.getMyAccessRequests()
   } catch (err) {
-    alert('Failed to update organization access request: ' + err.message)
+    alert('Kunde inte uppdatera organisationens åtkomstförfrågan: ' + err.message)
   }
 }
 
@@ -312,7 +315,7 @@ async function inspectQuizDetails(quizId) {
   try {
     selectedQuizDetails.value = await api.getQuizDetails(quizId)
   } catch (err) {
-    alert('Failed to load details for quiz #' + quizId)
+    alert('Kunde inte hämta detaljer för quiz #' + quizId)
   }
 }
 
@@ -333,20 +336,20 @@ function getUserAnswerText(q) {
     return q.free_text_answer
       ? `"${q.free_text_answer}"`
       : q.is_skipped
-        ? 'Skipped'
-        : 'No answer entered'
+        ? 'Överhoppad'
+        : 'Inget svar angivet'
   }
   if (q.question_type === 'matching') {
-    if (q.is_skipped) return 'Skipped'
+    if (q.is_skipped) return 'Överhoppad'
     const map =
       q.submitted_answer && typeof q.submitted_answer === 'object' ? q.submitted_answer : null
-    if (!map) return 'No answer selected'
+    if (!map) return 'Inget svar valt'
     return (q.answers || [])
       .map((a) => `${a.answer_text} → ${map[a.id] ?? map[String(a.id)] ?? '—'}`)
       .join(' | ')
   }
   const opt = q.answers?.find((a) => a.id === q.chosen_answer_id)
-  return opt ? opt.answer_text : q.is_skipped ? 'Skipped' : 'No answer selected'
+  return opt ? opt.answer_text : q.is_skipped ? 'Överhoppad' : 'Inget svar valt'
 }
 
 function getCorrectAnswerText(q) {
@@ -354,7 +357,7 @@ function getCorrectAnswerText(q) {
     return (q.answers || []).map((a) => `${a.answer_text} → ${a.match_text}`).join(' | ')
   }
   const opt = q.answers?.find((a) => a.is_correct)
-  return opt ? opt.answer_text : 'N/A'
+  return opt ? opt.answer_text : 'Ej tillgängligt'
 }
 
 function getSourceUrl(url) {
@@ -368,11 +371,11 @@ function getSourceUrl(url) {
   <div class="profile-page">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">USER PROFILE & HISTORY</p>
-        <h1>My Progression & Quiz History</h1>
+        <p class="eyebrow">ANVÄNDARPROFIL OCH HISTORIK</p>
+        <h1>Mina framsteg och min quizhistorik</h1>
         <p class="heading-description">
-          Track your earned XP, difficulty progression (Level 1–5), and view detailed history of
-          completed quizzes.
+          Följ dina intjänade XP och framsteg i svårighetsgrad (nivå 1–5) och se detaljerad historik
+          över genomförda quiz.
         </p>
       </div>
     </div>
@@ -383,19 +386,21 @@ function getSourceUrl(url) {
         {{ logoutError }}
       </p>
       <div class="user-header">
-        <div class="avatar-large">{{ user.username ? user.username[0].toUpperCase() : 'U' }}</div>
+        <div class="avatar-large">{{ user.username ? user.username[0].toUpperCase() : 'A' }}</div>
         <div>
           <div class="user-title-row">
             <h2>{{ user.username }}</h2>
             <button
               class="level-pill-button"
               @click="showLevelModal = true"
-              title="Click to view Level diagram & rewards"
+              title="Visa nivåöversikt och belöningar"
             >
-              ⭐ Overall Level {{ overallLevel }} ℹ️
+              ⭐ Övergripande nivå {{ overallLevel }} ℹ️
             </button>
           </div>
-          <p class="text-muted">{{ user.email }} • Role: {{ user.role }}</p>
+          <p class="text-muted">
+            {{ user.email }} • Roll: {{ ROLE_LABELS[user.role] ?? 'Okänd roll' }}
+          </p>
         </div>
       </div>
 
@@ -404,19 +409,19 @@ function getSourceUrl(url) {
         v-if="user.role === 'user' && user.org_request_status === 'pending'"
         class="org-status-banner pending"
       >
-        <strong>⏳ Organization Account Application Pending</strong>
+        <strong>⏳ Ansökan om organisationskonto väntar på godkännande</strong>
         <p class="text-muted">
-          Your request to upgrade this account to an Organization account is awaiting administrator
-          approval. Once approved, you will gain access to the Prospect Insights portal.
+          Din ansökan om att uppgradera kontot till ett organisationskonto väntar på
+          administratörens godkännande. När den godkänts får du tillgång till kandidatöversikten.
         </p>
       </div>
       <div
         v-else-if="user.role === 'user' && user.org_request_status === 'rejected'"
         class="org-status-banner rejected"
       >
-        <strong>✕ Organization Account Application Declined</strong>
+        <strong>✕ Ansökan om organisationskonto har avslagits</strong>
         <p class="text-muted">
-          Your request for an Organization account was declined by an administrator.
+          Din ansökan om organisationskonto har avslagits av en administratör.
         </p>
       </div>
 
@@ -428,16 +433,16 @@ function getSourceUrl(url) {
             :checked="!!user.is_public_prospect"
             @change="handlePrivacyToggle($event)"
           />
-          <span>Visible as a prospect candidate to verified organizations</span>
+          <span>Synlig som kandidat för verifierade organisationer</span>
         </label>
         <p class="text-muted">
-          When enabled, verified organizations can discover your username and send a request to view
-          your quiz results. Your scores and history are only shared with organizations you
-          explicitly approve below.
+          När detta är aktiverat kan verifierade organisationer hitta ditt användarnamn och begära
+          att få se dina quizresultat. Dina resultat och din historik delas bara med organisationer
+          som du godkänner nedan.
         </p>
 
         <div class="access-requests-panel">
-          <h4>Organization Access Requests & Permissions</h4>
+          <h4>Organisationers åtkomstförfrågningar och behörigheter</h4>
           <div v-if="accessRequests.length > 0" class="access-requests-list">
             <div v-for="req in accessRequests" :key="req.id" class="access-request-item">
               <div class="access-request-info">
@@ -445,10 +450,10 @@ function getSourceUrl(url) {
                 <span :class="['status-pill', req.status]">
                   {{
                     req.status === 'pending'
-                      ? '⏳ Pending Approval'
+                      ? '⏳ Väntar på godkännande'
                       : req.status === 'approved'
-                        ? '✅ Approved'
-                        : '✕ Declined / Revoked'
+                        ? '✅ Godkänd'
+                        : '✕ Avslagen / återkallad'
                   }}
                 </span>
               </div>
@@ -459,7 +464,7 @@ function getSourceUrl(url) {
                   class="button button-accent button-sm"
                   @click="handleAccessRequestResponse(req.id, 'approved')"
                 >
-                  Approve Access ✓
+                  Godkänn åtkomst ✓
                 </button>
                 <button
                   v-if="req.status === 'pending'"
@@ -467,7 +472,7 @@ function getSourceUrl(url) {
                   class="button button-outline button-sm"
                   @click="handleAccessRequestResponse(req.id, 'rejected')"
                 >
-                  Decline ✕
+                  Avslå ✕
                 </button>
                 <button
                   v-if="req.status === 'approved'"
@@ -475,13 +480,13 @@ function getSourceUrl(url) {
                   class="button button-outline button-sm"
                   @click="handleAccessRequestResponse(req.id, 'rejected')"
                 >
-                  Revoke Access
+                  Återkalla åtkomst
                 </button>
               </div>
             </div>
           </div>
           <p v-else class="text-muted">
-            No organizations have requested access to your results yet.
+            Inga organisationer har begärt åtkomst till dina resultat ännu.
           </p>
         </div>
       </div>
@@ -489,13 +494,15 @@ function getSourceUrl(url) {
       <!-- XP Progression Overview Bar -->
       <div v-if="progress" class="overall-xp-section">
         <div class="xp-header-row">
-          <span class="xp-title">Platform XP Progression</span>
+          <span class="xp-title">XP-utveckling på plattformen</span>
           <span class="xp-value">
-            <strong>{{ totalXp }} XP Total</strong>
+            <strong>{{ totalXp }} XP totalt</strong>
             <template v-if="overallLevel < 5">
-              ({{ xpToNextLevel }} XP to Level {{ overallLevel + 1 }})
+              ({{ xpToNextLevel }} XP till nivå {{ overallLevel + 1 }})
             </template>
-            <template v-else> • <span class="text-success">👑 Max Level Reached!</span> </template>
+            <template v-else>
+              • <span class="text-success">👑 Högsta nivån uppnådd!</span>
+            </template>
           </span>
         </div>
         <div class="progress-bar lg">
@@ -506,11 +513,11 @@ function getSourceUrl(url) {
       <div v-if="progress" class="progress-stats">
         <div class="stat-card">
           <span class="value">{{ progress.total_answered }}</span>
-          <span class="label">Questions Answered</span>
+          <span class="label">Besvarade frågor</span>
         </div>
         <div class="stat-card">
           <span class="value">{{ progress.total_correct }}</span>
-          <span class="label">Correct Answers</span>
+          <span class="label">Rätta svar</span>
         </div>
         <div class="stat-card">
           <span class="value">
@@ -520,17 +527,17 @@ function getSourceUrl(url) {
                 : 0
             }}%
           </span>
-          <span class="label">Overall Accuracy</span>
+          <span class="label">Total andel rätta svar</span>
         </div>
         <div class="stat-card clickable" @click="showLevelModal = true">
-          <span class="value">Level {{ overallLevel }}</span>
-          <span class="label">Current Tier (Details ℹ️)</span>
+          <span class="value">Nivå {{ overallLevel }}</span>
+          <span class="label">Nuvarande nivå (detaljer ℹ️)</span>
         </div>
       </div>
 
-      <!-- Topic Mastery -->
+      <!-- Ämneskunskaper -->
       <div class="topic-progress-section">
-        <h3>Topic Mastery</h3>
+        <h3>Ämneskunskaper</h3>
         <div v-if="progress && progress.progress_by_topic.length > 0" class="progress-list">
           <div v-for="tp in progress.progress_by_topic" :key="tp.id" class="tp-item">
             <div class="tp-info">
@@ -539,9 +546,9 @@ function getSourceUrl(url) {
                 <button
                   class="level-chip-clickable"
                   @click="showLevelModal = true"
-                  title="Click to inspect level diagram & benefits"
+                  title="Visa nivåöversikt och förmåner"
                 >
-                  ⭐ Level {{ tp.level }} ℹ️
+                  ⭐ Nivå {{ tp.level }} ℹ️
                 </button>
               </div>
               <span>{{ tp.xp }} XP</span>
@@ -554,60 +561,79 @@ function getSourceUrl(url) {
             </div>
             <div class="xp-next-level">
               <span v-if="tp.level < 5">
-                <strong>{{ 100 - (tp.xp % 100) }} XP</strong> needed to reach Level
+                <strong>{{ 100 - (tp.xp % 100) }} XP</strong> behövs för att nå nivå
                 {{ tp.level + 1 }}
               </span>
-              <span v-else class="text-success"> 👑 Max Level Reached! </span>
+              <span v-else class="text-success"> 👑 Högsta nivån uppnådd! </span>
             </div>
           </div>
         </div>
-        <p v-else class="text-muted">Take a quiz in Explore skills to start earning XP!</p>
+        <p v-else class="text-muted">Gör ett quiz under Utforska kunskap för att börja samla XP!</p>
       </div>
 
       <!-- Quiz History Table -->
       <div class="history-section">
-        <h3>Completed Quiz History</h3>
+        <h3>Quizhistorik</h3>
         <div v-if="history.length > 0" class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Quiz #</th>
-                <th>Topic</th>
-                <th>Difficulty</th>
-                <th>Score / Accuracy</th>
-                <th>Date Completed</th>
-                <th>Action</th>
+          <table class="data-table" role="table">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Quiz #</th>
+                <th role="columnheader">Ämne</th>
+                <th role="columnheader">Svårighetsgrad</th>
+                <th role="columnheader">Resultat / Andel rätt</th>
+                <th role="columnheader">Slutfört</th>
+                <th role="columnheader">Åtgärd</th>
               </tr>
             </thead>
-            <tbody>
-              <tr v-for="q in history" :key="q.quiz_id">
-                <td>#{{ q.quiz_id }}</td>
-                <td>
-                  <span class="badge">{{ q.topic_name }}</span>
-                </td>
-                <td>
+            <tbody role="rowgroup">
+              <tr
+                v-for="q in history"
+                :key="q.quiz_id"
+                class="quiz-history-row"
+                role="row"
+                @click="inspectQuizDetails(q.quiz_id)"
+              >
+                <td role="cell" data-label="Quiz">
                   <button
-                    class="level-chip-clickable"
-                    @click="showLevelModal = true"
-                    title="Click for Level diagram"
+                    type="button"
+                    class="button-text quiz-history-link"
+                    :aria-label="`Öppna rapport för quiz #${q.quiz_id}: ${q.topic_name}`"
+                    @click.stop="inspectQuizDetails(q.quiz_id)"
                   >
-                    ⭐ Level {{ q.difficulty }}
+                    #{{ q.quiz_id }}
                   </button>
                 </td>
-                <td>
-                  <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
-                  <span class="text-muted">
-                    ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
-                    +{{ q.total_score }} XP
-                  </span>
+                <td role="cell" data-label="Ämne">
+                  <span class="badge">{{ q.topic_name }}</span>
                 </td>
-                <td>{{ new Date(q.completed_at).toLocaleString() }}</td>
-                <td>
+                <td role="cell" data-label="Svårighetsgrad">
                   <button
-                    @click="inspectQuizDetails(q.quiz_id)"
+                    class="level-chip-clickable"
+                    @click.stop="showLevelModal = true"
+                    title="Visa nivådiagram"
+                  >
+                    ⭐ Nivå {{ q.difficulty }}
+                  </button>
+                </td>
+                <td role="cell" data-label="Resultat / Andel rätt">
+                  <div>
+                    <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
+                    <span class="text-muted">
+                      ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
+                      +{{ q.total_score }} XP
+                    </span>
+                  </div>
+                </td>
+                <td role="cell" data-label="Slutfört">
+                  {{ new Date(q.completed_at).toLocaleString('sv-SE') }}
+                </td>
+                <td role="cell" data-label="Åtgärd">
+                  <button
+                    @click.stop="inspectQuizDetails(q.quiz_id)"
                     class="button button-outline button-sm"
                   >
-                    Inspect Report ↗
+                    Visa rapport ↗
                   </button>
                 </td>
               </tr>
@@ -615,7 +641,7 @@ function getSourceUrl(url) {
           </table>
         </div>
         <p v-else class="text-muted">
-          No completed quizzes found yet. Start a quiz under Explore skills!
+          Du har inte slutfört några quiz ännu. Starta ett quiz under Explore skills!
         </p>
       </div>
       <button
@@ -624,7 +650,7 @@ function getSourceUrl(url) {
         :disabled="loggingOut"
         @click="handleLogout"
       >
-        {{ loggingOut ? 'Logging out...' : 'Log out' }}
+        {{ loggingOut ? 'Loggar ut…' : 'Logga ut' }}
       </button>
     </div>
 
@@ -632,22 +658,22 @@ function getSourceUrl(url) {
     <div v-if="selectedQuizDetails" class="modal-overlay" @click.self="selectedQuizDetails = null">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>Quiz #{{ selectedQuizDetails.id }} Detailed Report</h2>
-          <button @click="selectedQuizDetails = null" class="button-text">✕ Close</button>
+          <h2>Detaljerad rapport för quiz #{{ selectedQuizDetails.id }}</h2>
+          <button @click="selectedQuizDetails = null" class="button-text">✕ Stäng</button>
         </div>
 
         <div class="modal-body">
           <div class="meta-row">
             <p class="meta">
-              Topic: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Difficulty: ⭐ Level
-              {{ selectedQuizDetails.difficulty }} | Score: +{{ selectedQuizDetails.total_score }}
+              Ämne: <strong>{{ selectedQuizDetails.topic_name }}</strong> | Svårighetsgrad: ⭐ Nivå
+              {{ selectedQuizDetails.difficulty }} | Poäng: +{{ selectedQuizDetails.total_score }}
               XP
             </p>
             <button
               @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
               class="button button-accent button-sm"
             >
-              Retake Quiz 🔄
+              Gör quizet igen 🔄
             </button>
           </div>
 
@@ -660,25 +686,25 @@ function getSourceUrl(url) {
               <span class="status-icon">{{ q.is_correct ? '✅' : '❌' }}</span>
               <div class="result-details">
                 <p class="question-title">
-                  <strong>Q{{ q.position }}: {{ q.question_text }}</strong>
+                  <strong>Fråga {{ q.position }}: {{ q.question_text }}</strong>
                 </p>
 
                 <div class="answers-comparison">
                   <p>
-                    <strong>Your Answer:</strong>
+                    <strong>Ditt svar:</strong>
                     <span :class="q.is_correct ? 'text-success' : 'text-danger'">
                       {{ getUserAnswerText(q) }}
                     </span>
                   </p>
                   <p v-if="!q.is_correct" class="correct-answer-line">
-                    <strong>Correct Answer:</strong>
+                    <strong>Rätt svar:</strong>
                     <span class="text-success">{{ getCorrectAnswerText(q) }}</span>
                   </p>
                 </div>
 
                 <!-- Hyperlinked Source(s) -->
                 <div v-if="q.sources && q.sources.length > 0" class="source-container">
-                  <span class="source-label">📖 Reference Source:</span>
+                  <span class="source-label">📖 Källa:</span>
                   <span v-for="src in q.sources" :key="src.id || src.source_text">
                     <a
                       v-if="src.url"
@@ -702,10 +728,10 @@ function getSourceUrl(url) {
             @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
             class="button button-accent"
           >
-            Retake Quiz 🔄
+            Gör quizet igen 🔄
           </button>
           <button @click="selectedQuizDetails = null" class="button button-outline">
-            Close Report
+            Stäng rapport
           </button>
         </div>
       </div>
@@ -715,19 +741,19 @@ function getSourceUrl(url) {
     <div v-if="showLevelModal" class="modal-overlay" @click.self="showLevelModal = false">
       <div class="modal-content large">
         <div class="modal-header">
-          <h2>🏆 Level Progression & Requirements</h2>
-          <button @click="showLevelModal = false" class="button-text">✕ Close</button>
+          <h2>🏆 Nivåutveckling och krav</h2>
+          <button @click="showLevelModal = false" class="button-text">✕ Stäng</button>
         </div>
 
         <div class="modal-body">
           <p class="heading-description">
-            Earn XP by completing quizzes. Every 100 XP unlocks the next Level tier, granting access
-            to higher difficulty questions and platform rewards.
+            Samla XP genom att göra quiz. Varje 100 XP låser upp nästa nivå och ger tillgång till
+            svårare frågor och belöningar på plattformen.
           </p>
 
           <!-- Visual Step Diagram -->
           <div class="level-diagram-container">
-            <h3>Visual Progression Roadmap</h3>
+            <h3>Översikt över din nivåutveckling</h3>
             <div class="level-stepper">
               <div
                 v-for="item in levelDefinitions"
@@ -744,15 +770,15 @@ function getSourceUrl(url) {
                 <div class="step-badge-icon">
                   {{ overallLevel > item.level ? '✅' : overallLevel === item.level ? '⭐' : '🔒' }}
                 </div>
-                <div class="step-level-num">Level {{ item.level }}</div>
+                <div class="step-level-num">Nivå {{ item.level }}</div>
                 <div class="step-xp-range">{{ item.xpRange }}</div>
                 <div class="step-status">
                   {{
                     overallLevel > item.level
-                      ? 'Mastered'
+                      ? 'Avklarad'
                       : overallLevel === item.level
-                        ? 'Current Level'
-                        : 'Locked'
+                        ? 'Nuvarande nivå'
+                        : 'Låst'
                   }}
                 </div>
               </div>
@@ -761,7 +787,7 @@ function getSourceUrl(url) {
 
           <!-- Detailed Level Rewards Breakdown -->
           <div class="level-table-container">
-            <h3>Level Tiers, Unlocks & Rewards</h3>
+            <h3>Nivåer, upplåsningar och belöningar</h3>
             <div class="level-cards-grid">
               <div
                 v-for="item in levelDefinitions"
@@ -773,15 +799,15 @@ function getSourceUrl(url) {
               >
                 <div class="level-card-header">
                   <div>
-                    <span class="badge">Level {{ item.level }}</span>
+                    <span class="badge">Nivå {{ item.level }}</span>
                     <strong class="level-name">{{ item.name }}</strong>
                   </div>
                   <span class="badge-tag">{{ item.badge }}</span>
                 </div>
-                <p class="xp-range-info">⚡ {{ item.xpRange }} required</p>
+                <p class="xp-range-info">⚡ {{ item.xpRange }} krävs</p>
                 <div class="unlocks-list">
-                  <p>🎯 <strong>Quiz Access:</strong> {{ item.quizAccess }}</p>
-                  <p>🎁 <strong>Benefits & Rewards:</strong> {{ item.benefits }}</p>
+                  <p>🎯 <strong>Tillgång till quiz:</strong> {{ item.quizAccess }}</p>
+                  <p>🎁 <strong>Förmåner och belöningar:</strong> {{ item.benefits }}</p>
                 </div>
               </div>
             </div>
@@ -789,7 +815,9 @@ function getSourceUrl(url) {
         </div>
 
         <div class="modal-footer">
-          <button @click="showLevelModal = false" class="button button-accent">Got It! 👍</button>
+          <button @click="showLevelModal = false" class="button button-accent">
+            Jag förstår! 👍
+          </button>
         </div>
       </div>
     </div>
@@ -802,42 +830,42 @@ function getSourceUrl(url) {
           :class="['auth-tab-btn', { active: authMode === 'login' }]"
           @click="authMode = 'login'"
         >
-          Log In 🔑
+          Logga in 🔑
         </button>
         <button
           type="button"
           :class="['auth-tab-btn', { active: authMode === 'register' }]"
           @click="authMode = 'register'"
         >
-          Create Account ✨
+          Skapa konto ✨
         </button>
       </div>
 
       <!-- Login Form -->
       <template v-if="authMode === 'login'">
-        <h2>Log in to your account</h2>
-        <p class="text-muted">Log in to track your quiz history and progression.</p>
+        <h2>Logga in på ditt konto</h2>
+        <p class="text-muted">Logga in för att följa din quizhistorik och dina framsteg.</p>
 
         <div v-if="loginError" class="error-banner">⚠️ {{ loginError }}</div>
 
         <form @submit.prevent="handleLogin" class="login-form">
           <div class="form-group">
-            <label>Email Address:</label>
+            <label>E-postadress:</label>
             <input type="email" v-model="loginEmail" placeholder="admin@skillswap.se" required />
           </div>
           <div class="form-group">
-            <label>Password:</label>
+            <label>Lösenord:</label>
             <input type="password" v-model="loginPassword" placeholder="••••••••" required />
           </div>
-          <button type="submit" class="button button-accent">Log In 🔑</button>
+          <button type="submit" class="button button-accent">Logga in 🔑</button>
         </form>
       </template>
 
       <!-- Register Form -->
       <template v-else>
-        <h2>Create a new account</h2>
+        <h2>Skapa ett nytt konto</h2>
         <p class="text-muted">
-          Register to save your quiz scores and track your skill progression.
+          Skapa ett konto för att spara dina quizresultat och följa din kunskapsutveckling.
         </p>
 
         <div v-if="regError" class="error-banner">⚠️ {{ regError }}</div>
@@ -845,11 +873,13 @@ function getSourceUrl(url) {
 
         <form @submit.prevent="handleRegister" class="login-form" novalidate>
           <div class="form-group">
-            <label>{{ regRequestOrg ? 'Organization Name / Username:' : 'Username:' }}</label>
+            <label>{{
+              regRequestOrg ? 'Organisationsnamn / användarnamn:' : 'Användarnamn:'
+            }}</label>
             <input
               type="text"
               v-model="regUsername"
-              :placeholder="regRequestOrg ? 'e.g. nordic_gym' : 'e.g. johndoe'"
+              :placeholder="regRequestOrg ? 't.ex. nordiskt_gym' : 't.ex. annasvensson'"
               minlength="3"
               maxlength="50"
               required
@@ -866,7 +896,7 @@ function getSourceUrl(url) {
             </p>
           </div>
           <div class="form-group">
-            <label>Email Address:</label>
+            <label>E-postadress:</label>
             <input
               type="email"
               v-model="regEmail"
@@ -881,11 +911,11 @@ function getSourceUrl(url) {
             </p>
           </div>
           <div class="form-group">
-            <label>Password:</label>
+            <label>Lösenord:</label>
             <input
               type="password"
               v-model="regPassword"
-              placeholder="Min 15 characters"
+              placeholder="Minst 15 tecken"
               minlength="15"
               maxlength="128"
               required
@@ -894,7 +924,7 @@ function getSourceUrl(url) {
               aria-describedby="reg-password-help reg-password-error"
             />
             <span id="reg-password-help" class="form-help-text"
-              >Password must be 15-128 characters long.</span
+              >Lösenordet måste vara 15-128 tecken långt.</span
             >
             <p
               v-if="regTouched.password && regPasswordError"
@@ -905,11 +935,11 @@ function getSourceUrl(url) {
             </p>
           </div>
           <div class="form-group">
-            <label>Confirm Password:</label>
+            <label>Bekräfta lösenord:</label>
             <input
               type="password"
               v-model="regConfirmPassword"
-              placeholder="Repeat password"
+              placeholder="Upprepa lösenord"
               minlength="15"
               maxlength="128"
               required
@@ -928,15 +958,15 @@ function getSourceUrl(url) {
           <div class="org-signup-box">
             <label class="privacy-toggle">
               <input type="checkbox" v-model="regRequestOrg" />
-              <span>Apply for an Organization Account (e.g. Gym / Employer)</span>
+              <span>Ansök om organisationskonto (t.ex. gym eller arbetsgivare)</span>
             </label>
             <span class="form-help-text">
-              Organization accounts require administrator sign-off before accessing candidate
-              prospect insights.
+              Organisationskonton måste godkännas av en administratör innan de får tillgång till
+              kandidatöversikten.
             </span>
           </div>
           <button type="submit" class="button button-accent" :disabled="registering">
-            {{ registering ? 'Registering...' : 'Register & Sign In ✨' }}
+            {{ registering ? 'Skapar konto…' : 'Skapa konto och logga in ✨' }}
           </button>
         </form>
       </template>
