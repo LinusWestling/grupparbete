@@ -249,16 +249,19 @@ async function handleRegister() {
   regError.value = null
   regSuccess.value = null
 
-  if (regUsername.value.trim().length < 3) {
-    regError.value = 'Username must be at least 3 characters long.'
-    return
+  regTouched.value = {
+    username: true,
+    email: true,
+    password: true,
+    confirmPassword: true,
   }
-  if (regPassword.value.length < 15) {
-    regError.value = 'Password must be at least 15 characters long.'
-    return
-  }
-  if (regPassword.value !== regConfirmPassword.value) {
-    regError.value = 'Passwords do not match.'
+  
+  if (
+    regUsernameError.value ||
+    regEmailError.value ||
+    regPasswordError.value ||
+    regConfirmPasswordError.value
+  ) {
     return
   }
 
@@ -840,7 +843,7 @@ function getSourceUrl(url) {
         <div v-if="regError" class="error-banner">⚠️ {{ regError }}</div>
         <div v-if="regSuccess" class="success-banner">✅ {{ regSuccess }}</div>
 
-        <form @submit.prevent="handleRegister" class="login-form">
+        <form @submit.prevent="handleRegister" class="login-form" novalidate>
           <div class="form-group">
             <label>{{ regRequestOrg ? 'Organization Name / Username:' : 'Username:' }}</label>
             <input
@@ -850,11 +853,36 @@ function getSourceUrl(url) {
               minlength="3"
               maxlength="50"
               required
+              @blur="markRegTouched('username')"
+              :aria-invalid="regTouched.username && !!regUsernameError"
+              aria-describedby="reg-username-error"
             />
+            <p
+              v-if="regTouched.username && regUsernameError"
+              id="reg-username-error"
+              class="field-error"
+            >
+              {{ regUsernameError }}
+            </p>
           </div>
           <div class="form-group">
             <label>Email Address:</label>
-            <input type="email" v-model="regEmail" placeholder="john@example.com" required />
+            <input 
+              type="email" 
+              v-model="regEmail" 
+              placeholder="john@example.com" 
+              required
+              @blur="markRegTouched('email')"
+              :aria-invalid="regTouched.email && !!regEmailError"
+              aria-describedby="reg-email-error"
+            />
+            <p
+              v-if="regTouched.email && regEmailError"
+              id="reg-email-error"
+              class="field-error"
+            >
+              {{ regEmailError }}
+            </p>
           </div>
           <div class="form-group">
             <label>Password:</label>
@@ -863,9 +891,20 @@ function getSourceUrl(url) {
               v-model="regPassword"
               placeholder="Min 15 characters"
               minlength="15"
+              maxlength="128"
               required
+              @blur="markRegTouched('password')"
+              :aria-invalid="regTouched.password && !!regPasswordError"
+              aria-describedby="reg-password-help reg-password-error"
             />
-            <span class="form-help-text">Password must be at least 15 characters long.</span>
+            <span id="reg-password-help" class="form-help-text">Password must be 15-128 characters long.</span>
+            <p 
+              v-if="regTouched.password && regPasswordError"
+              id="reg-password-error"
+              class="field-error"
+            >
+              {{ regPasswordError }}
+            </p>
           </div>
           <div class="form-group">
             <label>Confirm Password:</label>
@@ -874,8 +913,19 @@ function getSourceUrl(url) {
               v-model="regConfirmPassword"
               placeholder="Repeat password"
               minlength="15"
+              maxlength="128"
               required
+              @blur="markRegTouched('confirmPassword')"
+              :aria-invalid="regTouched.confirmPassword && !!regConfirmPasswordError"
+              aria-describedby="reg-confirm-password-error"
             />
+            <p
+              v-if="regTouched.confirmPassword && regConfirmPasswordError"
+              id="reg-confirm-password-error"
+              class="field-error"
+            >
+              {{ regConfirmPasswordError }}
+            </p>
           </div>
           <div class="org-signup-box">
             <label class="privacy-toggle">
