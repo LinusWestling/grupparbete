@@ -512,45 +512,64 @@ function getSourceUrl(url) {
 
       <!-- Quiz History Table -->
       <div class="history-section">
-        <h3>Historik över genomförda quiz</h3>
+        <h3>Quizhistorik</h3>
         <div v-if="history.length > 0" class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Quiz #</th>
-                <th>Ämne</th>
-                <th>Svårighetsgrad</th>
-                <th>Poäng / andel rätta svar</th>
-                <th>Slutförandedatum</th>
-                <th>Åtgärd</th>
+          <table class="data-table" role="table">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Quiz #</th>
+                <th role="columnheader">Ämne</th>
+                <th role="columnheader">Svårighetsgrad</th>
+                <th role="columnheader">Resultat / Andel rätt</th>
+                <th role="columnheader">Slutfört</th>
+                <th role="columnheader">Åtgärd</th>
               </tr>
             </thead>
-            <tbody>
-              <tr v-for="q in history" :key="q.quiz_id">
-                <td>#{{ q.quiz_id }}</td>
-                <td>
+            <tbody role="rowgroup">
+              <tr
+                v-for="q in history"
+                :key="q.quiz_id"
+                class="quiz-history-row"
+                role="row"
+                @click="inspectQuizDetails(q.quiz_id)"
+              >
+                <td role="cell" data-label="Quiz">
+                  <button
+                    type="button"
+                    class="button-text quiz-history-link"
+                    :aria-label="`Öppna rapport för quiz #${q.quiz_id}: ${q.topic_name}`"
+                    @click.stop="inspectQuizDetails(q.quiz_id)"
+                  >
+                    #{{ q.quiz_id }}
+                  </button>
+                </td>
+                <td role="cell" data-label="Ämne">
                   <span class="badge">{{ q.topic_name }}</span>
                 </td>
-                <td>
+                <td role="cell" data-label="Svårighetsgrad">
                   <button
                     class="level-chip-clickable"
-                    @click="showLevelModal = true"
-                    title="Visa nivåöversikt"
+                    @click.stop="showLevelModal = true"
+                    title="Visa nivådiagram"
                   >
                     ⭐ Nivå {{ q.difficulty }}
                   </button>
                 </td>
-                <td>
-                  <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
-                  <span class="text-muted">
-                    ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
-                    +{{ q.total_score }} XP
-                  </span>
+                <td role="cell" data-label="Resultat / Andel rätt">
+                  <div>
+                    <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
+                    <span class="text-muted">
+                      ({{ q.total_cnt > 0 ? Math.round((q.correct_cnt / q.total_cnt) * 100) : 0 }}%)
+                      +{{ q.total_score }} XP
+                    </span>
+                  </div>
                 </td>
-                <td>{{ new Date(q.completed_at).toLocaleString('sv-SE') }}</td>
-                <td>
+                <td role="cell" data-label="Slutfört">
+                  {{ new Date(q.completed_at).toLocaleString('sv-SE') }}
+                </td>
+                <td role="cell" data-label="Åtgärd">
                   <button
-                    @click="inspectQuizDetails(q.quiz_id)"
+                    @click.stop="inspectQuizDetails(q.quiz_id)"
                     class="button button-outline button-sm"
                   >
                     Visa rapport ↗
@@ -561,7 +580,7 @@ function getSourceUrl(url) {
           </table>
         </div>
         <p v-else class="text-muted">
-          Inga genomförda quiz ännu. Starta ett quiz under Utforska kunskap!
+          Du har inte slutfört några quiz ännu. Starta ett quiz under Explore skills!
         </p>
       </div>
       <button
