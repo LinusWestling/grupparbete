@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { api } from '../services/api'
+import { QUESTION_TYPE_LABELS } from '../services/questionTypes.js'
 import { currentUser, loadCurrentUser } from '../services/auth'
 import { quizStore } from '../stores/quizStore'
 import QuizSyncStatus from '../components/QuizSyncStatus.vue'
@@ -63,7 +64,7 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('Failed to load topics:', err)
-    error.value = 'Failed to load topics from database backend: ' + err.message
+    error.value = 'Det gick inte att hämta ämnen: ' + err.message
   } finally {
     loading.value = false
   }
@@ -77,7 +78,7 @@ async function startQuizSession(topic) {
     const payload = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
     quizStore.loadQuiz(payload)
   } catch (err) {
-    error.value = 'Failed to generate quiz: ' + err.message
+    error.value = 'Det gick inte att skapa quizet: ' + err.message
   } finally {
     loading.value = false
   }
@@ -128,8 +129,8 @@ async function navigateQuestion(direction, skip = false) {
   if (direction > 0 && !skip && !hasAnswer && !question.is_skipped) {
     error.value =
       question.question_type === 'matching'
-        ? 'Para ihop alla alternativ eller hoppa över frågan'
-        : 'Välj ett svar eller hoppa över frågan'
+        ? 'Para ihop alla alternativ eller hoppa över frågan.'
+        : 'Välj ett svar eller hoppa över frågan.'
     return
   }
   if (hasAnswer || skip) {
@@ -157,10 +158,10 @@ async function resumeQuiz(quizId) {
   try {
     quizStore.assertCanReplaceQuiz()
     const quiz = await api.getQuizDetails(quizId)
-    if (quiz.status !== 'in_progress') throw new Error('This quiz is already completed')
+    if (quiz.status !== 'in_progress') throw new Error('Det här quizet är redan avslutat.')
     quizStore.loadQuiz(quiz)
   } catch (err) {
-    error.value = 'Could not resume quiz: ' + err.message
+    error.value = 'Det gick inte att återuppta quizet: ' + err.message
   } finally {
     loading.value = false
   }
@@ -185,7 +186,8 @@ async function exitQuiz() {
     }
   }
   if (!quizStore.clearQuiz()) {
-    error.value = 'Your quiz has pending saves. Sync it to your account before leaving the quiz.'
+    error.value =
+      'Ditt quiz har osparade ändringar. Synkronisera dem med ditt konto innan du lämnar quizet.'
     return
   }
   try {
@@ -201,7 +203,7 @@ async function exitQuiz() {
     if (!loggedIn.value) return
     unfinishedQuizzes.value = await api.getUnfinishedQuizzes()
   } catch (err) {
-    error.value = 'Could not load unfinished quizzes: ' + err.message
+    error.value = 'Det gick inte att hämta pågående quiz: ' + err.message
   }
 }
 </script>
@@ -210,18 +212,18 @@ async function exitQuiz() {
   <div class="explore-page">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">EXPLORE SKILLS & KNOWLEDGE</p>
-        <h1>Quiz & Knowledge Center</h1>
+        <p class="eyebrow">UTFORSKA KUNSKAP</p>
+        <h1>Quiz och kunskap</h1>
         <p class="heading-description">
-          Choose a difficulty level (1–5) and test your knowledge across Anatomy, Exercise Science,
-          and Physiology.
+          Välj en svårighetsgrad (1–5) och testa dina kunskaper inom anatomi, träningslära och
+          fysiologi.
         </p>
       </div>
     </div>
 
     <!-- Difficulty Level Selector Bar -->
     <div v-if="!activeQuizSession" class="difficulty-bar">
-      <span class="diff-label">Select Difficulty Level for Quiz:</span>
+      <span class="diff-label">Välj svårighetsgrad för quizet:</span>
       <div class="difficulty-options">
         <button
           v-for="lvl in [1, 2, 3, 4, 5]"
@@ -229,11 +231,9 @@ async function exitQuiz() {
           :class="['diff-btn', { active: selectedDifficulty === lvl }]"
           @click="selectedDifficulty = lvl"
         >
-          ⭐ Level {{ lvl }}
+          ⭐ Nivå {{ lvl }}
           <span class="diff-desc">
-            {{
-              lvl === 1 ? 'Beginner' : lvl === 3 ? 'Intermediate' : lvl === 5 ? 'PT Candidate' : ''
-            }}
+            {{ lvl === 1 ? 'Nybörjare' : lvl === 3 ? 'Medel' : lvl === 5 ? 'PT-kandidat' : '' }}
           </span>
         </button>
       </div>
@@ -252,24 +252,27 @@ async function exitQuiz() {
         class="quiz-fallback-notice"
         role="status"
       >
-        Nivå {{ activeQuizSession.requested_difficulty }} saknar frågor inom detta ämne. Quizet
-        använder nivå {{ activeQuizSession.difficulty }}.
+        Det finns inga frågor på nivå {{ activeQuizSession.requested_difficulty }} inom det här
+        ämnet. Quizet använder nivå {{ activeQuizSession.difficulty }}.
       </p>
       <div class="quiz-header">
         <div class="quiz-header-meta">
           <span class="badge">{{ activeTopicName }}</span>
-          <span class="chip margin-left">⭐ Level {{ activeQuizSession.difficulty }}</span>
+          <span class="chip margin-left">⭐ Nivå {{ activeQuizSession.difficulty }}</span>
         </div>
         <span class="quiz-question-counter"
           >Fråga {{ currentQuestionIndex + 1 }} av {{ activeQuizSession.questions.length }}</span
         >
-        <button @click="exitQuiz" :disabled="submitting" class="button-text">✕ Exit Quiz</button>
+        <button @click="exitQuiz" :disabled="submitting" class="button-text">✕ Lämna quizet</button>
       </div>
 
       <div v-if="activeQuizSession.questions[currentQuestionIndex]" class="question-card">
         <p class="meta">
-          Type: {{ activeQuizSession.questions[currentQuestionIndex].question_type }} | Difficulty:
-          Level
+          Frågetyp:
+          {{
+            QUESTION_TYPE_LABELS[activeQuizSession.questions[currentQuestionIndex].question_type]
+          }}
+          | Svårighetsgrad: nivå
           {{ activeQuizSession.questions[currentQuestionIndex].difficulty_level }}
         </p>
         <h2>{{ activeQuizSession.questions[currentQuestionIndex].question_text }}</h2>
@@ -344,7 +347,7 @@ async function exitQuiz() {
           <input
             type="text"
             :value="selectedAnswers[activeQuizSession.questions[currentQuestionIndex].id] ?? ''"
-            placeholder="Type your answer here..."
+            placeholder="Skriv ditt svar här…"
             class="text-input"
             :disabled="submitting"
             @input="
@@ -361,7 +364,7 @@ async function exitQuiz() {
           v-if="activeQuizSession.questions[currentQuestionIndex].sources.length > 0"
           class="source-box"
         >
-          <span class="source-label">📖 Reference Source:</span>
+          <span class="source-label">📖 Källa:</span>
           <a
             v-for="src in activeQuizSession.questions[currentQuestionIndex].sources"
             :key="src.id"
@@ -380,7 +383,7 @@ async function exitQuiz() {
           @click="navigateQuestion(-1)"
           class="button button-outline"
         >
-          ← Previous
+          ← Föregående
         </button>
 
         <button
@@ -397,7 +400,7 @@ async function exitQuiz() {
           :disabled="submitting"
           class="button button-accent"
         >
-          Next →
+          Nästa →
         </button>
 
         <button
@@ -406,7 +409,7 @@ async function exitQuiz() {
           :disabled="submitting"
           class="button button-accent"
         >
-          Finish Quiz 🚀
+          Slutför quizet 🚀
         </button>
       </div>
 
@@ -434,11 +437,12 @@ async function exitQuiz() {
 
       <!-- 80% Qualification Badge -->
       <div v-if="quizResult?.meets_80_percent === true" class="qualification-badge">
-        ✓ {{ quizResult.percentage }}% - Uppfyller 80%-kravet för PT-utbildning
+        ✓ {{ quizResult.percentage }}% - Uppfyller 80-procentskravet för PT-utbildning
       </div>
       <div v-else-if="quizResult?.meets_80_percent === false" class="qualification-warning">
-        {{ quizResult.percentage }}% - Behöver {{ 80 - quizResult.percentage }}% till för
-        PT-kvalificering
+        {{ quizResult.percentage }}% - Behöver ytterligare
+        {{ 80 - quizResult.percentage }} procentenheter för att uppfylla kvalifikationskravet för
+        PT-utbildning
       </div>
 
       <div class="score-summary">
@@ -446,21 +450,19 @@ async function exitQuiz() {
           <span class="stat-value"
             >{{ quizResult.correct_count }} / {{ quizResult.total_questions }}</span
           >
-          <span class="stat-label"
-            >Correct Answers {{ pendingCompletion ? '(provisional)' : '' }}</span
-          >
+          <span class="stat-label">Rätta svar {{ pendingCompletion ? '(preliminära)' : '' }}</span>
         </div>
         <div class="stat">
           <span class="stat-value">+{{ quizResult.xp_earned }} XP</span>
           <span class="stat-label">
-            {{ pendingCompletion ? 'Estimated XP — awaiting confirmation' : 'XP Earned' }} (Level
+            {{ pendingCompletion ? 'Beräknade XP — väntar på bekräftelse' : 'Intjänade XP' }} (nivå
             {{ activeQuizSession ? activeQuizSession.difficulty : selectedDifficulty }})
           </span>
         </div>
       </div>
 
       <div class="results-list">
-        <h3>Answer Breakdown:</h3>
+        <h3>Dina svar:</h3>
         <div
           v-for="(res, idx) in quizResult.results"
           :key="idx"
@@ -473,9 +475,9 @@ async function exitQuiz() {
             <p>
               <strong>{{ idx + 1 }}. {{ res.question_text }}</strong>
             </p>
-            <p v-if="res.is_skipped">Skipped</p>
-            <p v-else><strong>Your Answer:</strong> {{ res.selected_answer_text }}</p>
-            <p><strong>Correct Answer:</strong> {{ res.correct_answer_text }}</p>
+            <p v-if="res.is_skipped">Överhoppad</p>
+            <p v-else><strong>Ditt svar:</strong> {{ res.selected_answer_text }}</p>
+            <p><strong>Rätt svar:</strong> {{ res.correct_answer_text }}</p>
             <p v-for="source in res.sources" :key="source.id" class="text-muted">
               {{ source.source_text }}
             </p>
@@ -542,13 +544,15 @@ async function exitQuiz() {
             <h3>{{ topic.name }}</h3>
             <span class="chip">{{ topic.question_count }} Frågor</span>
           </div>
-          <p>{{ topic.description || 'Explore and master key concepts in ' + topic.name }}</p>
+          <p>
+            {{ topic.description || 'Utforska och lär dig viktiga begrepp inom ' + topic.name }}
+          </p>
           <button
             @click="startQuizSession(topic)"
             :disabled="!loggedIn || loading || hasUnsyncedData || isSyncing"
             class="button button-outline"
           >
-            Start Level {{ selectedDifficulty }} {{ topic.name }} Quiz ↗
+            Starta quiz i {{ topic.name }} på nivå {{ selectedDifficulty }} ↗
           </button>
         </article>
       </div>

@@ -26,7 +26,7 @@ async function assignTest() {
     const id = selectedProspectDetails.value.id
     const result = await api.assignTest(id, testSettings.value)
     selectedProspectDetails.value = await api.getProspectDetails(id)
-    assignmentMessage.value = `Test #${result.quiz_id} assigned: ${result.total_questions} questions at level ${result.difficulty}.`
+    assignmentMessage.value = `Test #${result.quiz_id} tilldelat: ${result.total_questions} frågor på nivå ${result.difficulty}.`
   } catch (err) {
     assignmentError.value = err.message
   } finally {
@@ -56,7 +56,7 @@ function answerText(question) {
   return (
     question.free_text_answer ??
     question.answers.find((a) => a.id === question.chosen_answer_id)?.answer_text ??
-    'No answer'
+    'Inget svar'
   )
 }
 
@@ -88,7 +88,7 @@ async function fetchProspects() {
     error.value = null
     prospects.value = await api.getProspects(searchQuery.value)
   } catch (err) {
-    error.value = 'Failed to load prospect candidates: ' + err.message
+    error.value = 'Kunde inte hämta kandidater: ' + err.message
   } finally {
     loading.value = false
   }
@@ -108,7 +108,7 @@ async function requestAccess(prospect) {
     const res = await api.requestProspectAccess(prospect.id)
     prospect.access_status = res.access_status || 'pending'
   } catch (err) {
-    alert('Could not request access: ' + err.message)
+    alert('Kunde inte begära åtkomst: ' + err.message)
   } finally {
     requestingId.value = null
   }
@@ -123,7 +123,7 @@ async function inspectProspect(prospectId) {
     topics.value = await api.getTopics()
     selectedProspectDetails.value = await api.getProspectDetails(prospectId)
   } catch (err) {
-    alert('Could not load prospect details: ' + err.message)
+    alert('Kunde inte hämta kandidatuppgifter: ' + err.message)
   } finally {
     loadingDetails.value = false
   }
@@ -138,11 +138,12 @@ function closeDetailsModal() {
   <div class="org-page">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">ORGANIZATION RECRUITMENT & PROSPECT INSIGHTS</p>
-        <h1>Candidate Knowledge Overview</h1>
+        <p class="eyebrow">REKRYTERING OCH KANDIDATÖVERSIKT</p>
+        <h1>Översikt över kandidaternas kunskaper</h1>
         <p class="heading-description">
-          Discover candidates who have opted in as prospects, request permission to view their quiz
-          results, and inspect approved candidates' topic mastery and test history.
+          Hitta användare som valt att synas som kandidater och begär tillstånd att se deras
+          quizresultat. Granska ämneskunskaper och testhistorik för kandidater som godkänt din
+          förfrågan.
         </p>
       </div>
     </div>
@@ -153,18 +154,20 @@ function closeDetailsModal() {
         v-model="searchQuery"
         type="text"
         class="search-input"
-        placeholder="Search prospects by username..."
-        aria-label="Search prospects"
+        placeholder="Sök kandidater efter användarnamn…"
+        aria-label="Sök kandidater"
       />
       <div class="filter-group">
-        <label for="level-filter" class="text-sm font-semibold">Min Approved Level:</label>
+        <label for="level-filter" class="text-sm font-semibold"
+          >Lägsta nivå med godkänd åtkomst:</label
+        >
         <select id="level-filter" v-model="selectedMinLevel" class="filter-select">
-          <option :value="0">All Prospects</option>
-          <option :value="1">Approved Level 1+</option>
-          <option :value="2">Approved Level 2+</option>
-          <option :value="3">Approved Level 3+</option>
-          <option :value="4">Approved Level 4+</option>
-          <option :value="5">Approved Level 5 (PT Master)</option>
+          <option :value="0">Alla kandidater</option>
+          <option :value="1">Godkänd åtkomst, nivå 1+</option>
+          <option :value="2">Godkänd åtkomst, nivå 2+</option>
+          <option :value="3">Godkänd åtkomst, nivå 3+</option>
+          <option :value="4">Godkänd åtkomst, nivå 4+</option>
+          <option :value="5">Godkänd åtkomst, nivå 5 (PT-mästare)</option>
         </select>
       </div>
     </div>
@@ -173,11 +176,11 @@ function closeDetailsModal() {
     <div v-if="error" class="error-banner">⚠️ {{ error }}</div>
 
     <!-- Loading Indicator -->
-    <div v-if="loading" class="text-muted text-center">Loading prospect candidates...</div>
+    <div v-if="loading" class="text-muted text-center">Hämtar kandidater…</div>
 
     <!-- Empty State -->
     <div v-else-if="filteredProspects.length === 0" class="empty-state">
-      <p>No candidate prospects found matching your criteria.</p>
+      <p>Inga kandidater matchar dina sökkriterier.</p>
     </div>
 
     <!-- Prospects Cards Grid -->
@@ -185,19 +188,19 @@ function closeDetailsModal() {
       <div v-for="p in filteredProspects" :key="p.id" class="prospect-card">
         <div class="prospect-header">
           <div class="prospect-avatar">
-            {{ p.username ? p.username[0].toUpperCase() : 'C' }}
+            {{ p.username ? p.username[0].toUpperCase() : 'K' }}
           </div>
           <div class="prospect-info">
             <span class="prospect-name">{{ p.username }}</span>
             <span :class="['status-pill', p.access_status]">
               {{
                 p.access_status === 'approved'
-                  ? '✅ Access Approved'
+                  ? '✅ Åtkomst godkänd'
                   : p.access_status === 'pending'
-                    ? '⏳ Approval Pending'
+                    ? '⏳ Väntar på godkännande'
                     : p.access_status === 'rejected'
-                      ? '✕ Access Declined'
-                      : '🔒 Results Locked'
+                      ? '✕ Åtkomst avslagen'
+                      : '🔒 Resultaten är låsta'
               }}
             </span>
           </div>
@@ -207,27 +210,27 @@ function closeDetailsModal() {
         <template v-if="p.access_status === 'approved'">
           <div class="prospect-stats-row">
             <div class="p-stat">
-              <span class="p-val">Lvl {{ p.overall_level }}</span>
-              <span class="p-lbl">Overall Tier</span>
+              <span class="p-val">Nivå {{ p.overall_level }}</span>
+              <span class="p-lbl">Övergripande nivå</span>
             </div>
             <div class="p-stat">
               <span class="p-val">{{ p.quizzes_completed }}</span>
-              <span class="p-lbl">Quizzes</span>
+              <span class="p-lbl">Quiz</span>
             </div>
             <div class="p-stat">
               <span class="p-val">{{ p.accuracy_percentage }}%</span>
-              <span class="p-lbl">Accuracy</span>
+              <span class="p-lbl">Andel rätta svar</span>
             </div>
           </div>
 
           <div v-if="p.topic_progress && p.topic_progress.length > 0" class="topic-pills">
             <span v-for="tp in p.topic_progress" :key="tp.topic_id" class="topic-pill">
-              {{ tp.topic_name }}: ⭐ Lvl {{ tp.level }}
+              {{ tp.topic_name }}: ⭐ Nivå {{ tp.level }}
             </span>
           </div>
 
           <button @click="inspectProspect(p.id)" class="button button-outline button-sm">
-            Inspect Full Report ↗
+            Visa fullständig rapport ↗
           </button>
         </template>
 
@@ -235,8 +238,8 @@ function closeDetailsModal() {
         <template v-else>
           <div class="prospect-locked-box">
             <p class="text-muted">
-              Detailed quiz scores and topic progression are private until
-              <strong>{{ p.username }}</strong> approves your organization's request.
+              Detaljerade quizresultat och ämnesutveckling är privata tills
+              <strong>{{ p.username }}</strong> godkänner din organisations förfrågan.
             </p>
           </div>
 
@@ -245,7 +248,7 @@ function closeDetailsModal() {
             class="button button-outline button-sm"
             disabled
           >
-            ⏳ Waiting for Candidate Approval
+            ⏳ Väntar på kandidatens godkännande
           </button>
           <button
             v-else
@@ -255,10 +258,10 @@ function closeDetailsModal() {
           >
             {{
               requestingId === p.id
-                ? 'Sending Request...'
+                ? 'Skickar förfrågan…'
                 : p.access_status === 'rejected'
-                  ? 'Request Access Again 🔒'
-                  : 'Request Access to Results 🔒'
+                  ? 'Begär åtkomst igen 🔒'
+                  : 'Begär åtkomst till resultat 🔒'
             }}
           </button>
         </template>
@@ -269,8 +272,8 @@ function closeDetailsModal() {
     <div v-if="selectedProspectDetails" class="modal-overlay" @click.self="closeDetailsModal">
       <div class="modal-content large">
         <div class="modal-header">
-          <h2>Candidate Prospect: {{ selectedProspectDetails.username }}</h2>
-          <button @click="closeDetailsModal" class="button-text">✕ Close</button>
+          <h2>Kandidat: {{ selectedProspectDetails.username }}</h2>
+          <button @click="closeDetailsModal" class="button-text">✕ Stäng</button>
         </div>
 
         <div class="modal-body">
@@ -411,26 +414,26 @@ function closeDetailsModal() {
           </section>
           <div class="prospect-meta-grid">
             <div class="stat-card">
-              <span class="value">Level {{ selectedProspectDetails.overall_level }}</span>
-              <span class="label">Overall Qualification Tier</span>
+              <span class="value">Nivå {{ selectedProspectDetails.overall_level }}</span>
+              <span class="label">Övergripande kvalifikationsnivå</span>
             </div>
             <div class="stat-card">
               <span class="value">{{ selectedProspectDetails.total_xp }} XP</span>
-              <span class="label">Total Earned XP</span>
+              <span class="label">Totalt intjänade XP</span>
             </div>
             <div class="stat-card">
               <span class="value">{{ selectedProspectDetails.accuracy_percentage }}%</span>
-              <span class="label">Overall Accuracy</span>
+              <span class="label">Total andel rätta svar</span>
             </div>
             <div class="stat-card">
               <span class="value">{{ selectedProspectDetails.total_answered }}</span>
-              <span class="label">Questions Answered</span>
+              <span class="label">Besvarade frågor</span>
             </div>
           </div>
 
           <!-- Topic Mastery -->
           <div class="details-section">
-            <h3>Topic Breakdown & Mastery</h3>
+            <h3>Ämnesöversikt och kunskapsnivå</h3>
             <div v-if="selectedProspectDetails.topic_progress.length > 0" class="progress-list">
               <div
                 v-for="tp in selectedProspectDetails.topic_progress"
@@ -440,7 +443,7 @@ function closeDetailsModal() {
                 <div class="tp-info">
                   <div class="tp-title">
                     <strong>{{ tp.topic_name }}</strong>
-                    <span class="badge">⭐ Level {{ tp.level }}</span>
+                    <span class="badge">⭐ Nivå {{ tp.level }}</span>
                   </div>
                   <span>{{ tp.xp }} XP</span>
                 </div>
@@ -452,21 +455,21 @@ function closeDetailsModal() {
                 </div>
               </div>
             </div>
-            <p v-else class="text-muted">No topic progress recorded for this candidate.</p>
+            <p v-else class="text-muted">Inga ämnesframsteg har registrerats för denna kandidat.</p>
           </div>
 
           <!-- Quiz History -->
           <div class="details-section">
-            <h3>Completed Quiz History</h3>
+            <h3>Historik över genomförda quiz</h3>
             <div v-if="selectedProspectDetails.quiz_history.length > 0" class="table-container">
               <table class="data-table">
                 <thead>
                   <tr>
                     <th>Quiz #</th>
-                    <th>Topic</th>
-                    <th>Difficulty</th>
-                    <th>Score / Accuracy</th>
-                    <th>Date Completed</th>
+                    <th>Ämne</th>
+                    <th>Svårighetsgrad</th>
+                    <th>Poäng / andel rätta svar</th>
+                    <th>Slutförandedatum</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -475,7 +478,7 @@ function closeDetailsModal() {
                     <td>
                       <span class="badge">{{ q.topic_name }}</span>
                     </td>
-                    <td>⭐ Level {{ q.difficulty }}</td>
+                    <td>⭐ Nivå {{ q.difficulty }}</td>
                     <td>
                       <strong>{{ q.correct_cnt }} / {{ q.total_cnt }}</strong>
                       <span class="text-muted">
@@ -484,17 +487,17 @@ function closeDetailsModal() {
                         }}%)
                       </span>
                     </td>
-                    <td>{{ new Date(q.completed_at).toLocaleString() }}</td>
+                    <td>{{ new Date(q.completed_at).toLocaleString('sv-SE') }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <p v-else class="text-muted">No completed quizzes found for this candidate.</p>
+            <p v-else class="text-muted">Inga genomförda quiz hittades för denna kandidat.</p>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button @click="closeDetailsModal" class="button button-outline">Close Report</button>
+          <button @click="closeDetailsModal" class="button button-outline">Stäng rapport</button>
         </div>
       </div>
     </div>

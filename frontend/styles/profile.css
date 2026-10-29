@@ -699,5 +699,65 @@
   .modal-footer {
     flex-direction: column;
     align-items: stretch;
+.history-section .quiz-history-row {
+  cursor: pointer;
+}
+
+.history-section .quiz-history-row:hover,
+.history-section .quiz-history-row:focus-within {
+  background: var(--color-surface-muted);
+}
+
+.quiz-history-link {
+  text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .history-section .table-container {
+    overflow: visible;
+  }
+
+  .history-section .data-table,
+  .history-section .data-table tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .history-section .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .history-section .quiz-history-row {
+    display: block;
+    margin-bottom: var(--space-3);
+    padding: var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .history-section .data-table td {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    align-items: start;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .history-section .data-table td::before {
+    content: attr(data-label);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .history-section .data-table td > * {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
   }
 }
