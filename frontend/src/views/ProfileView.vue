@@ -42,10 +42,10 @@ function markRegTouched(field) {
 const regUsernameError = computed(() => {
   const username = regUsername.value.trim()
 
-  if (!username) return 'Enter a username.'
+  if (!username) return 'Ange ett användarnamn.'
 
   if (username.length < 3 || username.length > 50) {
-    return 'Username must be 3-50 characters long.'
+    return 'Användarnamnet måste vara 3–50 tecken långt.'
   }
 
   return ''
@@ -54,10 +54,10 @@ const regUsernameError = computed(() => {
 const regEmailError = computed(() => {
   const email = regEmail.value.trim()
 
-  if (!email) return 'Enter an email address.'
+  if (!email) return 'Ange en e-postadress.'
 
   if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    return 'Enter a vailt email address, for example name@example.com.'
+    return 'Ange en giltig e-postadress, exempelvis john@exempel.se.'
   }
 
   return ''
@@ -66,10 +66,10 @@ const regEmailError = computed(() => {
 const regPasswordError = computed(() => {
   const password = regPassword.value
 
-  if (!password) return 'Enter a password.'
+  if (!password) return 'Ange ett lösenord.'
 
   if (password.length < 15 || password.length > 128) {
-    return 'Password must be 15-128 characters long.'
+    return 'Lösenordet måste vara 15–128 tecken långt.'
   }
 
   return ''
@@ -77,11 +77,11 @@ const regPasswordError = computed(() => {
 
 const regConfirmPasswordError = computed (() => {
   if (!regConfirmPassword.value) {
-    return 'Repeat your password.'
+    return 'Upprepa ditt lösenord.'
   }
 
   if (regConfirmPassword.value !== regPassword.value) {
-    return 'Password do not match.'
+    return 'Lösenorden stämmer inte överens.'
   }
 
   return ''
@@ -897,7 +897,7 @@ function getSourceUrl(url) {
               :aria-invalid="regTouched.password && !!regPasswordError"
               aria-describedby="reg-password-help reg-password-error"
             />
-            <span id="reg-password-help" class="form-help-text">Password must be 15-128 characters long.</span>
+            <span id="reg-password-help" class="form-help-text">Lösenordet måste vara 15–128 tecken långt.</span>
             <p 
               v-if="regTouched.password && regPasswordError"
               id="reg-password-error"
