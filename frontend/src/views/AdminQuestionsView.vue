@@ -331,18 +331,25 @@ async function confirmDelete() {
         aria-labelledby="delete-title"
         aria-describedby="delete-description"
       >
-        <h2 id="delete-title">Delete question #{{ pendingDelete.id }}?</h2>
-        <div id="delete-description">
+        <div class="modal-header">
+          <h2 id="delete-title">Delete question #{{ pendingDelete.id }}?</h2>
+          <button
+            type="button"
+            class="button-text"
+            :disabled="deleting"
+            @click="pendingDelete = null"
+          >
+            ✕ Close
+          </button>
+        </div>
+        <div id="delete-description" class="modal-body">
           <p class="delete-question-text">“{{ pendingDelete.question_text }}”</p>
           <p class="text-muted">
             It will no longer appear in new quizzes. Players who already answered it keep it in
             their quiz history.
           </p>
         </div>
-        <div class="form-actions">
-          <button class="button-danger" :disabled="deleting" @click="confirmDelete">
-            {{ deleting ? 'Deleting…' : 'Delete question' }}
-          </button>
+        <div class="modal-footer">
           <button
             ref="cancelDeleteButton"
             class="button button-outline"
@@ -350,6 +357,9 @@ async function confirmDelete() {
             @click="pendingDelete = null"
           >
             Cancel
+          </button>
+          <button class="button button-danger" :disabled="deleting" @click="confirmDelete">
+            {{ deleting ? 'Deleting…' : 'Delete question' }}
           </button>
         </div>
       </div>

@@ -45,11 +45,29 @@ async function inspectAssignedTest(quizId) {
 
 function answerText(question) {
   if (question.is_skipped || !question.is_answered) return 'Skipped'
+  if (question.question_type === 'matching' && question.submitted_answer) {
+    return (question.answers || [])
+      .map(
+        (a) =>
+          `${a.answer_text} → ${question.submitted_answer[a.id] ?? question.submitted_answer[String(a.id)] ?? '—'}`,
+      )
+      .join(' | ')
+  }
   return (
     question.free_text_answer ??
     question.answers.find((a) => a.id === question.chosen_answer_id)?.answer_text ??
     'No answer'
   )
+}
+
+function correctAnswerForQuestion(question) {
+  if (question.question_type === 'matching') {
+    return (question.answers || []).map((a) => `${a.answer_text} → ${a.match_text}`).join(' | ')
+  }
+  return question.answers
+    .filter((a) => a.is_correct)
+    .map((a) => a.answer_text)
+    .join(', ')
 }
 
 onMounted(() => {
@@ -256,99 +274,139 @@ function closeDetailsModal() {
         </div>
 
         <div class="modal-body">
-          <section class="details-section">
-            <h3>Assign a test</h3>
-            <form class="search-filter-bar" @submit.prevent="assignTest">
-              <label
-                >Topic
-                <select v-model="testSettings.topicId" required class="filter-select">
-                  <option disabled value="">Choose topic</option>
-                  <option v-for="topic in topics" :key="topic.id" :value="topic.id">
-                    {{ topic.name }}
-                  </option>
-                </select>
-              </label>
-              <label
-                >Difficulty
-                <select v-model="testSettings.difficulty" class="filter-select">
-                  <option v-for="level in 5" :key="level" :value="level">{{ level }}</option>
-                </select>
-              </label>
-              <label
-                >Questions
-                <input
-                  v-model.number="testSettings.limit"
-                  type="number"
-                  min="1"
-                  max="50"
-                  required
-                />
-              </label>
-              <button class="button button-accent" :disabled="assigning">
-                {{ assigning ? 'Assigning...' : 'Assign test' }}
-              </button>
-            </form>
-            <p class="text-muted">
-              Available questions determine the actual count. If the selected level is empty, the
-              closest available level is used.
-            </p>
-            <p v-if="assignmentMessage" role="status">{{ assignmentMessage }}</p>
-            <p v-if="assignmentError" role="alert" class="error-banner">{{ assignmentError }}</p>
-            <h3>Assigned tests</h3>
-            <p v-if="!selectedProspectDetails.assignments?.length">No tests assigned yet.</p>
-            <div
-              v-for="test in selectedProspectDetails.assignments"
-              :key="test.quiz_id"
-              class="details-section"
-            >
-              <p>
-                #{{ test.quiz_id }} · {{ test.topic_name }} · Level {{ test.difficulty }} ·
-                {{ test.total_cnt }} questions
+          <section class="details-section assign-test-section">
+            <div class="assign-test-card">
+              <h3>Assign a test</h3>
+              <form class="assign-test-form" @submit.prevent="assignTest">
+                <label class="form-group">
+                  <span class="form-label">Topic</span>
+                  <select v-model="testSettings.topicId" required class="filter-select">
+                    <option disabled value="">Choose topic</option>
+                    <option v-for="topic in topics" :key="topic.id" :value="topic.id">
+                      {{ topic.name }}
+                    </option>
+                  </select>
+                </label>
+                <label class="form-group">
+                  <span class="form-label">Difficulty</span>
+                  <select v-model="testSettings.difficulty" class="filter-select">
+                    <option v-for="level in 5" :key="level" :value="level">{{ level }}</option>
+                  </select>
+                </label>
+                <label class="form-group">
+                  <span class="form-label">Questions</span>
+                  <input
+                    v-model.number="testSettings.limit"
+                    type="number"
+                    min="1"
+                    max="50"
+                    required
+                  />
+                </label>
+                <button class="button button-accent" :disabled="assigning">
+                  {{ assigning ? 'Assigning...' : 'Assign test' }}
+                </button>
+              </form>
+              <p class="text-muted form-help-text">
+                Available questions determine the actual count. If the selected level is empty, the
+                closest available level is used.
               </p>
-              <p v-if="test.status === 'completed'">
-                Completed · {{ test.correct_cnt }} correct ·
-                {{ test.total_cnt - test.correct_cnt }} incorrect (including skipped)
+              <p v-if="assignmentMessage" role="status" class="success-banner">
+                {{ assignmentMessage }}
               </p>
-              <p v-else>Awaiting completion</p>
-              <button
-                v-if="test.status === 'completed'"
-                class="button button-outline"
-                @click="inspectAssignedTest(test.quiz_id)"
-              >
-                View answers
-              </button>
+              <p v-if="assignmentError" role="alert" class="error-banner">{{ assignmentError }}</p>
             </div>
-            <section v-if="testReport" aria-label="Assigned test results">
-              <h3>Test #{{ testReport.quiz_id }} results</h3>
-              <p>
-                {{ testReport.correct_cnt }} correct ·
-                {{ testReport.total_cnt - testReport.correct_cnt }} incorrect (including skipped)
+
+            <div class="assigned-tests-section">
+              <h3>Assigned tests</h3>
+              <p v-if="!selectedProspectDetails.assignments?.length" class="text-muted">
+                No tests assigned yet.
               </p>
-              <div
-                v-for="question in testReport.questions"
-                :key="question.question_id"
-                class="details-section"
-              >
-                <strong>{{ question.position }}. {{ question.question_text }}</strong>
-                <p>
-                  {{
-                    question.is_correct
-                      ? 'Correct'
-                      : question.is_skipped || !question.is_answered
-                        ? 'Incorrect (skipped)'
-                        : 'Incorrect'
-                  }}
-                  · Candidate answer: {{ answerText(question) }}
-                </p>
-                <p>
-                  Correct answer:
-                  {{
-                    question.answers
-                      .filter((a) => a.is_correct)
-                      .map((a) => a.answer_text)
-                      .join(', ')
-                  }}
-                </p>
+              <div v-else class="assigned-tests-list">
+                <div
+                  v-for="test in selectedProspectDetails.assignments"
+                  :key="test.quiz_id"
+                  class="assigned-test-card"
+                >
+                  <div class="assigned-test-header">
+                    <div class="assigned-test-badges">
+                      <strong>#{{ test.quiz_id }}</strong>
+                      <span class="badge">{{ test.topic_name }}</span>
+                      <span class="chip">⭐ Level {{ test.difficulty }}</span>
+                    </div>
+                    <span
+                      :class="['status-pill', test.status === 'completed' ? 'approved' : 'pending']"
+                    >
+                      {{ test.status === 'completed' ? '✅ Completed' : '⏳ Awaiting completion' }}
+                    </span>
+                  </div>
+                  <p class="assigned-test-meta">
+                    {{ test.total_cnt }} questions
+                    <template v-if="test.status === 'completed'">
+                      · {{ test.correct_cnt }} correct ·
+                      {{ test.total_cnt - test.correct_cnt }} incorrect (including skipped)
+                    </template>
+                  </p>
+                  <button
+                    v-if="test.status === 'completed'"
+                    class="button button-outline button-sm"
+                    @click="inspectAssignedTest(test.quiz_id)"
+                  >
+                    View answers
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <section
+              v-if="testReport"
+              class="assigned-test-report"
+              aria-label="Assigned test results"
+            >
+              <div class="assigned-report-header">
+                <div>
+                  <h3>Test #{{ testReport.quiz_id }} results</h3>
+                  <p class="text-muted">
+                    {{ testReport.correct_cnt }} correct ·
+                    {{ testReport.total_cnt - testReport.correct_cnt }} incorrect (including
+                    skipped)
+                  </p>
+                </div>
+                <button type="button" class="button-text" @click="testReport = null">
+                  ✕ Hide answers
+                </button>
+              </div>
+              <div class="results-list">
+                <div
+                  v-for="question in testReport.questions"
+                  :key="question.question_id"
+                  :class="['result-item', question.is_correct ? 'correct' : 'incorrect']"
+                >
+                  <span class="status-icon">{{
+                    question.is_skipped || !question.is_answered
+                      ? '⏭️'
+                      : question.is_correct
+                        ? '✅'
+                        : '❌'
+                  }}</span>
+                  <div class="result-details">
+                    <strong>{{ question.position }}. {{ question.question_text }}</strong>
+                    <p>
+                      {{
+                        question.is_correct
+                          ? 'Correct'
+                          : question.is_skipped || !question.is_answered
+                            ? 'Incorrect (skipped)'
+                            : 'Incorrect'
+                      }}
+                      · Candidate answer: {{ answerText(question) }}
+                    </p>
+                    <p>
+                      Correct answer:
+                      {{ correctAnswerForQuestion(question) }}
+                    </p>
+                  </div>
+                </div>
               </div>
             </section>
           </section>

@@ -249,17 +249,18 @@ async function exitQuiz() {
           activeQuizSession.requested_difficulty != null &&
           activeQuizSession.requested_difficulty !== activeQuizSession.difficulty
         "
+        class="quiz-fallback-notice"
         role="status"
       >
         Nivå {{ activeQuizSession.requested_difficulty }} saknar frågor inom detta ämne. Quizet
         använder nivå {{ activeQuizSession.difficulty }}.
       </p>
       <div class="quiz-header">
-        <div>
+        <div class="quiz-header-meta">
           <span class="badge">{{ activeTopicName }}</span>
           <span class="chip margin-left">⭐ Level {{ activeQuizSession.difficulty }}</span>
         </div>
-        <span
+        <span class="quiz-question-counter"
           >Question {{ currentQuestionIndex + 1 }} of {{ activeQuizSession.questions.length }}</span
         >
         <button @click="exitQuiz" :disabled="submitting" class="button-text">✕ Exit Quiz</button>
@@ -383,6 +384,14 @@ async function exitQuiz() {
         </button>
 
         <button
+          class="button button-outline"
+          :disabled="submitting"
+          @click="navigateQuestion(1, true)"
+        >
+          Skip question
+        </button>
+
+        <button
           v-if="currentQuestionIndex < activeQuizSession.questions.length - 1"
           @click="navigateQuestion(1)"
           :disabled="submitting"
@@ -400,28 +409,28 @@ async function exitQuiz() {
           Finish Quiz 🚀
         </button>
       </div>
-      <button
-        class="button button-outline"
-        :disabled="submitting"
-        @click="navigateQuestion(1, true)"
-      >
-        Skip question
-      </button>
-      <p role="status" aria-live="polite">{{ saveMessage }}</p>
-      <p>
-        Answered: {{ activeQuizSession.questions.filter((q) => q.is_answered).length }} · Skipped:
-        {{ activeQuizSession.questions.filter((q) => q.is_skipped).length }}
-      </p>
+
+      <div class="quiz-status-bar">
+        <p class="quiz-progress-counts">
+          Answered:
+          <strong>{{ activeQuizSession.questions.filter((q) => q.is_answered).length }}</strong>
+          · Skipped:
+          <strong>{{ activeQuizSession.questions.filter((q) => q.is_skipped).length }}</strong>
+        </p>
+        <p class="quiz-save-message" role="status" aria-live="polite">{{ saveMessage }}</p>
+      </div>
     </div>
 
     <!-- Quiz Results View -->
     <div v-else-if="quizResult" class="results-card">
       <h2>🎉 Quiz Complete!</h2>
-      <p v-if="pendingCompletion" role="status" aria-live="polite">
+      <p v-if="pendingCompletion" class="results-status" role="status" aria-live="polite">
         Results and estimated XP are awaiting confirmation.
         {{ syncingCompletion ? 'Syncing…' : 'Connect to the server and retry saving.' }}
       </p>
-      <p v-else role="status">Results confirmed and saved to your account.</p>
+      <p v-else class="results-status" role="status">
+        Results confirmed and saved to your account.
+      </p>
 
       <!-- 80% Qualification Badge -->
       <div v-if="quizResult?.meets_80_percent === true" class="qualification-badge">
@@ -474,40 +483,55 @@ async function exitQuiz() {
         </div>
       </div>
 
-      <p>Skipped: {{ quizResult.skipped_count }}</p>
-      <button
-        @click="exitQuiz"
-        :disabled="pendingCompletion || syncingCompletion"
-        class="button button-accent"
-      >
-        Back to Topics
-      </button>
+      <div class="results-footer">
+        <p class="text-muted">Skipped: {{ quizResult.skipped_count }}</p>
+        <button
+          @click="exitQuiz"
+          :disabled="pendingCompletion || syncingCompletion"
+          class="button button-accent"
+        >
+          Back to Topics
+        </button>
+      </div>
     </div>
 
     <!-- Topics Grid View -->
-    <div v-else>
-      <p v-if="!loading && !loggedIn">
+    <div v-else class="explore-topics-section">
+      <p v-if="!loading && !loggedIn" class="guest-login-banner">
         Log in through your profile to start a quiz and save progress across devices.
       </p>
-      <section v-if="unfinishedQuizzes.length" aria-labelledby="unfinished-title">
-        <h2 id="unfinished-title">Continue an unfinished quiz</h2>
-        <div v-for="quiz in unfinishedQuizzes" :key="quiz.quiz_id">
-          <p>
-            <strong v-if="quiz.organization_name"
-              >Assigned by {{ quiz.organization_name }} ·
-            </strong>
-            {{ quiz.topic_name }} · Level {{ quiz.difficulty }} · {{ quiz.answered_count }}/{{
-              quiz.total_cnt
-            }}
-            answered · {{ quiz.skipped_count }} skipped
-          </p>
-          <button
-            class="button button-outline"
-            :disabled="loading || hasUnsyncedData || isSyncing"
-            @click="resumeQuiz(quiz.quiz_id)"
-          >
-            Resume quiz
-          </button>
+      <section
+        v-if="unfinishedQuizzes.length"
+        class="unfinished-quizzes-section"
+        aria-labelledby="unfinished-title"
+      >
+        <div class="unfinished-quizzes-header">
+          <h2 id="unfinished-title">Continue an unfinished quiz</h2>
+          <span class="chip">{{ unfinishedQuizzes.length }} in progress</span>
+        </div>
+        <div class="unfinished-quizzes-grid">
+          <div v-for="quiz in unfinishedQuizzes" :key="quiz.quiz_id" class="unfinished-quiz-card">
+            <div class="unfinished-quiz-details">
+              <div class="unfinished-quiz-badges">
+                <span class="badge">{{ quiz.topic_name }}</span>
+                <span class="chip">⭐ Level {{ quiz.difficulty }}</span>
+                <span v-if="quiz.organization_name" class="status-pill pending">
+                  Assigned by {{ quiz.organization_name }}
+                </span>
+              </div>
+              <p class="unfinished-quiz-stats">
+                {{ quiz.answered_count }}/{{ quiz.total_cnt }} answered ·
+                {{ quiz.skipped_count }} skipped
+              </p>
+            </div>
+            <button
+              class="button button-outline"
+              :disabled="loading || hasUnsyncedData || isSyncing"
+              @click="resumeQuiz(quiz.quiz_id)"
+            >
+              Resume quiz
+            </button>
+          </div>
         </div>
       </section>
       <div v-if="loading" class="loading-state">Loading topics from database...</div>
