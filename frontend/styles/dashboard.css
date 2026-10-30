@@ -785,6 +785,7 @@ main {
   }
 
   .hero {
+    grid-template-columns: 1fr;
     min-height: auto;
   }
 
