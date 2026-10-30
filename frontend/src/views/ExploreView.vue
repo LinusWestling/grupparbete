@@ -58,6 +58,14 @@ onMounted(async () => {
     if (route.query.topicId && route.query.difficulty) {
       const diffNum = Number(route.query.difficulty)
       if (diffNum >= 1 && diffNum <= 5) selectedDifficulty.value = diffNum
+      if (typeof route.query.questionTypes === 'string') {
+        const validTypes = route.query.questionTypes
+          .split(',')
+          .filter((type) => Object.hasOwn(QUESTION_TYPE_LABELS, type))
+        if (validTypes.length > 0) {
+          selectedQuestionTypes.value = validTypes
+        }
+      }
       const targetTopic = topics.value.find((t) => t.id === Number(route.query.topicId))
       if (targetTopic && route.query.autoStart === 'true' && loggedIn.value) {
         await startQuizSession(targetTopic)
@@ -248,7 +256,13 @@ async function exitQuiz() {
         </button>
       </div>
     </div>
-    <fieldset v-if="!activeQuizSession" class="question-type-selector">
+    <fieldset
+      v-if="!activeQuizSession"
+      class="question-type-selector"
+      :aria-describedby="
+        selectedQuestionTypes.length === 0 ? 'question-type-selection-error' : undefined
+      "
+    >
       <legend>Välj frågetyper</legend>
 
       <label v-for="(lable, type) in QUESTION_TYPE_LABELS" :key="type" class="question-type-option">
@@ -256,7 +270,12 @@ async function exitQuiz() {
         {{ lable }}
       </label>
 
-      <p v-if="selectedQuestionTypes.length === 0">
+      <p
+        v-if="selectedQuestionTypes.length === 0"
+        id="question-type-selection-error"
+        role="alert"
+        aria-live="assertive"
+      >
         Välj minst en frågetyp för att starta ett quiz.
       </p>
     </fieldset>
