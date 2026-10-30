@@ -45,11 +45,29 @@ async function inspectAssignedTest(quizId) {
 
 function answerText(question) {
   if (question.is_skipped || !question.is_answered) return 'Överhoppad'
+  if (question.question_type === 'matching' && question.submitted_answer) {
+    return (question.answers || [])
+      .map(
+        (a) =>
+          `${a.answer_text} → ${question.submitted_answer[a.id] ?? question.submitted_answer[String(a.id)] ?? '—'}`,
+      )
+      .join(' | ')
+  }
   return (
     question.free_text_answer ??
     question.answers.find((a) => a.id === question.chosen_answer_id)?.answer_text ??
     'Inget svar'
   )
+}
+
+function correctAnswerForQuestion(question) {
+  if (question.question_type === 'matching') {
+    return (question.answers || []).map((a) => `${a.answer_text} → ${a.match_text}`).join(' | ')
+  }
+  return question.answers
+    .filter((a) => a.is_correct)
+    .map((a) => a.answer_text)
+    .join(', ')
 }
 
 onMounted(() => {
@@ -259,101 +277,138 @@ function closeDetailsModal() {
         </div>
 
         <div class="modal-body">
-          <section class="details-section">
-            <h3>Tilldela ett test</h3>
-            <form class="search-filter-bar" @submit.prevent="assignTest">
-              <label
-                >Ämne
-                <select v-model="testSettings.topicId" required class="filter-select">
-                  <option disabled value="">Välj ämne</option>
-                  <option v-for="topic in topics" :key="topic.id" :value="topic.id">
-                    {{ topic.name }}
-                  </option>
-                </select>
-              </label>
-              <label
-                >Svårighetsgrad
-                <select v-model="testSettings.difficulty" class="filter-select">
-                  <option v-for="level in 5" :key="level" :value="level">{{ level }}</option>
-                </select>
-              </label>
-              <label
-                >Antal frågor
-                <input
-                  v-model.number="testSettings.limit"
-                  type="number"
-                  min="1"
-                  max="50"
-                  required
-                />
-              </label>
-              <button class="button button-accent" :disabled="assigning">
-                {{ assigning ? 'Tilldelar…' : 'Tilldela test' }}
-              </button>
-            </form>
-            <p class="text-muted">
-              Antalet frågor beror på hur många som finns tillgängliga. Om den valda nivån saknar
-              frågor används den närmaste tillgängliga nivån.
-            </p>
-            <p v-if="assignmentMessage" role="status">{{ assignmentMessage }}</p>
-            <p v-if="assignmentError" role="alert" class="error-banner">{{ assignmentError }}</p>
-            <h3>Tilldelade test</h3>
-            <p v-if="!selectedProspectDetails.assignments?.length">
-              Inga test har tilldelats ännu.
-            </p>
-            <div
-              v-for="test in selectedProspectDetails.assignments"
-              :key="test.quiz_id"
-              class="details-section"
-            >
-              <p>
-                #{{ test.quiz_id }} · {{ test.topic_name }} · Nivå {{ test.difficulty }} ·
-                {{ test.total_cnt }} frågor
+          <section class="details-section assign-test-section">
+            <div class="assign-test-card">
+              <h3>Tilldela ett test</h3>
+              <form class="assign-test-form" @submit.prevent="assignTest">
+                <label class="form-group">
+                  <span class="form-label">Ämne</span>
+                  <select v-model="testSettings.topicId" required class="filter-select">
+                    <option disabled value="">Välj ämne</option>
+                    <option v-for="topic in topics" :key="topic.id" :value="topic.id">
+                      {{ topic.name }}
+                    </option>
+                  </select>
+                </label>
+                <label class="form-group">
+                  <span class="form-label">Svårighetsgrad</span>
+                  <select v-model="testSettings.difficulty" class="filter-select">
+                    <option v-for="level in 5" :key="level" :value="level">{{ level }}</option>
+                  </select>
+                </label>
+                <label class="form-group">
+                  <span class="form-label">Antal frågor</span>
+                  <input
+                    v-model.number="testSettings.limit"
+                    type="number"
+                    min="1"
+                    max="50"
+                    required
+                  />
+                </label>
+                <button class="button button-accent" :disabled="assigning">
+                  {{ assigning ? 'Tilldelar…' : 'Tilldela test' }}
+                </button>
+              </form>
+              <p class="text-muted form-help-text">
+                Antalet frågor beror på hur många som finns tillgängliga. Om den valda nivån saknar
+                frågor används den närmaste tillgängliga nivån.
               </p>
-              <p v-if="test.status === 'completed'">
-                Slutfört · {{ test.correct_cnt }} rätt · {{ test.total_cnt - test.correct_cnt }} fel
-                (inklusive överhoppade)
+              <p v-if="assignmentMessage" role="status" class="success-banner">
+                {{ assignmentMessage }}
               </p>
-              <p v-else>Väntar på slutförande</p>
-              <button
-                v-if="test.status === 'completed'"
-                class="button button-outline"
-                @click="inspectAssignedTest(test.quiz_id)"
-              >
-                Visa svar
-              </button>
+              <p v-if="assignmentError" role="alert" class="error-banner">{{ assignmentError }}</p>
             </div>
-            <section v-if="testReport" aria-label="Resultat för tilldelat test">
-              <h3>Resultat för test #{{ testReport.quiz_id }}</h3>
-              <p>
-                {{ testReport.correct_cnt }} rätt ·
-                {{ testReport.total_cnt - testReport.correct_cnt }} fel (inklusive överhoppade)
+
+            <div class="assigned-tests-section">
+              <h3>Tilldelade test</h3>
+              <p v-if="!selectedProspectDetails.assignments?.length" class="text-muted">
+                Inga test har tilldelats ännu.
               </p>
-              <div
-                v-for="question in testReport.questions"
-                :key="question.question_id"
-                class="details-section"
-              >
-                <strong>{{ question.position }}. {{ question.question_text }}</strong>
-                <p>
-                  {{
-                    question.is_correct
-                      ? 'Rätt'
-                      : question.is_skipped || !question.is_answered
-                        ? 'Fel (överhoppad)'
-                        : 'Fel'
-                  }}
-                  · Kandidatens svar: {{ answerText(question) }}
-                </p>
-                <p>
-                  Rätt svar:
-                  {{
-                    question.answers
-                      .filter((a) => a.is_correct)
-                      .map((a) => a.answer_text)
-                      .join(', ')
-                  }}
-                </p>
+              <div v-else class="assigned-tests-list">
+                <div
+                  v-for="test in selectedProspectDetails.assignments"
+                  :key="test.quiz_id"
+                  class="assigned-test-card"
+                >
+                  <div class="assigned-test-header">
+                    <div class="assigned-test-badges">
+                      <strong>#{{ test.quiz_id }}</strong>
+                      <span class="badge">{{ test.topic_name }}</span>
+                      <span class="chip">⭐ Nivå {{ test.difficulty }}</span>
+                    </div>
+                    <span
+                      :class="['status-pill', test.status === 'completed' ? 'approved' : 'pending']"
+                    >
+                      {{ test.status === 'completed' ? '✅ Slutfört' : '⏳ Väntar på slutförande' }}
+                    </span>
+                  </div>
+                  <p class="assigned-test-meta">
+                    {{ test.total_cnt }} frågor
+                    <template v-if="test.status === 'completed'">
+                      · {{ test.correct_cnt }} rätt · {{ test.total_cnt - test.correct_cnt }} fel
+                      (inklusive överhoppade)
+                    </template>
+                  </p>
+                  <button
+                    v-if="test.status === 'completed'"
+                    class="button button-outline button-sm"
+                    @click="inspectAssignedTest(test.quiz_id)"
+                  >
+                    Visa svar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <section
+              v-if="testReport"
+              class="assigned-test-report"
+              aria-label="Resultat för tilldelat test"
+            >
+              <div class="assigned-report-header">
+                <div>
+                  <h3>Resultat för test #{{ testReport.quiz_id }}</h3>
+                  <p class="text-muted">
+                    {{ testReport.correct_cnt }} rätt ·
+                    {{ testReport.total_cnt - testReport.correct_cnt }} fel (inklusive överhoppade)
+                  </p>
+                </div>
+                <button type="button" class="button-text" @click="testReport = null">
+                  ✕ Dölj svar
+                </button>
+              </div>
+              <div class="results-list">
+                <div
+                  v-for="question in testReport.questions"
+                  :key="question.question_id"
+                  :class="['result-item', question.is_correct ? 'correct' : 'incorrect']"
+                >
+                  <span class="status-icon">{{
+                    question.is_skipped || !question.is_answered
+                      ? '⏭️'
+                      : question.is_correct
+                        ? '✅'
+                        : '❌'
+                  }}</span>
+                  <div class="result-details">
+                    <strong>{{ question.position }}. {{ question.question_text }}</strong>
+                    <p>
+                      {{
+                        question.is_correct
+                          ? 'Rätt'
+                          : question.is_skipped || !question.is_answered
+                            ? 'Fel (överhoppad)'
+                            : 'Fel'
+                      }}
+                      · Kandidatens svar: {{ answerText(question) }}
+                    </p>
+                    <p>
+                      Rätt svar:
+                      {{ correctAnswerForQuestion(question) }}
+                    </p>
+                  </div>
+                </div>
               </div>
             </section>
           </section>

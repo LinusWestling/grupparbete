@@ -5,7 +5,6 @@ export const navigation = [
   { path: '/', label: 'Översikt', icon: '◫' },
   { path: '/explore', label: 'Utforska kunskap', icon: '⌕' },
   { path: '/organization/prospects', label: 'Kandidatöversikt', icon: 'ϗ', orgOnly: true },
-  { path: '/messages', label: 'Meddelanden', icon: '◌' },
   { path: '/profile', label: 'Profil', icon: '◎' },
   { path: '/admin/questions', label: 'Hantera frågor', icon: '✎', adminOnly: true },
 ]
@@ -39,12 +38,7 @@ const router = createRouter({
       meta: { title: 'Hantera frågor', requiresAdmin: true },
     },
     { path: '/my-skills', redirect: '/admin/questions' },
-    {
-      path: '/messages',
-      name: 'messages',
-      component: () => import('../views/MessagesView.vue'),
-      meta: { title: 'Meddelanden' },
-    },
+    { path: '/messages', redirect: '/profile' },
     {
       path: '/profile',
       name: 'profile',

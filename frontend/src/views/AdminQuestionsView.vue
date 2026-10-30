@@ -333,18 +333,25 @@ async function confirmDelete() {
         aria-labelledby="delete-title"
         aria-describedby="delete-description"
       >
-        <h2 id="delete-title">Ta bort fråga #{{ pendingDelete.id }}?</h2>
-        <div id="delete-description">
+        <div class="modal-header">
+          <h2 id="delete-title">Ta bort fråga #{{ pendingDelete.id }}?</h2>
+          <button
+            type="button"
+            class="button-text"
+            :disabled="deleting"
+            @click="pendingDelete = null"
+          >
+            ✕ Stäng
+          </button>
+        </div>
+        <div id="delete-description" class="modal-body">
           <p class="delete-question-text">“{{ pendingDelete.question_text }}”</p>
           <p class="text-muted">
             Frågan visas inte längre i nya quiz. Användare som redan har besvarat den behåller den i
             sin quizhistorik.
           </p>
         </div>
-        <div class="form-actions">
-          <button class="button-danger" :disabled="deleting" @click="confirmDelete">
-            {{ deleting ? 'Tar bort…' : 'Ta bort frågan' }}
-          </button>
+        <div class="modal-footer">
           <button
             ref="cancelDeleteButton"
             class="button button-outline"
@@ -352,6 +359,9 @@ async function confirmDelete() {
             @click="pendingDelete = null"
           >
             Avbryt
+          </button>
+          <button class="button button-danger" :disabled="deleting" @click="confirmDelete">
+            {{ deleting ? 'Tar bort…' : 'Ta bort frågan' }}
           </button>
         </div>
       </div>

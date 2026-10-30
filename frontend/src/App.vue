@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { navigation } from './router'
 import {
@@ -21,6 +21,93 @@ const visibleNavigation = computed(() =>
 
 const loggingOut = ref(false)
 const logoutError = ref('')
+const mobileMenuOpen = ref(false)
+const mainContent = ref(null)
+const primaryNav = ref(null)
+const hamburgerBtn = ref(null)
+let shouldFocusMain = false
+
+function isVisible(el) {
+  return Boolean(el && getComputedStyle(el).display !== 'none')
+}
+
+function focusMainContent() {
+  const mainEl = mainContent.value
+  if (!mainEl) return
+  const heading = mainEl.querySelector('h1')
+  if (heading) {
+    if (!heading.hasAttribute('tabindex')) {
+      heading.setAttribute('tabindex', '-1')
+    }
+    heading.focus()
+  } else {
+    mainEl.focus()
+  }
+}
+
+function focusTemporaryTarget() {
+  if (isVisible(hamburgerBtn.value)) {
+    hamburgerBtn.value.focus()
+  } else {
+    focusMainContent()
+  }
+}
+
+function closeMobileMenu(targetPath, event) {
+  if (
+    event &&
+    (event.defaultPrevented ||
+      (event.button != null && event.button !== 0) ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey)
+  ) {
+    shouldFocusMain = false
+    return
+  }
+
+  const focusWasInMenu = Boolean(primaryNav.value?.contains(document.activeElement))
+  mobileMenuOpen.value = false
+
+  if (focusWasInMenu) {
+    focusTemporaryTarget()
+  }
+
+  if (targetPath && router.resolve(targetPath).fullPath === router.currentRoute.value.fullPath) {
+    shouldFocusMain = false
+    return
+  }
+
+  shouldFocusMain = true
+}
+
+const removeAfterEach = router.afterEach((_to, _from, failure) => {
+  if (failure) {
+    shouldFocusMain = false
+  }
+})
+
+const removeOnError = router.onError(() => {
+  shouldFocusMain = false
+})
+
+onUnmounted(() => {
+  removeAfterEach()
+  removeOnError()
+})
+
+watch(
+  () => router.currentRoute.value.fullPath,
+  async () => {
+    const focusWasInMenu = Boolean(primaryNav.value?.contains(document.activeElement))
+    mobileMenuOpen.value = false
+    if (!shouldFocusMain && !focusWasInMenu) return
+    shouldFocusMain = false
+    await nextTick()
+    focusMainContent()
+  },
+)
 
 async function handleLogout() {
   if (loggingOut.value) return
@@ -46,17 +133,41 @@ onMounted(loadCurrentUser)
   <a class="skip-link" href="#main-content">Hoppa till innehållet</a>
   <div class="app-shell">
     <aside class="sidebar">
-      <RouterLink class="brand" to="/" aria-label="SkillSwaps startsida"
-        ><span class="brand-mark">⇄</span> SkillSwap<span class="brand-dot">.</span></RouterLink
-      >
+      <div class="sidebar-header">
+        <RouterLink
+          class="brand"
+          to="/"
+          aria-label="SkillSwaps startsida"
+          @click="closeMobileMenu('/', $event)"
+          ><span class="brand-mark">⇄</span> SkillSwap<span class="brand-dot">.</span></RouterLink
+        >
+        <button
+          ref="hamburgerBtn"
+          type="button"
+          class="hamburger-btn"
+          :aria-expanded="mobileMenuOpen"
+          aria-controls="primary-navigation"
+          :aria-label="mobileMenuOpen ? 'Stäng meny' : 'Öppna meny'"
+          @click="mobileMenuOpen = !mobileMenuOpen"
+        >
+          <span class="hamburger-icon" aria-hidden="true">{{ mobileMenuOpen ? '✕' : '☰' }}</span>
+          <span class="hamburger-label">Meny</span>
+        </button>
+      </div>
       <p class="nav-label">DIN ARBETSYTA</p>
-      <nav aria-label="Huvudnavigering">
+      <nav
+        id="primary-navigation"
+        ref="primaryNav"
+        :class="{ 'is-open': mobileMenuOpen }"
+        aria-label="Huvudnavigering"
+      >
         <RouterLink
           v-for="item in visibleNavigation"
           :key="item.path"
           :to="item.path"
           class="nav-link"
           exact-active-class="is-active"
+          @click="closeMobileMenu(item.path, $event)"
           ><span class="nav-icon" aria-hidden="true">{{ item.icon }}</span
           >{{ item.label }}</RouterLink
         >
@@ -79,7 +190,7 @@ onMounted(loadCurrentUser)
             <span class="avatar" aria-hidden="true">{{
               currentUser?.username ? currentUser.username[0].toUpperCase() : '→'
             }}</span>
-            {{ currentUser?.username ? `${currentUser.username} ↗` : 'Din profil ↗' }}
+            {{ currentUser?.username ? `${currentUser.username} ↗` : 'Logga in / Skapa konto ↗' }}
           </RouterLink>
           <button
             v-if="currentUser"
@@ -93,7 +204,7 @@ onMounted(loadCurrentUser)
           <span v-if="logoutError" class="error-banner" role="alert">{{ logoutError }}</span>
         </div>
       </header>
-      <main id="main-content" tabindex="-1"><RouterView /></main>
+      <main id="main-content" ref="mainContent" tabindex="-1"><RouterView /></main>
       <footer class="page-footer">
         <span>SkillSwap</span><span>Bra saker händer när vi delar med oss.</span>
       </footer>

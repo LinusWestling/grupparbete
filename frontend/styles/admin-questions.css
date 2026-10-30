@@ -133,12 +133,18 @@
 }
 
 .delete-question-text {
-  margin: var(--space-3) 0;
   font-style: italic;
 }
 
-.modal-content .form-actions {
-  margin-top: var(--space-5);
+@media (max-width: 640px) {
+  .form-card {
+    padding: var(--space-5);
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 button:disabled {
