@@ -319,13 +319,15 @@ async function inspectQuizDetails(quizId) {
   }
 }
 
-function retakeQuiz(topicId, difficulty) {
+function retakeQuiz(topicId, difficulty, questions = []) {
+  const types = [...new Set(questions.map((q) => q.question_type).filter(Boolean))]
   selectedQuizDetails.value = null
   router.push({
     path: '/explore',
     query: {
       topicId: String(topicId),
       difficulty: String(difficulty),
+      ...(types.length > 0 ? { questionTypes: types.join(',') } : {}),
       autoStart: 'true',
     },
   })
@@ -670,7 +672,13 @@ function getSourceUrl(url) {
               XP
             </p>
             <button
-              @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
+              @click="
+                retakeQuiz(
+                  selectedQuizDetails.topic_id,
+                  selectedQuizDetails.difficulty,
+                  selectedQuizDetails.questions,
+                )
+              "
               class="button button-accent button-sm"
             >
               Gör quizet igen 🔄
@@ -725,7 +733,13 @@ function getSourceUrl(url) {
 
         <div class="modal-footer">
           <button
-            @click="retakeQuiz(selectedQuizDetails.topic_id, selectedQuizDetails.difficulty)"
+            @click="
+              retakeQuiz(
+                selectedQuizDetails.topic_id,
+                selectedQuizDetails.difficulty,
+                selectedQuizDetails.questions,
+              )
+            "
             class="button button-accent"
           >
             Gör quizet igen 🔄

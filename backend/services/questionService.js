@@ -43,6 +43,12 @@ async function getQuestions(filters = {}, options = {}) {
     sql += ' AND q.question_type = ?'
     params.push(filters.question_type)
   }
+  if (Array.isArray(filters.question_types) && filters.question_types.length > 0) {
+    const placeholders = filters.question_types.map(() => '?').join(',')
+
+    sql += ` AND q.question_type IN (${placeholders})`
+    params.push(...filters.question_types)
+  }
   if (filters.difficulty) {
     sql += ' AND q.difficulty_level = ?'
     params.push(filters.difficulty)
@@ -328,16 +334,25 @@ async function deleteQuestion(id) {
   return result.affectedRows > 0
 }
 
-async function getAvailableDifficulties(topic_id) {
-  const [rows] = await pool.execute(
-    `SELECT DISTINCT difficulty_level
+async function getAvailableDifficulties(topic_id, questionTypes) {
+  let sql = `
+    SELECT DISTINCT difficulty_level
     FROM questions
     WHERE topic_id = ?
       AND deleted_at IS NULL
       AND difficulty_level BETWEEN 1 AND 5
-    ORDER BY difficulty_level ASC`,
-    [topic_id],
-  )
+  `
+  const params = [topic_id]
+
+  if (Array.isArray(questionTypes) && questionTypes.length > 0) {
+    const placeholders = questionTypes.map(() => '?').join(',')
+    sql += ` AND question_type IN (${placeholders})`
+    params.push(...questionTypes)
+  }
+
+  sql += ' ORDER BY difficulty_level ASC'
+
+  const [rows] = await pool.execute(sql, params)
 
   return rows.map((row) => Number(row.difficulty_level))
 }

@@ -38,10 +38,15 @@ export const api = {
     }),
 
   // Quizzes & Game Modes with Difficulty Selection & History
-  startQuiz: (topicId, difficulty = 1, limit = 10) =>
+  startQuiz: (topicId, difficulty = 1, limit = 10, questionTypes) =>
     request('/quizzes/start', {
       method: 'POST',
-      body: JSON.stringify({ topicId, difficulty, limit }),
+      body: JSON.stringify({
+        topicId,
+        difficulty,
+        limit,
+        ...(questionTypes !== undefined ? { questionTypes } : {}),
+      }),
     }),
   submitQuizSession: (quizId, submissions) =>
     request(`/quizzes/${quizId}/submit`, {

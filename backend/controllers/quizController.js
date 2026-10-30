@@ -12,7 +12,22 @@ function sendError(res, error) {
 
 async function startQuiz(req, res) {
   try {
-    const { topicId, difficulty, limit } = req.body || {}
+    const { topicId, difficulty, limit, questionTypes } = req.body || {}
+
+    const allowedTypes = ['multiple_choice', 'yes_no', 'free_text', 'matching']
+
+    if (
+      questionTypes !== undefined &&
+      (!Array.isArray(questionTypes) ||
+        questionTypes.length === 0 ||
+        !questionTypes.every((type) => allowedTypes.includes(type)))
+    ) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Välj minst en giltig frågetyp.',
+      })
+    }
+
     if (!topicId) {
       return res.status(400).json({ status: 'error', message: 'Välj ett ämne.' })
     }
@@ -22,6 +37,8 @@ async function startQuiz(req, res) {
       Number(topicId),
       Number(difficulty || 1),
       Number(limit || 10),
+      null,
+      questionTypes,
     )
     res.json({ status: 'success', data: quizSession })
   } catch (err) {

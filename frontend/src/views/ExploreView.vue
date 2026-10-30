@@ -16,6 +16,7 @@ const error = ref(null)
 
 // Difficulty selection (1-5)
 const selectedDifficulty = ref(1)
+const selectedQuestionTypes = ref(Object.keys(QUESTION_TYPE_LABELS))
 
 // Active quiz session state
 const {
@@ -57,6 +58,14 @@ onMounted(async () => {
     if (route.query.topicId && route.query.difficulty) {
       const diffNum = Number(route.query.difficulty)
       if (diffNum >= 1 && diffNum <= 5) selectedDifficulty.value = diffNum
+      if (typeof route.query.questionTypes === 'string') {
+        const validTypes = route.query.questionTypes
+          .split(',')
+          .filter((type) => Object.hasOwn(QUESTION_TYPE_LABELS, type))
+        if (validTypes.length > 0) {
+          selectedQuestionTypes.value = validTypes
+        }
+      }
       const targetTopic = topics.value.find((t) => t.id === Number(route.query.topicId))
       if (targetTopic && route.query.autoStart === 'true' && loggedIn.value) {
         await startQuizSession(targetTopic)
@@ -71,11 +80,20 @@ onMounted(async () => {
 })
 
 async function startQuizSession(topic) {
+  if (selectedQuestionTypes.value.length === 0) {
+    error.value = 'Välj minst en frågetyp för att starta ett quiz.'
+    return
+  }
   try {
     quizStore.assertCanReplaceQuiz()
     loading.value = true
     error.value = null
-    const payload = await api.startQuiz(topic.id, selectedDifficulty.value, 10)
+    const payload = await api.startQuiz(
+      topic.id,
+      selectedDifficulty.value,
+      10,
+      selectedQuestionTypes.value,
+    )
     quizStore.loadQuiz(payload)
   } catch (err) {
     error.value = 'Det gick inte att skapa quizet: ' + err.message
@@ -238,7 +256,32 @@ async function exitQuiz() {
         </button>
       </div>
     </div>
+    <fieldset
+      v-if="!activeQuizSession"
+      class="question-type-selector"
+      :aria-describedby="
+        selectedQuestionTypes.length === 0 ? 'question-type-selection-error' : undefined
+      "
+    >
+      <legend>Välj frågetyper</legend>
 
+      <label v-for="(lable, type) in QUESTION_TYPE_LABELS" :key="type" class="question-type-option">
+        <input type="checkbox" v-model="selectedQuestionTypes" :value="type" />
+        {{ lable }}
+      </label>
+
+      <p
+        v-if="selectedQuestionTypes.length === 0"
+        id="question-type-selection-error"
+        role="alert"
+        aria-live="assertive"
+      >
+        Välj minst en frågetyp för att starta ett quiz.
+      </p>
+    </fieldset>
+    <p v-if="!activeQuizSession" class="text-muted">
+      Quizet innehåller upp till 10 frågor. Om färre frågor matchar dina val används de som finns.
+    </p>
     <div v-if="error" class="error-banner">⚠️ {{ error }}</div>
     <QuizSyncStatus v-if="activeQuizSession" />
 
@@ -252,8 +295,9 @@ async function exitQuiz() {
         class="quiz-fallback-notice"
         role="status"
       >
-        Det finns inga frågor på nivå {{ activeQuizSession.requested_difficulty }} inom det här
-        ämnet. Quizet använder nivå {{ activeQuizSession.difficulty }}.
+        Det finns inga frågor av valda frågetyper på nivå
+        {{ activeQuizSession.requested_difficulty }} inom det här ämnet. Quizet använder nivå
+        {{ activeQuizSession.difficulty }}.
       </p>
       <div class="quiz-header">
         <div class="quiz-header-meta">
