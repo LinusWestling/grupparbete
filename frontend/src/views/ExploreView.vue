@@ -80,7 +80,12 @@ async function startQuizSession(topic) {
     quizStore.assertCanReplaceQuiz()
     loading.value = true
     error.value = null
-    const payload = await api.startQuiz(topic.id, selectedDifficulty.value, 10, selectedQuestionTypes.value,)
+    const payload = await api.startQuiz(
+      topic.id,
+      selectedDifficulty.value,
+      10,
+      selectedQuestionTypes.value,
+    )
     quizStore.loadQuiz(payload)
   } catch (err) {
     error.value = 'Det gick inte att skapa quizet: ' + err.message
@@ -246,22 +251,14 @@ async function exitQuiz() {
     <fieldset v-if="!activeQuizSession" class="question-type-selector">
       <legend>Välj frågetyper</legend>
 
-      <label 
-        v-for="(lable,type) in QUESTION_TYPE_LABELS"
-        :key="type"
-        class="question-type-option"
-      >
-        <input 
-          type="checkbox"
-          v-model="selectedQuestionTypes"
-          :value="type"
-        />
-        {{ lable }}    
-    </label>
+      <label v-for="(lable, type) in QUESTION_TYPE_LABELS" :key="type" class="question-type-option">
+        <input type="checkbox" v-model="selectedQuestionTypes" :value="type" />
+        {{ lable }}
+      </label>
 
-    <p v-if="selectedQuestionTypes.length === 0">
-      Välj minst en frågetyp för att starta ett quiz.
-    </p>
+      <p v-if="selectedQuestionTypes.length === 0">
+        Välj minst en frågetyp för att starta ett quiz.
+      </p>
     </fieldset>
     <p v-if="!activeQuizSession" class="text-muted">
       Quizet innehåller upp till 10 frågor. Om färre frågor matchar dina val används de som finns.
@@ -278,9 +275,9 @@ async function exitQuiz() {
         "
         role="status"
       >
-        Det finns inga frågor av valda frågetyper på nivå 
-        {{ activeQuizSession.requested_difficulty }} inom det här ämnet.
-        Quizet använder nivå {{ activeQuizSession.difficulty }}.
+        Det finns inga frågor av valda frågetyper på nivå
+        {{ activeQuizSession.requested_difficulty }} inom det här ämnet. Quizet använder nivå
+        {{ activeQuizSession.difficulty }}.
       </p>
       <div class="quiz-header">
         <div>

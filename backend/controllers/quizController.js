@@ -23,7 +23,7 @@ async function startQuiz(req, res) {
         !questionTypes.every((type) => allowedTypes.includes(type)))
     ) {
       return res.status(400).json({
-        status:'error',
+        status: 'error',
         message: 'Välj minst en giltig frågetyp.',
       })
     }
