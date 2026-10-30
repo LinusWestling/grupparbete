@@ -21,6 +21,11 @@ const visibleNavigation = computed(() =>
 
 const loggingOut = ref(false)
 const logoutError = ref('')
+const mobileMenuOpen = ref(false)
+
+function closeMobileMenu() {
+  mobileMenuOpen.value = false
+}
 
 async function handleLogout() {
   if (loggingOut.value) return
@@ -46,17 +51,35 @@ onMounted(loadCurrentUser)
   <a class="skip-link" href="#main-content">Hoppa till innehållet</a>
   <div class="app-shell">
     <aside class="sidebar">
-      <RouterLink class="brand" to="/" aria-label="SkillSwaps startsida"
-        ><span class="brand-mark">⇄</span> SkillSwap<span class="brand-dot">.</span></RouterLink
-      >
+      <div class="sidebar-header">
+        <RouterLink class="brand" to="/" aria-label="SkillSwaps startsida" @click="closeMobileMenu"
+          ><span class="brand-mark">⇄</span> SkillSwap<span class="brand-dot">.</span></RouterLink
+        >
+        <button
+          type="button"
+          class="hamburger-btn"
+          :aria-expanded="mobileMenuOpen"
+          aria-controls="primary-navigation"
+          :aria-label="mobileMenuOpen ? 'Stäng meny' : 'Öppna meny'"
+          @click="mobileMenuOpen = !mobileMenuOpen"
+        >
+          <span class="hamburger-icon" aria-hidden="true">{{ mobileMenuOpen ? '✕' : '☰' }}</span>
+          <span class="hamburger-label">Meny</span>
+        </button>
+      </div>
       <p class="nav-label">DIN ARBETSYTA</p>
-      <nav aria-label="Huvudnavigering">
+      <nav
+        id="primary-navigation"
+        :class="{ 'is-open': mobileMenuOpen }"
+        aria-label="Huvudnavigering"
+      >
         <RouterLink
           v-for="item in visibleNavigation"
           :key="item.path"
           :to="item.path"
           class="nav-link"
           exact-active-class="is-active"
+          @click="closeMobileMenu"
           ><span class="nav-icon" aria-hidden="true">{{ item.icon }}</span
           >{{ item.label }}</RouterLink
         >
