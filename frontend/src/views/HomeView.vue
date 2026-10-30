@@ -35,10 +35,11 @@ const steps = [
   },
   {
     number: '03',
-    title: 'Knyt en kontakt',
-    description: 'Starta ett samtal och låt ett gemensamt intresse bli ett kunskapsutbyte.',
-    path: '/messages',
-    action: 'Öppna meddelanden',
+    title: 'Se & dela dina framsteg',
+    description:
+      'Levla upp, se över dina genomförda quiz, och förslagsvis dela dina resultat med organisationer.',
+    path: '/profile',
+    action: 'Öppna profil',
   },
 ]
 </script>

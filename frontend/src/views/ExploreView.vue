@@ -249,17 +249,18 @@ async function exitQuiz() {
           activeQuizSession.requested_difficulty != null &&
           activeQuizSession.requested_difficulty !== activeQuizSession.difficulty
         "
+        class="quiz-fallback-notice"
         role="status"
       >
         Det finns inga frågor på nivå {{ activeQuizSession.requested_difficulty }} inom det här
         ämnet. Quizet använder nivå {{ activeQuizSession.difficulty }}.
       </p>
       <div class="quiz-header">
-        <div>
+        <div class="quiz-header-meta">
           <span class="badge">{{ activeTopicName }}</span>
           <span class="chip margin-left">⭐ Nivå {{ activeQuizSession.difficulty }}</span>
         </div>
-        <span
+        <span class="quiz-question-counter"
           >Fråga {{ currentQuestionIndex + 1 }} av {{ activeQuizSession.questions.length }}</span
         >
         <button @click="exitQuiz" :disabled="submitting" class="button-text">✕ Lämna quizet</button>
@@ -386,6 +387,14 @@ async function exitQuiz() {
         </button>
 
         <button
+          class="button button-outline"
+          :disabled="submitting"
+          @click="navigateQuestion(1, true)"
+        >
+          Hoppa över frågan
+        </button>
+
+        <button
           v-if="currentQuestionIndex < activeQuizSession.questions.length - 1"
           @click="navigateQuestion(1)"
           :disabled="submitting"
@@ -403,29 +412,28 @@ async function exitQuiz() {
           Slutför quizet 🚀
         </button>
       </div>
-      <button
-        class="button button-outline"
-        :disabled="submitting"
-        @click="navigateQuestion(1, true)"
-      >
-        Hoppa över frågan
-      </button>
-      <p role="status" aria-live="polite">{{ saveMessage }}</p>
-      <p>
-        Besvarade: {{ activeQuizSession.questions.filter((q) => q.is_answered).length }} ·
-        Överhoppade:
-        {{ activeQuizSession.questions.filter((q) => q.is_skipped).length }}
-      </p>
+
+      <div class="quiz-status-bar">
+        <p class="quiz-progress-counts">
+          Besvarade:
+          <strong>{{ activeQuizSession.questions.filter((q) => q.is_answered).length }}</strong>
+          · Överhoppade:
+          <strong>{{ activeQuizSession.questions.filter((q) => q.is_skipped).length }}</strong>
+        </p>
+        <p class="quiz-save-message" role="status" aria-live="polite">{{ saveMessage }}</p>
+      </div>
     </div>
 
     <!-- Quiz Results View -->
     <div v-else-if="quizResult" class="results-card">
       <h2>🎉 Quizet är slutfört!</h2>
-      <p v-if="pendingCompletion" role="status" aria-live="polite">
+      <p v-if="pendingCompletion" class="results-status" role="status" aria-live="polite">
         Resultatet och beräknade XP väntar på bekräftelse.
         {{ syncingCompletion ? 'Synkroniserar…' : 'Anslut till servern och försök spara igen.' }}
       </p>
-      <p v-else role="status">Resultatet är bekräftat och sparat på ditt konto.</p>
+      <p v-else class="results-status" role="status">
+        Resultatet är bekräftat och sparat på ditt konto.
+      </p>
 
       <!-- 80% Qualification Badge -->
       <div v-if="quizResult?.meets_80_percent === true" class="qualification-badge">
@@ -477,40 +485,55 @@ async function exitQuiz() {
         </div>
       </div>
 
-      <p>Överhoppade: {{ quizResult.skipped_count }}</p>
-      <button
-        @click="exitQuiz"
-        :disabled="pendingCompletion || syncingCompletion"
-        class="button button-accent"
-      >
-        Tillbaka till ämnen
-      </button>
+      <div class="results-footer">
+        <p class="text-muted">Överhoppade: {{ quizResult.skipped_count }}</p>
+        <button
+          @click="exitQuiz"
+          :disabled="pendingCompletion || syncingCompletion"
+          class="button button-accent"
+        >
+          Tillbaka till ämnen
+        </button>
+      </div>
     </div>
 
     <!-- Topics Grid View -->
-    <div v-else>
-      <p v-if="!loading && !loggedIn">
+    <div v-else class="explore-topics-section">
+      <p v-if="!loading && !loggedIn" class="guest-login-banner">
         Logga in via din profil för att starta ett quiz och spara dina framsteg mellan enheter.
       </p>
-      <section v-if="unfinishedQuizzes.length" aria-labelledby="unfinished-title">
-        <h2 id="unfinished-title">Fortsätt med ett pågående quiz</h2>
-        <div v-for="quiz in unfinishedQuizzes" :key="quiz.quiz_id">
-          <p>
-            <strong v-if="quiz.organization_name"
-              >Tilldelat av {{ quiz.organization_name }} ·
-            </strong>
-            {{ quiz.topic_name }} · Nivå {{ quiz.difficulty }} · {{ quiz.answered_count }}/{{
-              quiz.total_cnt
-            }}
-            besvarade · {{ quiz.skipped_count }} överhoppade
-          </p>
-          <button
-            class="button button-outline"
-            :disabled="loading || hasUnsyncedData || isSyncing"
-            @click="resumeQuiz(quiz.quiz_id)"
-          >
-            Återuppta quizet
-          </button>
+      <section
+        v-if="unfinishedQuizzes.length"
+        class="unfinished-quizzes-section"
+        aria-labelledby="unfinished-title"
+      >
+        <div class="unfinished-quizzes-header">
+          <h2 id="unfinished-title">Fortsätt med ett pågående quiz</h2>
+          <span class="chip">{{ unfinishedQuizzes.length }} pågår</span>
+        </div>
+        <div class="unfinished-quizzes-grid">
+          <div v-for="quiz in unfinishedQuizzes" :key="quiz.quiz_id" class="unfinished-quiz-card">
+            <div class="unfinished-quiz-details">
+              <div class="unfinished-quiz-badges">
+                <span class="badge">{{ quiz.topic_name }}</span>
+                <span class="chip">⭐ Nivå {{ quiz.difficulty }}</span>
+                <span v-if="quiz.organization_name" class="status-pill pending">
+                  Tilldelat av {{ quiz.organization_name }}
+                </span>
+              </div>
+              <p class="unfinished-quiz-stats">
+                {{ quiz.answered_count }}/{{ quiz.total_cnt }} besvarade ·
+                {{ quiz.skipped_count }} överhoppade
+              </p>
+            </div>
+            <button
+              class="button button-outline"
+              :disabled="loading || hasUnsyncedData || isSyncing"
+              @click="resumeQuiz(quiz.quiz_id)"
+            >
+              Återuppta quizet
+            </button>
+          </div>
         </div>
       </section>
       <div v-if="loading" class="loading-state">Hämtar ämnen…</div>

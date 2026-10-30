@@ -641,7 +641,7 @@ function getSourceUrl(url) {
           </table>
         </div>
         <p v-else class="text-muted">
-          Du har inte slutfört några quiz ännu. Starta ett quiz under Explore skills!
+          Du har inte slutfört några quiz ännu. Starta ett quiz under Utforska kunskap!
         </p>
       </div>
       <button
