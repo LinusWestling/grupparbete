@@ -13,6 +13,8 @@ function toQuery(params) {
 export const api = {
   // The backend authenticates this read and records access before returning the log.
   getMonitoringEvents: () => request('/monitoring/events', { cache: 'no-store' }),
+  getServerInformation: (signal) =>
+    request('/experiments/server-information', { cache: 'no-store', signal }),
 
   // Topics
   getTopics: () => request('/topics'),

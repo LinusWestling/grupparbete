@@ -1,6 +1,7 @@
 <script setup>
 import { nextTick, onBeforeUnmount, ref, shallowRef } from 'vue'
 import LinusMonitoring from '../components/LinusMonitoring.vue'
+import LinusServerInformation from '../components/LinusServerInformation.vue'
 import {
   apiSources,
   browserNotes,
@@ -100,7 +101,7 @@ onBeforeUnmount(() => {
 <template>
   <iframe
     ref="frame"
-    title="Linus experimenting — plain HTML browser information"
+    title="Linus experimenting — plain HTML experiments"
     :srcdoc="plainDocument"
     width="100%"
     :height="height"
@@ -112,12 +113,14 @@ onBeforeUnmount(() => {
       <p>Choose an experiment.</p>
       <button type="button" @click="chooseExperiment('privacy')">Privacy</button>
       <button type="button" @click="chooseExperiment('monitoring')">Monitoring</button>
+      <button type="button" @click="chooseExperiment('server')">Server information</button>
     </section>
     <template v-else>
       <button type="button" :disabled="collecting" @click="chooseExperiment(null)">
         Back to experiments
       </button>
       <LinusMonitoring v-if="experimentMode === 'monitoring'" />
+      <LinusServerInformation v-else-if="experimentMode === 'server'" />
       <template v-else>
         <section v-if="consentAnswer === null" aria-labelledby="experiment-consent-question">
           <h1 id="experiment-consent-question">Do you consent to sharing your information</h1>
@@ -193,7 +196,8 @@ onBeforeUnmount(() => {
           <h2>What this experiment cannot tell you</h2>
           <ul>
             <li>
-              Your public or local IP address: no external IP service or WebRTC discovery is used.
+              Your public or local IP address: this browser-only report makes no IP lookup. Choose
+              Server information to see the address observed by this app's backend.
             </li>
             <li>
               Your precise location, camera image, microphone audio, clipboard contents or files:

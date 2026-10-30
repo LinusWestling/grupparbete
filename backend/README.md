@@ -1,5 +1,33 @@
 # Backend sessions
 
+## Server-information experiment
+
+The Linus experiment menu also offers Server information. Public
+`GET /api/experiments/server-information` returns only the current request's
+Express-resolved IP, direct socket peer, protocol/TLS facts, selected headers,
+server UTC clock, Node runtime/platform/architecture, process uptime and handler
+duration. An explicit header allowlist excludes cookies, authorization and
+arbitrary custom headers. Query strings and full referrers are omitted. No
+database access, monitoring events or third-party IP/geolocation requests are
+added by this endpoint. Hosting-provider access logs are separate.
+It is mounted before session middleware so it does not read session storage.
+
+The endpoint uses the existing `trust proxy` setting; it never selects the first
+forwarded IP independently. Local development defaults to trusting no proxy;
+production currently trusts one hop. The actual proxy topology must match that
+policy, including preventing direct access that could bypass a trusted proxy.
+The direct peer can be an internal proxy, and TLS can terminate before Node.
+No claim is made that a reported IP identifies a person or gives their location.
+
+The frontend makes one uncached request on opening and each manual refresh,
+measuring time through reading/parsing the response with `performance.now()`.
+It displays the current duration and a rolling mean of up to five successful
+requests. This includes networking, middleware/proxy work and browser overhead;
+it is not ICMP ping, one-way latency, or a network-only RTT. The separate server
+handler duration excludes earlier middleware, serialization and network travel
+and is also sent as `Server-Timing: handler;dur=...`. Requests time out after ten
+seconds and are aborted when leaving the view. No new migration is needed.
+
 ## Minimal experiment monitoring
 
 Apply `016_monitoring.sql` with `npm run migrate` before running this version.

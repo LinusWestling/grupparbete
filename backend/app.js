@@ -25,6 +25,10 @@ app.use(
   }),
 )
 
+// These per-request diagnostics need no session or database, even for a caller
+// whose browser sends an existing session cookie.
+app.use(require('./routes/linusExperimentRoutes'))
+
 // Render terminates HTTPS at its reverse proxy.
 if (isProduction) {
   app.set('trust proxy', 1)
