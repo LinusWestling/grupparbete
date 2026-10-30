@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { navigation } from './router'
 import {
@@ -22,10 +22,40 @@ const visibleNavigation = computed(() =>
 const loggingOut = ref(false)
 const logoutError = ref('')
 const mobileMenuOpen = ref(false)
+const mainContent = ref(null)
+let shouldFocusMain = false
 
-function closeMobileMenu() {
-  mobileMenuOpen.value = false
+function focusMainContent() {
+  const mainEl = mainContent.value
+  if (!mainEl) return
+  const heading = mainEl.querySelector('h1')
+  if (heading) {
+    if (!heading.hasAttribute('tabindex')) {
+      heading.setAttribute('tabindex', '-1')
+    }
+    heading.focus()
+  } else {
+    mainEl.focus()
+  }
 }
+
+async function closeMobileMenu() {
+  mobileMenuOpen.value = false
+  shouldFocusMain = true
+  await nextTick()
+  focusMainContent()
+}
+
+watch(
+  () => router.currentRoute.value.fullPath,
+  async () => {
+    mobileMenuOpen.value = false
+    if (!shouldFocusMain) return
+    shouldFocusMain = false
+    await nextTick()
+    focusMainContent()
+  },
+)
 
 async function handleLogout() {
   if (loggingOut.value) return
@@ -116,7 +146,7 @@ onMounted(loadCurrentUser)
           <span v-if="logoutError" class="error-banner" role="alert">{{ logoutError }}</span>
         </div>
       </header>
-      <main id="main-content" tabindex="-1"><RouterView /></main>
+      <main id="main-content" ref="mainContent" tabindex="-1"><RouterView /></main>
       <footer class="page-footer">
         <span>SkillSwap</span><span>Bra saker händer när vi delar med oss.</span>
       </footer>
