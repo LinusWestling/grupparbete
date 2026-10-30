@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { navigation } from './router'
 import {
@@ -23,7 +23,13 @@ const loggingOut = ref(false)
 const logoutError = ref('')
 const mobileMenuOpen = ref(false)
 const mainContent = ref(null)
+const primaryNav = ref(null)
+const hamburgerBtn = ref(null)
 let shouldFocusMain = false
+
+function isVisible(el) {
+  return Boolean(el && getComputedStyle(el).display !== 'none')
+}
 
 function focusMainContent() {
   const mainEl = mainContent.value
@@ -39,18 +45,64 @@ function focusMainContent() {
   }
 }
 
-async function closeMobileMenu() {
-  mobileMenuOpen.value = false
-  shouldFocusMain = true
-  await nextTick()
-  focusMainContent()
+function focusTemporaryTarget() {
+  if (isVisible(hamburgerBtn.value)) {
+    hamburgerBtn.value.focus()
+  } else {
+    focusMainContent()
+  }
 }
+
+function closeMobileMenu(targetPath, event) {
+  if (
+    event &&
+    (event.defaultPrevented ||
+      (event.button != null && event.button !== 0) ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey)
+  ) {
+    shouldFocusMain = false
+    return
+  }
+
+  const focusWasInMenu = Boolean(primaryNav.value?.contains(document.activeElement))
+  mobileMenuOpen.value = false
+
+  if (focusWasInMenu) {
+    focusTemporaryTarget()
+  }
+
+  if (targetPath && router.resolve(targetPath).fullPath === router.currentRoute.value.fullPath) {
+    shouldFocusMain = false
+    return
+  }
+
+  shouldFocusMain = true
+}
+
+const removeAfterEach = router.afterEach((_to, _from, failure) => {
+  if (failure) {
+    shouldFocusMain = false
+  }
+})
+
+const removeOnError = router.onError(() => {
+  shouldFocusMain = false
+})
+
+onUnmounted(() => {
+  removeAfterEach()
+  removeOnError()
+})
 
 watch(
   () => router.currentRoute.value.fullPath,
   async () => {
+    const focusWasInMenu = Boolean(primaryNav.value?.contains(document.activeElement))
     mobileMenuOpen.value = false
-    if (!shouldFocusMain) return
+    if (!shouldFocusMain && !focusWasInMenu) return
     shouldFocusMain = false
     await nextTick()
     focusMainContent()
@@ -82,10 +134,15 @@ onMounted(loadCurrentUser)
   <div class="app-shell">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <RouterLink class="brand" to="/" aria-label="SkillSwaps startsida" @click="closeMobileMenu"
+        <RouterLink
+          class="brand"
+          to="/"
+          aria-label="SkillSwaps startsida"
+          @click="closeMobileMenu('/', $event)"
           ><span class="brand-mark">⇄</span> SkillSwap<span class="brand-dot">.</span></RouterLink
         >
         <button
+          ref="hamburgerBtn"
           type="button"
           class="hamburger-btn"
           :aria-expanded="mobileMenuOpen"
@@ -100,6 +157,7 @@ onMounted(loadCurrentUser)
       <p class="nav-label">DIN ARBETSYTA</p>
       <nav
         id="primary-navigation"
+        ref="primaryNav"
         :class="{ 'is-open': mobileMenuOpen }"
         aria-label="Huvudnavigering"
       >
@@ -109,7 +167,7 @@ onMounted(loadCurrentUser)
           :to="item.path"
           class="nav-link"
           exact-active-class="is-active"
-          @click="closeMobileMenu"
+          @click="closeMobileMenu(item.path, $event)"
           ><span class="nav-icon" aria-hidden="true">{{ item.icon }}</span
           >{{ item.label }}</RouterLink
         >
