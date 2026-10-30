@@ -737,7 +737,7 @@ main {
 }
 
 /* Mobile (< 500px): hamburger navigation and stacked hero layout. */
-@media (max-width: 500px) {
+@media (max-width: 675px) {
   .sidebar {
     padding: 12px 16px;
   }

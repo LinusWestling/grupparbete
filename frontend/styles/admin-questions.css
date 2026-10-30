@@ -122,9 +122,11 @@
   font-size: var(--font-size-xs);
 }
 
-.row-actions {
+.row-actions,
+.row-actions-group {
   display: flex;
   gap: var(--space-2);
+  flex-wrap: wrap;
   white-space: nowrap;
 }
 
@@ -221,4 +223,86 @@ button:disabled {
 
 .admin-org-header h2 {
   margin-bottom: var(--space-1);
+}
+
+@media (max-width: 1250px) {
+  .admin-questions-page .table-container {
+    overflow: visible;
+  }
+
+  .admin-questions-page .data-table,
+  .admin-questions-page .data-table tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-questions-page .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .admin-questions-page .data-table tbody tr {
+    display: block;
+    margin-bottom: var(--space-3);
+    padding: var(--space-4);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+
+  .admin-questions-page .data-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .admin-questions-page .data-table tbody tr.is-editing {
+    background: var(--color-surface-soft);
+    border-color: var(--color-primary);
+  }
+
+  .admin-questions-page .data-table td {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    align-items: start;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    border-bottom: var(--border-width) solid var(--color-surface-muted);
+  }
+
+  .admin-questions-page .data-table td:last-child {
+    border-bottom: none;
+  }
+
+  .admin-questions-page .data-table td::before {
+    content: attr(data-label);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+  }
+
+  .admin-questions-page .data-table td > * {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .admin-questions-page .question-col {
+    max-width: none;
+  }
+
+  .admin-questions-page .chip,
+  .admin-questions-page .status-pill {
+    width: fit-content;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-questions-page .data-table td {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
 }
