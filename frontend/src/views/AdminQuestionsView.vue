@@ -174,25 +174,25 @@ async function confirmDelete() {
 
       <p v-if="loadingOrgRequests" class="text-muted">Läser in organisationsansökningar…</p>
       <div v-else-if="orgRequests.length > 0" class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Organisation / användarnamn</th>
-              <th>E-post</th>
-              <th>Status</th>
-              <th>Aktiv roll</th>
-              <th>Åtgärder</th>
+        <table class="data-table" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">ID</th>
+              <th role="columnheader">Organisation / användarnamn</th>
+              <th role="columnheader">E-post</th>
+              <th role="columnheader">Status</th>
+              <th role="columnheader">Aktiv roll</th>
+              <th role="columnheader">Åtgärder</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="org in orgRequests" :key="org.id">
-              <td>#{{ org.id }}</td>
-              <td>
+          <tbody role="rowgroup">
+            <tr v-for="org in orgRequests" :key="org.id" role="row">
+              <td role="cell" data-label="ID">#{{ org.id }}</td>
+              <td role="cell" data-label="Organisation / användarnamn">
                 <strong>{{ org.username }}</strong>
               </td>
-              <td>{{ org.email }}</td>
-              <td>
+              <td role="cell" data-label="E-post">{{ org.email }}</td>
+              <td role="cell" data-label="Status">
                 <span :class="['status-pill', org.org_request_status]">
                   {{
                     org.org_request_status === 'pending'
@@ -203,28 +203,30 @@ async function confirmDelete() {
                   }}
                 </span>
               </td>
-              <td>
+              <td role="cell" data-label="Aktiv roll">
                 <span class="chip">{{ ROLE_LABELS[org.role] ?? 'Okänd roll' }}</span>
               </td>
-              <td class="row-actions">
-                <button
-                  v-if="org.role !== 'organization'"
-                  type="button"
-                  class="button button-accent button-sm"
-                  :disabled="updatingOrgId === org.id"
-                  @click="handleOrgRequest(org.id, 'approve')"
-                >
-                  Godkänn organisation ✓
-                </button>
-                <button
-                  v-if="org.org_request_status === 'pending' || org.role === 'organization'"
-                  type="button"
-                  class="button-danger button-sm"
-                  :disabled="updatingOrgId === org.id"
-                  @click="handleOrgRequest(org.id, 'reject')"
-                >
-                  {{ org.role === 'organization' ? 'Återkalla organisationsåtkomst' : 'Avslå ✕' }}
-                </button>
+              <td role="cell" data-label="Åtgärder" class="row-actions">
+                <div class="row-actions-group">
+                  <button
+                    v-if="org.role !== 'organization'"
+                    type="button"
+                    class="button button-accent button-sm"
+                    :disabled="updatingOrgId === org.id"
+                    @click="handleOrgRequest(org.id, 'approve')"
+                  >
+                    Godkänn organisation ✓
+                  </button>
+                  <button
+                    v-if="org.org_request_status === 'pending' || org.role === 'organization'"
+                    type="button"
+                    class="button-danger button-sm"
+                    :disabled="updatingOrgId === org.id"
+                    @click="handleOrgRequest(org.id, 'reject')"
+                  >
+                    {{ org.role === 'organization' ? 'Återkalla organisationsåtkomst' : 'Avslå ✕' }}
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -285,34 +287,45 @@ async function confirmDelete() {
     </p>
 
     <div v-if="!loading && questions.length" class="table-container">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Fråga</th>
-            <th>Ämne</th>
-            <th>Frågetyp</th>
-            <th>Nivå</th>
-            <th>Användningar</th>
-            <th><span class="sr-only">Åtgärder</span></th>
+      <table class="data-table" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader">ID</th>
+            <th role="columnheader">Fråga</th>
+            <th role="columnheader">Ämne</th>
+            <th role="columnheader">Frågetyp</th>
+            <th role="columnheader">Nivå</th>
+            <th role="columnheader">Användningar</th>
+            <th role="columnheader"><span class="sr-only">Åtgärder</span></th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="q in questions" :key="q.id" :class="{ 'is-editing': editing?.id === q.id }">
-            <td>#{{ q.id }}</td>
-            <td class="question-col">
-              {{ q.question_text }}
-              <span class="correct-answer">✓ {{ correctAnswerText(q) }}</span>
+        <tbody role="rowgroup">
+          <tr
+            v-for="q in questions"
+            :key="q.id"
+            role="row"
+            :class="{ 'is-editing': editing?.id === q.id }"
+          >
+            <td role="cell" data-label="ID">#{{ q.id }}</td>
+            <td role="cell" data-label="Fråga" class="question-col">
+              <div>
+                {{ q.question_text }}
+                <span class="correct-answer">✓ {{ correctAnswerText(q) }}</span>
+              </div>
             </td>
-            <td>
+            <td role="cell" data-label="Ämne">
               <span class="chip">{{ q.topic_name }}</span>
             </td>
-            <td>{{ QUESTION_TYPE_LABELS[q.question_type] }}</td>
-            <td>{{ q.difficulty_level }}</td>
-            <td>{{ q.usage_count }}</td>
-            <td class="row-actions">
-              <button class="button button-outline button-sm" @click="openForm(q)">Redigera</button>
-              <button class="button-danger button-sm" @click="askDelete(q)">Ta bort</button>
+            <td role="cell" data-label="Frågetyp">{{ QUESTION_TYPE_LABELS[q.question_type] }}</td>
+            <td role="cell" data-label="Nivå">{{ q.difficulty_level }}</td>
+            <td role="cell" data-label="Användningar">{{ q.usage_count }}</td>
+            <td role="cell" data-label="Åtgärder" class="row-actions">
+              <div class="row-actions-group">
+                <button class="button button-outline button-sm" @click="openForm(q)">
+                  Redigera
+                </button>
+                <button class="button-danger button-sm" @click="askDelete(q)">Ta bort</button>
+              </div>
             </td>
           </tr>
         </tbody>

@@ -32,6 +32,11 @@
   gap: var(--space-5);
 }
 
+.user-header > div:last-child {
+  min-width: 0;
+  flex: 1;
+}
+
 .privacy-section {
   background: var(--color-surface-muted);
   border: var(--border-width) solid var(--color-border);
@@ -54,12 +59,15 @@
 .user-title-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
 .avatar-large {
   width: 60px;
   height: 60px;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
   background: var(--color-primary);
   color: var(--color-accent);
   font-size: var(--font-size-h2);
@@ -80,6 +88,8 @@
   font-size: var(--font-size-xs);
   cursor: pointer;
   transition: all var(--transition-fast);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .level-pill-button:hover {
@@ -210,6 +220,8 @@
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   overflow-x: auto;
+  padding: var(--space-4);
+  margin-top: var(--space-4);
 }
 
 .data-table {
@@ -221,7 +233,6 @@
 .data-table th,
 .data-table td {
   padding: var(--space-3) var(--space-4);
-  border-bottom: var(--border-width) solid var(--color-border);
   font-size: var(--font-size-sm);
 }
 
@@ -703,6 +714,37 @@
   .modal-footer {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 425px) {
+  .user-header {
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .avatar-large {
+    width: 48px;
+    height: 48px;
+    font-size: var(--font-size-h3);
+  }
+
+  .user-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+  }
+
+  .xp-header-row,
+  .tp-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+
+  .tp-title {
+    flex-wrap: wrap;
   }
 }
 
