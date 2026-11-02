@@ -90,6 +90,32 @@ export const api = {
     }),
   getProspectDetails: (prospectId) => request(`/organization/prospects/${prospectId}`),
 
+  // Challenges
+  getPendingChallenges: () => request('/challenges/pending'),
+  getActiveChallenges: () => request('/challenges/active'),
+  getChallengeHistory: () => request('/challenges/history'),
+  createChallenge: (challengedUserId, topicId, difficulty) =>
+    request('/challenges', {
+      method: 'POST',
+      body: JSON.stringify({ challenged_user_id: challengedUserId, topic_id: topicId, difficulty }),
+    }),
+  acceptChallenge: (challengeId) =>
+    request(`/challenges/${challengeId}/accept`, {
+      method: 'POST',
+    }),
+  declineChallenge: (challengeId) =>
+    request(`/challenges/${challengeId}/decline`, {
+      method: 'POST',
+    }),
+  startChallengeQuiz: (challengeId) =>
+    request(`/challenges/${challengeId}/start`, {
+      method: 'POST',
+    }),
+  getChallengeProgress: (challengeId) => request(`/challenges/${challengeId}/progress`),
+  getChallengeResult: (challengeId) => request(`/challenges/${challengeId}/result`),
+  searchUsers: (query) =>
+    request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
+
   // Auth
   register: (username, email, password, requestOrganization = false) =>
     request('/auth/register', {

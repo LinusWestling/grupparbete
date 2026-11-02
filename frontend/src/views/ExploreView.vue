@@ -188,6 +188,7 @@ async function exitQuiz() {
           and Physiology.
         </p>
       </div>
+      <RouterLink to="/challenges" class="button button-accent">🏆 Challenges</RouterLink>
     </div>
 
     <!-- Difficulty Level Selector Bar -->

@@ -152,11 +152,13 @@ const activeCount = computed(() => activeChallenges.value.length)
 <template>
   <div class="challenge-view">
     <div class="page-heading">
-      <h1>🏆 Challenges</h1>
+      <h1><span role="img" aria-label="Trophy">🏆</span> Challenges</h1>
       <p>Challenge your friends to head-to-head quiz battles!</p>
     </div>
 
-    <div v-if="error" class="error-banner">⚠️ {{ error }}</div>
+    <div v-if="error" class="error-banner">
+      <span role="img" aria-label="Warning">⚠️</span> {{ error }}
+    </div>
 
     <!-- Tabs -->
     <div class="tabs">
@@ -280,9 +282,9 @@ const activeCount = computed(() => activeChallenges.value.length)
             <h3>{{ challenge.challenger_username }} vs {{ challenge.challenged_username }}</h3>
             <p>{{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
             <p v-if="challenge.winner_username" class="winner">
-              🏆 Winner: {{ challenge.winner_username }}
+              <span role="img" aria-label="Trophy">🏆</span> Winner: {{ challenge.winner_username }}
             </p>
-            <p v-else class="tie">🤝 Tie</p>
+            <p v-else class="tie"><span role="img" aria-label="Handshake">🤝</span> Tie</p>
             <p class="text-muted">
               Completed {{ new Date(challenge.completed_at).toLocaleDateString() }}
             </p>
@@ -346,7 +348,7 @@ const activeCount = computed(() => activeChallenges.value.length)
               :class="['diff-btn', { active: selectedDifficulty === lvl }]"
               @click="selectedDifficulty = lvl"
             >
-              ⭐ {{ lvl }}
+              <span role="img" aria-label="Star">⭐</span> {{ lvl }}
             </button>
           </div>
         </div>
@@ -395,16 +397,16 @@ const activeCount = computed(() => activeChallenges.value.length)
 }
 
 .tab:hover {
-  color: var(--color-accent);
+  color: var(--color-primary);
 }
 
 .tab.active {
-  color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .tab .badge {
-  background: var(--color-accent);
+  background: #103c35;
   color: white;
   padding: 0.2rem 0.5rem;
   border-radius: 12px;
@@ -475,12 +477,12 @@ const activeCount = computed(() => activeChallenges.value.length)
 }
 
 .badge.success {
-  background: var(--color-success);
+  background: #2d7a3d;
   color: white;
 }
 
 .badge.warning {
-  background: var(--color-warning);
+  background: #c7940a;
   color: white;
 }
 
@@ -537,7 +539,7 @@ const activeCount = computed(() => activeChallenges.value.length)
 }
 
 .selected-user {
-  color: var(--color-success);
+  color: #2d7a3d;
 }
 
 .difficulty-buttons {
@@ -560,8 +562,8 @@ const activeCount = computed(() => activeChallenges.value.length)
 }
 
 .diff-btn.active {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
+  border-color: var(--color-primary);
+  background: var(--color-primary);
   color: white;
 }
 
@@ -605,12 +607,12 @@ const activeCount = computed(() => activeChallenges.value.length)
 }
 
 .button-accent {
-  background: var(--color-accent);
+  background: var(--color-primary);
   color: white;
 }
 
 .button-accent:hover:not(:disabled) {
-  background: var(--color-accent-dark);
+  background: var(--color-primary-hover);
 }
 
 .button-outline {

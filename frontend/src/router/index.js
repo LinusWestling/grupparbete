@@ -52,6 +52,24 @@ const router = createRouter({
       meta: { title: 'Profile' },
     },
     {
+      path: '/challenges',
+      name: 'challenges',
+      component: () => import('../views/ChallengeView.vue'),
+      meta: { title: 'Challenges' },
+    },
+    {
+      path: '/challenges/:id/play',
+      name: 'challenge-play',
+      component: () => import('../views/ChallengePlayView.vue'),
+      meta: { title: 'Challenge Quiz' },
+    },
+    {
+      path: '/challenges/:id/result',
+      name: 'challenge-result',
+      component: () => import('../views/ChallengeResultView.vue'),
+      meta: { title: 'Challenge Result' },
+    },
+    {
       path: '/:pathMatch(.*)*',
       component: () => import('../views/NotFoundView.vue'),
       meta: { title: 'Page not found' },
