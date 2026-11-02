@@ -113,8 +113,7 @@ export const api = {
     }),
   getChallengeProgress: (challengeId) => request(`/challenges/${challengeId}/progress`),
   getChallengeResult: (challengeId) => request(`/challenges/${challengeId}/result`),
-  searchUsers: (query) =>
-    request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
+  searchUsers: (query) => request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
 
   // Auth
   register: (username, email, password, requestOrganization = false) =>
