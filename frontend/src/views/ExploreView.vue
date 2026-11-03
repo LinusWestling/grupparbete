@@ -145,7 +145,10 @@ async function handleSubmitQuiz() {
   await quizStore.syncCompletion()
 
   // Check if we should redirect to challenge result
-  if (activeQuizSession.value?.redirect_to_challenge_result && activeQuizSession.value?.challenge_id) {
+  if (
+    activeQuizSession.value?.redirect_to_challenge_result &&
+    activeQuizSession.value?.challenge_id
+  ) {
     router.push(`/challenges/${activeQuizSession.value.challenge_id}/result`)
   }
 }

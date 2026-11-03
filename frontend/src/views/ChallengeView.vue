@@ -87,7 +87,11 @@ async function createChallenge() {
   loading.value = true
   error.value = null
   try {
-    const response = await api.createChallenge(selectedUser.value.id, selectedTopic.value, selectedDifficulty.value)
+    const response = await api.createChallenge(
+      selectedUser.value.id,
+      selectedTopic.value,
+      selectedDifficulty.value,
+    )
 
     // Load the quiz into the store and navigate to quiz view
     const { quizStore } = await import('../stores/quizStore')

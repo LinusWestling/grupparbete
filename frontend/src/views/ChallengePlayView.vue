@@ -56,7 +56,8 @@ async function pollProgress() {
       try {
         await api.completeChallengeQuiz(challengeId)
         switchedTurn = true
-        completionMessage.value = "Great job! It's now your opponent's turn. You'll be notified when they complete their quiz."
+        completionMessage.value =
+          "Great job! It's now your opponent's turn. You'll be notified when they complete their quiz."
         // Show message for 3 seconds then redirect
         setTimeout(() => {
           clearInterval(pollInterval)
@@ -80,9 +81,7 @@ function goToQuiz() {
   <div class="challenge-play-view">
     <div v-if="loading" class="loading">Loading challenge...</div>
     <div v-else-if="error" class="error-banner">⚠️ {{ error }}</div>
-    <div v-else-if="completionMessage" class="success-banner">
-      ✓ {{ completionMessage }}
-    </div>
+    <div v-else-if="completionMessage" class="success-banner">✓ {{ completionMessage }}</div>
     <div v-else>
       <!-- Live Progress Header -->
       <div v-if="progress" class="progress-header">

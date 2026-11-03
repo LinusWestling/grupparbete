@@ -121,8 +121,7 @@ export const api = {
     request(`/challenges/${challengeId}/mark-viewed`, {
       method: 'POST',
     }),
-  searchUsers: (query) =>
-    request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
+  searchUsers: (query) => request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
 
   // Auth
   register: (username, email, password, requestOrganization = false) =>

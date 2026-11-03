@@ -51,9 +51,7 @@ function backToChallenges() {
         <h1 v-if="winner === 'tie'">
           <span role="img" aria-label="Handshake">🤝</span> It's a Tie!
         </h1>
-        <h1 v-else>
-          <span role="img" aria-label="Trophy">🏆</span> {{ winnerName }} Wins!
-        </h1>
+        <h1 v-else><span role="img" aria-label="Trophy">🏆</span> {{ winnerName }} Wins!</h1>
       </div>
 
       <!-- Score Comparison -->

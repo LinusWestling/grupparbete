@@ -215,7 +215,10 @@ export function createQuizStore(
           const challengeResult = await api.getChallengeResult(activeQuizSession.value.challenge_id)
 
           // If both players have completed, mark for redirect to result page
-          if (challengeResult.challenger?.is_completed && challengeResult.challenged?.is_completed) {
+          if (
+            challengeResult.challenger?.is_completed &&
+            challengeResult.challenged?.is_completed
+          ) {
             activeQuizSession.value.redirect_to_challenge_result = true
           }
         } catch (err) {
