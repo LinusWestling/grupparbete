@@ -27,10 +27,16 @@ router.post('/api/challenges/:id/decline', requireAuth, challengeController.decl
 // Start challenge quiz
 router.post('/api/challenges/:id/start', requireAuth, challengeController.startChallengeQuiz)
 
+// Complete quiz and switch turn
+router.post('/api/challenges/:id/complete', requireAuth, challengeController.handleQuizCompletion)
+
 // Get challenge progress (for polling during quiz)
 router.get('/api/challenges/:id/progress', requireAuth, challengeController.getChallengeProgress)
 
 // Get challenge result (when completed)
 router.get('/api/challenges/:id/result', requireAuth, challengeController.getChallengeResult)
+
+// Mark challenge result as viewed
+router.post('/api/challenges/:id/mark-viewed', requireAuth, challengeController.markResultViewed)
 
 module.exports = router

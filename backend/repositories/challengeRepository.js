@@ -8,9 +8,9 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
 
   const [result] = await pool.execute(
     `INSERT INTO challenges
-      (challenger_user_id, challenged_user_id, topic_id, difficulty, expires_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    [challengerUserId, challengedUserId, topicId, difficulty, expiresAt],
+      (challenger_user_id, challenged_user_id, topic_id, difficulty, expires_at, current_turn_user_id, turn_number)
+     VALUES (?, ?, ?, ?, ?, ?, 1)`,
+    [challengerUserId, challengedUserId, topicId, difficulty, expiresAt, challengerUserId],
   )
 
   return result.insertId
@@ -70,7 +70,20 @@ async function getPendingChallengesForUser(userId) {
 async function getActiveChallengesForUser(userId) {
   const [rows] = await pool.execute(
     `SELECT
-      c.*,
+      c.id,
+      c.challenger_user_id,
+      c.challenged_user_id,
+      c.topic_id,
+      c.difficulty,
+      c.challenger_quiz_id,
+      c.challenged_quiz_id,
+      c.status,
+      c.current_turn_user_id,
+      c.turn_number,
+      c.created_at,
+      c.accepted_at,
+      c.challenger_result_viewed,
+      c.challenged_result_viewed,
       challenger.username AS challenger_username,
       challenged.username AS challenged_username,
       t.name AS topic_name,
@@ -83,9 +96,14 @@ async function getActiveChallengesForUser(userId) {
      LEFT JOIN quizzes challenger_quiz ON c.challenger_quiz_id = challenger_quiz.id
      LEFT JOIN quizzes challenged_quiz ON c.challenged_quiz_id = challenged_quiz.id
      WHERE (c.challenger_user_id = ? OR c.challenged_user_id = ?)
-       AND c.status IN ('accepted', 'active')
+       AND c.status IN ('accepted', 'active', 'completed')
+       AND (
+         (c.challenger_user_id = ? AND c.challenger_result_viewed = FALSE)
+         OR (c.challenged_user_id = ? AND c.challenged_result_viewed = FALSE)
+         OR c.status IN ('accepted', 'active')
+       )
      ORDER BY c.created_at DESC`,
-    [userId, userId],
+    [userId, userId, userId, userId],
   )
 
   return rows
@@ -134,6 +152,7 @@ async function updateChallengeStatus(challengeId, status, additionalFields = {})
  * Accept a challenge
  */
 async function acceptChallenge(challengeId) {
+  // When accepting, keep the current_turn_user_id as challenger (set during creation)
   await pool.execute(
     `UPDATE challenges
      SET status = 'accepted', accepted_at = NOW()
@@ -167,20 +186,37 @@ async function linkQuizToChallenge(challengeId, userId, quizId) {
   await pool.execute(
     `UPDATE challenges
      SET ${isChallenger ? 'challenger_quiz_id' : 'challenged_quiz_id'} = ?,
-         status = CASE
-           WHEN status = 'accepted' AND ${isChallenger ? 'challenged_quiz_id' : 'challenger_quiz_id'} IS NOT NULL
-           THEN 'active'
-           WHEN status = 'accepted'
-           THEN 'accepted'
-           ELSE status
-         END,
+         status = 'active',
          started_at = CASE
-           WHEN status = 'accepted' AND ${isChallenger ? 'challenged_quiz_id' : 'challenger_quiz_id'} IS NOT NULL
+           WHEN started_at IS NULL
            THEN NOW()
            ELSE started_at
          END
      WHERE id = ?`,
     [quizId, challengeId],
+  )
+
+  return true
+}
+
+/**
+ * Switch turn to the other player after completing a quiz
+ */
+async function switchTurn(challengeId, currentUserId) {
+  const challenge = await getChallengeById(challengeId)
+  if (!challenge) return false
+
+  const nextUserId =
+    currentUserId === challenge.challenger_user_id
+      ? challenge.challenged_user_id
+      : challenge.challenger_user_id
+
+  await pool.execute(
+    `UPDATE challenges
+     SET current_turn_user_id = ?,
+         turn_number = turn_number + 1
+     WHERE id = ?`,
+    [nextUserId, challengeId],
   )
 
   return true
@@ -229,6 +265,26 @@ async function completeChallenge(challengeId, winnerUserId) {
 }
 
 /**
+ * Mark that a user has viewed the challenge result
+ */
+async function markResultViewed(challengeId, userId) {
+  const challenge = await getChallengeById(challengeId)
+  if (!challenge) return false
+
+  const isChallenger = challenge.challenger_user_id === userId
+  const column = isChallenger ? 'challenger_result_viewed' : 'challenged_result_viewed'
+
+  await pool.execute(
+    `UPDATE challenges
+     SET ${column} = TRUE
+     WHERE id = ?`,
+    [challengeId],
+  )
+
+  return true
+}
+
+/**
  * Expire old pending challenges (called by cron or on-demand)
  */
 async function expireOldChallenges() {
@@ -253,7 +309,9 @@ module.exports = {
   acceptChallenge,
   declineChallenge,
   linkQuizToChallenge,
+  switchTurn,
   getChallengeProgress,
   completeChallenge,
+  markResultViewed,
   expireOldChallenges,
 }

@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { api } from '../services/api'
 import { quizStore } from '../stores/quizStore'
 import QuizSyncStatus from '../components/QuizSyncStatus.vue'
 import { confirmQuizNavigation } from '../services/quizNavigationSafety.js'
 
 const route = useRoute()
+const router = useRouter()
 
 const topics = ref([])
 const loading = ref(true)
@@ -141,7 +142,12 @@ async function handleSubmitQuiz() {
   error.value = null
   quizStore.completeLocally()
   // Render the summary immediately; server requests never gate completion.
-  void quizStore.syncCompletion()
+  await quizStore.syncCompletion()
+
+  // Check if we should redirect to challenge result
+  if (activeQuizSession.value?.redirect_to_challenge_result && activeQuizSession.value?.challenge_id) {
+    router.push(`/challenges/${activeQuizSession.value.challenge_id}/result`)
+  }
 }
 
 async function exitQuiz() {

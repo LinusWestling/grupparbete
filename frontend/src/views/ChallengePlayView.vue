@@ -11,7 +11,9 @@ const challengeId = Number(route.params.id)
 const progress = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const completionMessage = ref(null)
 let pollInterval = null
+let switchedTurn = false
 
 onMounted(async () => {
   try {
@@ -46,6 +48,23 @@ async function pollProgress() {
     ) {
       clearInterval(pollInterval)
       router.push(`/challenges/${challengeId}/result`)
+      return
+    }
+
+    // If user completed their quiz, notify backend to switch turns
+    if (progress.value.your_progress.is_completed && !switchedTurn) {
+      try {
+        await api.completeChallengeQuiz(challengeId)
+        switchedTurn = true
+        completionMessage.value = "Great job! It's now your opponent's turn. You'll be notified when they complete their quiz."
+        // Show message for 3 seconds then redirect
+        setTimeout(() => {
+          clearInterval(pollInterval)
+          router.push('/challenges')
+        }, 3000)
+      } catch (err) {
+        console.error('Failed to switch turn:', err)
+      }
     }
   } catch (err) {
     console.error('Failed to poll progress:', err)
@@ -61,6 +80,9 @@ function goToQuiz() {
   <div class="challenge-play-view">
     <div v-if="loading" class="loading">Loading challenge...</div>
     <div v-else-if="error" class="error-banner">⚠️ {{ error }}</div>
+    <div v-else-if="completionMessage" class="success-banner">
+      ✓ {{ completionMessage }}
+    </div>
     <div v-else>
       <!-- Live Progress Header -->
       <div v-if="progress" class="progress-header">
@@ -196,7 +218,7 @@ function goToQuiz() {
 }
 
 .badge.success {
-  background: var(--color-success);
+  background: #2d7a3d;
   color: white;
 }
 
@@ -220,12 +242,12 @@ function goToQuiz() {
 }
 
 .button-accent {
-  background: var(--color-accent);
+  background: var(--color-primary);
   color: white;
 }
 
 .button-accent:hover {
-  background: var(--color-accent-dark);
+  background: var(--color-primary-hover);
   transform: scale(1.05);
 }
 
@@ -241,5 +263,15 @@ function goToQuiz() {
   padding: 1rem;
   border-radius: 4px;
   text-align: center;
+}
+
+.success-banner {
+  background: #2d7a3d;
+  color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1.2rem;
+  margin: 2rem;
 }
 </style>

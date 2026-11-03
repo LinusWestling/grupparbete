@@ -204,6 +204,26 @@ export function createQuizStore(
         ]),
       )
       syncError.value = null
+
+      // If this is a challenge quiz, notify the backend to switch turns
+      if (activeQuizSession.value.challenge_id) {
+        try {
+          const { api } = await import('../services/api.js')
+          await api.completeChallengeQuiz(activeQuizSession.value.challenge_id)
+
+          // Check if both players are done to determine redirect
+          const challengeResult = await api.getChallengeResult(activeQuizSession.value.challenge_id)
+
+          // If both players have completed, mark for redirect to result page
+          if (challengeResult.challenger?.is_completed && challengeResult.challenged?.is_completed) {
+            activeQuizSession.value.redirect_to_challenge_result = true
+          }
+        } catch (err) {
+          console.error('Failed to switch challenge turn:', err)
+          // Don't fail the whole completion if turn switch fails
+        }
+      }
+
       return true
     } catch (error) {
       syncError.value = { status: error.status, message: error.message }

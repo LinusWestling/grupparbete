@@ -2,7 +2,7 @@ const challengeRepository = require('../repositories/challengeRepository')
 const pool = require('../database/pool')
 
 /**
- * Create a new challenge
+ * Create a new challenge and start the challenger's quiz immediately
  */
 async function createChallenge(challengerUserId, challengedUserId, topicId, difficulty) {
   // Validation
@@ -43,6 +43,7 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
     )
   }
 
+  // Create the challenge
   const challengeId = await challengeRepository.createChallenge(
     challengerUserId,
     challengedUserId,
@@ -50,7 +51,24 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
     difficulty,
   )
 
-  return challengeRepository.getChallengeById(challengeId)
+  // Immediately start the challenger's quiz
+  const quizService = require('./quiz/quizService')
+  const seed = challengeId * 1000 + 1 // Turn 1
+  const quiz = await quizService.startQuiz(challengerUserId, topicId, difficulty, 10, seed)
+
+  // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
+  quiz.challenge_id = challengeId
+
+  // Link the quiz to the challenge and mark as active
+  await challengeRepository.linkQuizToChallenge(challengeId, challengerUserId, quiz.quiz_id)
+
+  const challenge = await challengeRepository.getChallengeById(challengeId)
+
+  // Return both challenge and quiz data
+  return {
+    challenge,
+    quiz,
+  }
 }
 
 /**
@@ -148,9 +166,14 @@ async function startChallengeQuiz(challengeId, userId) {
     throw Object.assign(new Error('You are not part of this challenge'), { status: 403 })
   }
 
-  // Challenge must be accepted
+  // Challenge must be accepted or active
   if (challenge.status !== 'accepted' && challenge.status !== 'active') {
     throw Object.assign(new Error('Challenge is not ready to start'), { status: 409 })
+  }
+
+  // Check if it's the user's turn
+  if (challenge.current_turn_user_id !== userId) {
+    throw Object.assign(new Error('It is not your turn'), { status: 403 })
   }
 
   // Check if user already has a quiz for this challenge
@@ -164,15 +187,19 @@ async function startChallengeQuiz(challengeId, userId) {
   }
 
   // Create a new quiz using the challenge's topic and difficulty
-  // Use challenge.id as seed for deterministic question order
+  // Use challenge.id + turn_number as seed for deterministic but different questions each turn
   const quizService = require('./quiz/quizService')
+  const seed = challenge.id * 1000 + challenge.turn_number
   const quiz = await quizService.startQuiz(
     userId,
     challenge.topic_id,
     challenge.difficulty,
     10,
-    challenge.id, // Pass challenge ID as seed
+    seed,
   )
+
+  // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
+  quiz.challenge_id = challengeId
 
   // Link the quiz to the challenge
   await challengeRepository.linkQuizToChallenge(challengeId, userId, quiz.quiz_id)
@@ -228,6 +255,40 @@ async function getChallengeProgress(challengeId, userId) {
 }
 
 /**
+ * Handle quiz completion and turn switching
+ * Called when a user completes their quiz
+ */
+async function handleQuizCompletion(challengeId, userId) {
+  const challenge = await challengeRepository.getChallengeById(challengeId)
+
+  if (!challenge) {
+    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+  }
+
+  // Check if both players have completed their current turn
+  const [quizzes] = await pool.query(
+    `SELECT
+      q.id,
+      q.user_id,
+      q.status
+     FROM quizzes q
+     WHERE q.id IN (?, ?)`,
+    [challenge.challenger_quiz_id, challenge.challenged_quiz_id],
+  )
+
+  const challengerQuiz = quizzes.find((q) => q.user_id === challenge.challenger_user_id)
+  const challengedQuiz = quizzes.find((q) => q.user_id === challenge.challenged_user_id)
+
+  // If both players have completed their quizzes for this turn, determine winner and switch turn
+  if (challengerQuiz?.status === 'completed' && challengedQuiz?.status === 'completed') {
+    await determineWinnerAndComplete(challengeId, challengerQuiz, challengedQuiz)
+  } else {
+    // Only one player has completed, switch turn to the other player
+    await challengeRepository.switchTurn(challengeId, userId)
+  }
+}
+
+/**
  * Get challenge result (when both users have completed)
  */
 async function getChallengeResult(challengeId, userId) {
@@ -276,6 +337,8 @@ async function getChallengeResult(challengeId, userId) {
   return {
     challenge_id: challengeId,
     status: challenge.status,
+    turn_number: challenge.turn_number,
+    current_turn_user_id: challenge.current_turn_user_id,
     challenger: challengerQuiz
       ? {
           user_id: challenge.challenger_user_id,
@@ -333,6 +396,26 @@ async function determineWinnerAndComplete(challengeId, challengerQuiz, challenge
 }
 
 /**
+ * Mark that a user has viewed the challenge result
+ */
+async function markResultViewed(challengeId, userId) {
+  const challenge = await challengeRepository.getChallengeById(challengeId)
+
+  if (!challenge) {
+    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+  }
+
+  // User must be part of the challenge
+  if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
+    throw Object.assign(new Error('You are not part of this challenge'), { status: 403 })
+  }
+
+  await challengeRepository.markResultViewed(challengeId, userId)
+
+  return { message: 'Result marked as viewed' }
+}
+
+/**
  * Search users by username (for finding opponents)
  */
 async function searchUsers(query, excludeUserId) {
@@ -360,7 +443,9 @@ module.exports = {
   acceptChallenge,
   declineChallenge,
   startChallengeQuiz,
+  handleQuizCompletion,
   getChallengeProgress,
   getChallengeResult,
+  markResultViewed,
   searchUsers,
 }

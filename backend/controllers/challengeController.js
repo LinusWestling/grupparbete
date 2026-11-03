@@ -209,6 +209,54 @@ async function getChallengeResult(req, res) {
 }
 
 /**
+ * Handle quiz completion for a challenge
+ * POST /api/challenges/:id/complete
+ */
+async function handleQuizCompletion(req, res) {
+  try {
+    const userId = req.session?.userId
+    if (!userId) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    }
+
+    const challengeId = Number(req.params.id)
+    if (!Number.isInteger(challengeId) || challengeId < 1) {
+      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
+    }
+
+    await challengeService.handleQuizCompletion(challengeId, userId)
+    res.json({ status: 'success', message: 'Turn switched' })
+  } catch (err) {
+    const status = err.status || 500
+    res.status(status).json({ status: 'error', message: err.message })
+  }
+}
+
+/**
+ * Mark that user has viewed the challenge result
+ * POST /api/challenges/:id/mark-viewed
+ */
+async function markResultViewed(req, res) {
+  try {
+    const userId = req.session?.userId
+    if (!userId) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    }
+
+    const challengeId = Number(req.params.id)
+    if (!Number.isInteger(challengeId) || challengeId < 1) {
+      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
+    }
+
+    const result = await challengeService.markResultViewed(challengeId, userId)
+    res.json({ status: 'success', data: result })
+  } catch (err) {
+    const status = err.status || 500
+    res.status(status).json({ status: 'error', message: err.message })
+  }
+}
+
+/**
  * Search users by username (for finding opponents)
  * GET /api/challenges/users/search?q=username
  */
@@ -240,7 +288,9 @@ module.exports = {
   acceptChallenge,
   declineChallenge,
   startChallengeQuiz,
+  handleQuizCompletion,
   getChallengeProgress,
   getChallengeResult,
+  markResultViewed,
   searchUsers,
 }

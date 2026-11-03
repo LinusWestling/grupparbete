@@ -111,9 +111,18 @@ export const api = {
     request(`/challenges/${challengeId}/start`, {
       method: 'POST',
     }),
+  completeChallengeQuiz: (challengeId) =>
+    request(`/challenges/${challengeId}/complete`, {
+      method: 'POST',
+    }),
   getChallengeProgress: (challengeId) => request(`/challenges/${challengeId}/progress`),
   getChallengeResult: (challengeId) => request(`/challenges/${challengeId}/result`),
-  searchUsers: (query) => request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
+  markChallengeResultViewed: (challengeId) =>
+    request(`/challenges/${challengeId}/mark-viewed`, {
+      method: 'POST',
+    }),
+  searchUsers: (query) =>
+    request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
 
   // Auth
   register: (username, email, password, requestOrganization = false) =>

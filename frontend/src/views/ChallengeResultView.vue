@@ -14,6 +14,8 @@ const error = ref(null)
 onMounted(async () => {
   try {
     result.value = await api.getChallengeResult(challengeId)
+    // Mark that this user has viewed the result
+    await api.markChallengeResultViewed(challengeId)
   } catch (err) {
     error.value = 'Failed to load result: ' + err.message
   } finally {
@@ -40,12 +42,18 @@ function backToChallenges() {
 <template>
   <div class="challenge-result-view">
     <div v-if="loading" class="loading">Loading results...</div>
-    <div v-else-if="error" class="error-banner">⚠️ {{ error }}</div>
+    <div v-else-if="error" class="error-banner">
+      <span role="img" aria-label="Warning">⚠️</span> {{ error }}
+    </div>
     <div v-else-if="result">
       <!-- Winner Banner -->
       <div class="winner-banner" :class="winner">
-        <h1 v-if="winner === 'tie'">🤝 It's a Tie!</h1>
-        <h1 v-else>🏆 {{ winnerName }} Wins!</h1>
+        <h1 v-if="winner === 'tie'">
+          <span role="img" aria-label="Handshake">🤝</span> It's a Tie!
+        </h1>
+        <h1 v-else>
+          <span role="img" aria-label="Trophy">🏆</span> {{ winnerName }} Wins!
+        </h1>
       </div>
 
       <!-- Score Comparison -->
@@ -53,14 +61,14 @@ function backToChallenges() {
         <div class="player-result" :class="{ winner: winner === 'challenger' }">
           <h2>{{ result.challenger?.username || 'Challenger' }}</h2>
           <div class="score-card">
-            <div class="score">{{ result.challenger?.score || 0 }}</div>
+            <div class="score">
+              {{ result.challenger?.correct_answers || 0 }} /
+              {{ result.challenger?.total_questions || 0 }}
+            </div>
             <div class="stats">
-              <p>
-                {{ result.challenger?.correct_answers || 0 }} /
-                {{ result.challenger?.total_questions || 0 }} correct
-              </p>
               <p v-if="result.challenger?.time_taken_seconds">
-                ⏱️ {{ Math.floor(result.challenger.time_taken_seconds / 60) }}:{{
+                <span role="img" aria-label="Timer">⏱️</span>
+                {{ Math.floor(result.challenger.time_taken_seconds / 60) }}:{{
                   String(result.challenger.time_taken_seconds % 60).padStart(2, '0')
                 }}
               </p>
@@ -73,14 +81,14 @@ function backToChallenges() {
         <div class="player-result" :class="{ winner: winner === 'challenged' }">
           <h2>{{ result.challenged?.username || 'Challenged' }}</h2>
           <div class="score-card">
-            <div class="score">{{ result.challenged?.score || 0 }}</div>
+            <div class="score">
+              {{ result.challenged?.correct_answers || 0 }} /
+              {{ result.challenged?.total_questions || 0 }}
+            </div>
             <div class="stats">
-              <p>
-                {{ result.challenged?.correct_answers || 0 }} /
-                {{ result.challenged?.total_questions || 0 }} correct
-              </p>
               <p v-if="result.challenged?.time_taken_seconds">
-                ⏱️ {{ Math.floor(result.challenged.time_taken_seconds / 60) }}:{{
+                <span role="img" aria-label="Timer">⏱️</span>
+                {{ Math.floor(result.challenged.time_taken_seconds / 60) }}:{{
                   String(result.challenged.time_taken_seconds % 60).padStart(2, '0')
                 }}
               </p>
@@ -179,11 +187,11 @@ function backToChallenges() {
 .score {
   font-size: 4rem;
   font-weight: bold;
-  color: var(--color-accent);
+  color: var(--color-primary);
 }
 
 .player-result.winner .score {
-  color: var(--color-success);
+  color: #2d7a3d;
 }
 
 .stats {
@@ -219,12 +227,12 @@ function backToChallenges() {
 }
 
 .button-accent {
-  background: var(--color-accent);
+  background: var(--color-primary);
   color: white;
 }
 
 .button-accent:hover {
-  background: var(--color-accent-dark);
+  background: var(--color-primary-hover);
   transform: scale(1.05);
 }
 

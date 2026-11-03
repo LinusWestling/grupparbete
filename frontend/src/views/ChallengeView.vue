@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
+import { currentUser } from '../services/auth'
 
 const router = useRouter()
 
@@ -86,17 +87,16 @@ async function createChallenge() {
   loading.value = true
   error.value = null
   try {
-    await api.createChallenge(selectedUser.value.id, selectedTopic.value, selectedDifficulty.value)
-    // Reset form
-    selectedUser.value = null
-    selectedTopic.value = null
-    searchQuery.value = ''
-    selectedDifficulty.value = 3
-    activeTab.value = 'pending'
-    await loadChallenges()
+    const response = await api.createChallenge(selectedUser.value.id, selectedTopic.value, selectedDifficulty.value)
+
+    // Load the quiz into the store and navigate to quiz view
+    const { quizStore } = await import('../stores/quizStore')
+    quizStore.loadQuiz(response.quiz)
+
+    // Navigate to explore view to take the quiz
+    router.push('/explore')
   } catch (err) {
     error.value = 'Failed to create challenge: ' + err.message
-  } finally {
     loading.value = false
   }
 }
@@ -143,6 +143,18 @@ async function startChallenge(challengeId) {
 
 function viewResult(challengeId) {
   router.push(`/challenges/${challengeId}/result`)
+}
+
+function isMyTurn(challenge) {
+  if (!currentUser.value || !challenge.current_turn_user_id) return false
+  return challenge.current_turn_user_id === currentUser.value.id
+}
+
+function getTurnUsername(challenge) {
+  if (challenge.current_turn_user_id === challenge.challenger_user_id) {
+    return challenge.challenger_username
+  }
+  return challenge.challenged_username
 }
 
 const pendingCount = computed(() => pendingChallenges.value.length)
@@ -230,35 +242,45 @@ const activeCount = computed(() => activeChallenges.value.length)
           <div class="challenge-info">
             <h3>{{ challenge.challenger_username }} vs {{ challenge.challenged_username }}</h3>
             <p>{{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
+            <p class="turn-info" v-if="challenge.current_turn_user_id">
+              <span role="img" aria-label="Turn">🔄</span>
+              <strong v-if="isMyTurn(challenge)">Your turn!</strong>
+              <span v-else>{{ getTurnUsername(challenge) }}'s turn</span>
+            </p>
             <div class="status-badges">
               <span v-if="challenge.challenger_quiz_status === 'completed'" class="badge success">
                 {{ challenge.challenger_username }} finished
               </span>
               <span v-else class="badge warning">
-                {{ challenge.challenger_username }} in progress
+                {{ challenge.challenger_username }} waiting
               </span>
               <span v-if="challenge.challenged_quiz_status === 'completed'" class="badge success">
                 {{ challenge.challenged_username }} finished
               </span>
               <span v-else class="badge warning">
-                {{ challenge.challenged_username }} in progress
+                {{ challenge.challenged_username }} waiting
               </span>
             </div>
           </div>
           <div class="challenge-actions">
             <button
               v-if="
-                challenge.challenger_quiz_status !== 'completed' &&
-                challenge.challenged_quiz_status !== 'completed'
+                challenge.challenger_quiz_status === 'completed' &&
+                challenge.challenged_quiz_status === 'completed'
               "
               class="button button-accent"
-              @click="startChallenge(challenge.id)"
-              :disabled="loading"
+              @click="viewResult(challenge.id)"
             >
-              Start Quiz
+              View Results!
             </button>
-            <button v-else class="button button-accent" @click="viewResult(challenge.id)">
-              View Result
+            <button
+              v-else
+              class="button button-accent"
+              @click="startChallenge(challenge.id)"
+              :disabled="loading || !isMyTurn(challenge)"
+              :title="!isMyTurn(challenge) ? 'Wait for your turn' : ''"
+            >
+              {{ isMyTurn(challenge) ? 'Start Quiz' : 'Waiting...' }}
             </button>
           </div>
         </div>
@@ -358,7 +380,7 @@ const activeCount = computed(() => activeChallenges.value.length)
           @click="createChallenge"
           :disabled="loading || !selectedUser || !selectedTopic"
         >
-          Send Challenge
+          Start Challenge
         </button>
       </div>
     </div>
@@ -487,7 +509,7 @@ const activeCount = computed(() => activeChallenges.value.length)
 }
 
 .winner {
-  color: var(--color-success);
+  color: #2d7a3d;
   font-weight: bold;
 }
 
