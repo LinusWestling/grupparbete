@@ -53,9 +53,7 @@ function backToChallenges() {
     <div v-else-if="result">
       <!-- Waiting state for non-completed challenges -->
       <div v-if="result.status !== 'completed'" class="waiting-banner">
-        <h1>
-          <span role="img" aria-label="Hourglass">⏳</span> Waiting for completion...
-        </h1>
+        <h1><span role="img" aria-label="Hourglass">⏳</span> Waiting for completion...</h1>
         <p>The final results will be available once both players have finished their quizzes.</p>
       </div>
 

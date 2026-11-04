@@ -413,8 +413,7 @@ async function handleQuizCompletion(challengeId, userId) {
   const challengedQuiz = quizzes.find((q) => q.user_id === challenge.challenged_user_id)
 
   // Identify the caller's quiz
-  const callerQuiz =
-    userId === challenge.challenger_user_id ? challengerQuiz : challengedQuiz
+  const callerQuiz = userId === challenge.challenger_user_id ? challengerQuiz : challengedQuiz
 
   // Validate that the caller's quiz is completed
   if (!callerQuiz || callerQuiz.status !== 'completed') {
