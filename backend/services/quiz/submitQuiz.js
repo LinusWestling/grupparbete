@@ -3,14 +3,18 @@ const { httpError, readJson, validateSubmission } = require('./quizSubmission')
 const multipleChoice = require('./multipleChoiceEngine')
 const yesNo = require('./yesNoEngine')
 const freeText = require('./freeTextEngine')
+const matching = require('./matchingEngine')
+const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
 
 function evaluate(question, item) {
   const engine =
     question.question_type === 'free_text'
       ? freeText
-      : question.question_type === 'yes_no'
-        ? yesNo
-        : multipleChoice
+      : question.question_type === 'matching'
+        ? matching
+        : question.question_type === 'yes_no'
+          ? yesNo
+          : multipleChoice
   const evaluation = engine.evaluate(question, item.isSkipped ? undefined : item.answer)
   const selected = question.answers.find((option) => option.id === item.answer)
   return {
@@ -24,7 +28,9 @@ function evaluate(question, item) {
       ? null
       : question.question_type === 'free_text'
         ? item.answer
-        : selected?.answer_text || '',
+        : question.question_type === 'matching'
+          ? evaluation.selected_answer_text
+          : selected?.answer_text || '',
     sources: question.sources,
   }
 }
@@ -45,7 +51,12 @@ function summarize(quiz, results) {
 }
 
 async function existingAnswerId(connection, question, item) {
-  if (item.isSkipped || question.question_type === 'free_text') return null
+  if (
+    item.isSkipped ||
+    question.question_type === 'free_text' ||
+    question.question_type === 'matching'
+  )
+    return null
   // Preserve old option IDs in submitted_answer even if an admin removed them.
   const [answers] = await connection.execute(
     'SELECT id FROM answers WHERE id = ? AND question_id = ? FOR SHARE',
@@ -62,8 +73,8 @@ async function submitQuizSession(quizId, userId, submissions) {
       quizId,
     ])
     const quiz = quizzes[0]
-    if (!quiz) throw httpError(404, 'Quiz session not found')
-    if (!userId || quiz.user_id !== userId) throw httpError(403, 'Forbidden')
+    if (!quiz) throw httpError(404, 'Quizsessionen hittades inte.')
+    if (!userId || quiz.user_id !== userId) throw httpError(403, 'Åtkomst nekad.')
     const [rows] = await connection.query(
       'SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY position',
       [quizId],
@@ -89,7 +100,7 @@ async function submitQuizSession(quizId, userId, submissions) {
       await connection.commit()
       return result
     }
-    if (quiz.status !== 'in_progress') throw httpError(409, 'Quiz is not in progress')
+    if (quiz.status !== 'in_progress') throw httpError(409, 'Quizet pågår inte.')
     const submitted = new Map(submissions.map((item) => [item.question_id, item]))
     const results = []
     for (const row of rows) {
@@ -133,6 +144,8 @@ async function submitQuizSession(quizId, userId, submissions) {
        xp_points = xp_points + VALUES(xp_points)`,
         [userId, quiz.topic_id, result.xp_earned, result.xp_earned],
       )
+    // This branch runs once per transition. Completed-submission retries return above.
+    await databaseMonitor(connection).log(MONITORING_EVENTS.QUIZ_FINISHED, { userId })
     await connection.commit()
     return result
   } catch (error) {

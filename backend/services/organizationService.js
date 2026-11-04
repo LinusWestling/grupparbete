@@ -115,11 +115,11 @@ async function requestProspectAccess(organizationId, candidateId) {
   )
 
   if (userRows.length === 0) {
-    throw Object.assign(new Error('Candidate not found'), { status: 404 })
+    throw Object.assign(new Error('Kandidaten hittades inte.'), { status: 404 })
   }
 
   if (!userRows[0].is_public_prospect) {
-    throw Object.assign(new Error('Candidate is not accepting organization requests'), {
+    throw Object.assign(new Error('Kandidaten tar inte emot förfrågningar från organisationer.'), {
       status: 403,
     })
   }
@@ -152,7 +152,7 @@ async function getProspectDetails(viewerUser, prospectId) {
   const prospect = userRows[0]
 
   if (!prospect.is_public_prospect) {
-    throw Object.assign(new Error('Prospect profile is private'), { status: 403 })
+    throw Object.assign(new Error('Kandidatens profil är privat.'), { status: 403 })
   }
 
   if (viewerUser?.role !== 'admin') {
@@ -162,7 +162,7 @@ async function getProspectDetails(viewerUser, prospectId) {
     )
     if (!accessRow || accessRow.status !== 'approved') {
       throw Object.assign(
-        new Error('Access denied: candidate has not approved your organization yet'),
+        new Error('Åtkomst nekad: kandidaten har ännu inte godkänt din organisation.'),
         { status: 403 },
       )
     }
@@ -184,6 +184,14 @@ async function getProspectDetails(viewerUser, prospectId) {
      WHERE q.user_id = ? AND q.status = 'completed'
      ORDER BY q.completed_at DESC`,
     [prospectId],
+  )
+
+  const [assignments] = await pool.execute(
+    `SELECT q.id AS quiz_id, t.name AS topic_name, q.difficulty, q.total_cnt,
+       q.correct_cnt, q.status, q.created_at, q.completed_at
+     FROM quizzes q JOIN topics t ON t.id = q.topic_id
+     WHERE q.user_id = ? AND q.organization_id = ? ORDER BY q.created_at DESC, q.id DESC`,
+    [prospectId, viewerUser.id],
   )
 
   const [[stats]] = await pool.query(
@@ -208,6 +216,7 @@ async function getProspectDetails(viewerUser, prospectId) {
     accuracy_percentage: accuracy,
     topic_progress: topicProgress,
     quiz_history: history,
+    assignments,
   }
 }
 

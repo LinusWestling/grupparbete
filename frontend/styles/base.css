@@ -197,6 +197,37 @@ select:focus-visible {
   border-radius: var(--radius-lg);
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-surface-soft);
+  color: var(--color-primary);
+  border: var(--border-width) solid var(--color-border);
+}
+
+.button-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.button-text:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
 /* ============================================================
    RESPONSIVITET
    ============================================================ */

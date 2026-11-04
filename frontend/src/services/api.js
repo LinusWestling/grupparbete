@@ -1,4 +1,5 @@
 import { createApiService } from './apiFactory.js'
+import { rememberQuizAccount } from './quizIdentity.js'
 
 const { request } = createApiService('')
 
@@ -10,6 +11,11 @@ function toQuery(params) {
 }
 
 export const api = {
+  // The backend authenticates this read and records access before returning the log.
+  getMonitoringEvents: () => request('/monitoring/events', { cache: 'no-store' }),
+  getServerInformation: (signal) =>
+    request('/experiments/server-information', { cache: 'no-store', signal }),
+
   // Topics
   getTopics: () => request('/topics'),
   getTopic: (id) => request(`/topics/${id}`),
@@ -37,10 +43,15 @@ export const api = {
     }),
 
   // Quizzes & Game Modes with Difficulty Selection & History
-  startQuiz: (topicId, difficulty = 1, limit = 10) =>
+  startQuiz: (topicId, difficulty = 1, limit = 10, questionTypes) =>
     request('/quizzes/start', {
       method: 'POST',
-      body: JSON.stringify({ topicId, difficulty, limit }),
+      body: JSON.stringify({
+        topicId,
+        difficulty,
+        limit,
+        ...(questionTypes !== undefined ? { questionTypes } : {}),
+      }),
     }),
   submitQuizSession: (quizId, submissions) =>
     request(`/quizzes/${quizId}/submit`, {
@@ -89,6 +100,13 @@ export const api = {
       method: 'POST',
     }),
   getProspectDetails: (prospectId) => request(`/organization/prospects/${prospectId}`),
+  assignTest: (prospectId, settings) =>
+    request(`/organization/prospects/${prospectId}/tests`, {
+      method: 'POST',
+      body: JSON.stringify(settings),
+    }),
+  getAssignedTestReport: (prospectId, quizId) =>
+    request(`/organization/prospects/${prospectId}/tests/${quizId}`),
 
   // Challenges
   getPendingChallenges: () => request('/challenges/pending'),
@@ -134,8 +152,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
+    const { loadCurrentUser } = await import('./auth.js')
+    await loadCurrentUser({ force: true })
+    rememberQuizAccount(result.id)
     window.dispatchEvent(new Event('quiz-auth-restored'))
     return result
   },
-  getMe: () => request('/auth/me'),
+  logout: () =>
+    request('/auth/logout', {
+      method: 'POST',
+    }),
+  getMe: async () => {
+    try {
+      const user = await request('/auth/me')
+      rememberQuizAccount(user.id)
+      return user
+    } catch (error) {
+      if ([401, 403].includes(error.status)) rememberQuizAccount(null)
+      throw error
+    }
+  },
 }

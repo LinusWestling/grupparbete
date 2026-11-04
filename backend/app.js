@@ -25,6 +25,10 @@ app.use(
   }),
 )
 
+// These per-request diagnostics need no session or database, even for a caller
+// whose browser sends an existing session cookie.
+app.use(require('./routes/linusExperimentRoutes'))
+
 // Render terminates HTTPS at its reverse proxy.
 if (isProduction) {
   app.set('trust proxy', 1)
@@ -83,6 +87,7 @@ app.use(userRoutes)
 app.use(authRoutes)
 app.use(organizationRoutes)
 app.use(challengeRoutes)
+app.use(require('./routes/monitoringRoutes'))
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'SkillSwap API Server Running' })
@@ -101,7 +106,14 @@ app.use((error, req, res, next) => {
   }
 
   res.status(status).json({
-    message: status === 500 ? 'Ett serverfel uppstod' : error.message,
+    message:
+      status === 500
+        ? 'Ett serverfel uppstod. Försök igen senare.'
+        : error.type === 'entity.parse.failed'
+          ? 'Begäran innehåller ogiltig JSON.'
+          : error.type === 'entity.too.large'
+            ? 'Begäran är för stor.'
+            : error.message,
   })
 })
 

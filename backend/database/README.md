@@ -1,5 +1,20 @@
 ## Database build and migration
 
+Migration `013_assigned_quizzes.sql` adds organization-owned test assignments.
+Run `npm run migrate` from `backend` before starting the updated application.
+Organizations can assign tests from an approved candidate's full report. The
+candidate sees the assigning organization under Explore's unfinished quizzes and
+uses the existing save, resume and submit flow. Completed assignments expose
+per-question answers and correct/incorrect totals to the assigning organization,
+while the candidate remains public and their access approval remains active.
+Skipped questions count as incorrect and are labeled explicitly in the report.
+The requested count is capped by available questions; an empty difficulty uses
+the closest available level, matching ordinary quiz generation.
+
+Run assignment regression tests with `node --test tests/assignedQuizzes.test.js`
+from `backend`. These mock database I/O; migration and end-to-end database checks
+require a configured MySQL instance.
+
 Quiz progress is stored per attempt in `quiz_questions`, using `is_answered`
 and `is_skipped`. Both are false for an untouched question; skipping clears its
 saved answer and sets only `is_skipped`. Saving an answer sets only `is_answered`.

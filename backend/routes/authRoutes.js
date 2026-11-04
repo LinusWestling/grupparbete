@@ -8,7 +8,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    message: 'För mpnga försök. Försök igen om 15 minuter.',
+    message: 'För många försök. Försök igen om 15 minuter.',
   },
 })
 
@@ -17,7 +17,7 @@ router.use((req, res, next) => {
 
   if (changesData && req.get('origin') !== process.env.FRONTEND_ORIGIN) {
     return res.status(403).json({
-      message: 'Anropet kommer från en otillåten adress',
+      message: 'Anrop från den här adressen är inte tillåtna.',
     })
   }
 

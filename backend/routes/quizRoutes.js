@@ -4,7 +4,7 @@ const quizController = require('../controllers/quizController')
 
 function requireAuth(req, res, next) {
   if (!req.session || !req.session.userId) {
-    return res.status(401).json({ status: 'error', message: 'Unauthorized' })
+    return res.status(401).json({ status: 'error', message: 'Du måste vara inloggad.' })
   }
   next()
 }

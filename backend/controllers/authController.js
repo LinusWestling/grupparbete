@@ -16,8 +16,8 @@ async function register(req, res) {
     org_request_status: user.org_request_status,
     message:
       user.org_request_status === 'pending'
-        ? 'Kontot har skapats och ansökan om organisationskonto inväntar godkännande från administratör.'
-        : 'Kontot har skapats. Du kan nu logga in.',
+        ? 'Ditt konto har skapats. Din ansökan om organisationskonto väntar på administratörens godkännande.'
+        : 'Ditt konto har skapats. Du kan nu logga in.',
   })
 }
 

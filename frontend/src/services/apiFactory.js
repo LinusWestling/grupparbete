@@ -23,7 +23,15 @@ export function createApiService(endpoint) {
       recordApiResponse(response.status)
     } catch (error) {
       recordApiFailure(error)
-      throw error
+      const message =
+        error.name === 'TimeoutError'
+          ? 'Anropet tog för lång tid. Försök igen.'
+          : error.name === 'AbortError'
+            ? 'Anropet avbröts.'
+            : 'Det gick inte att ansluta till servern. Kontrollera din anslutning och försök igen.'
+      const localizedError = new Error(message, { cause: error })
+      localizedError.name = error.name
+      throw localizedError
     }
 
     if (response.status === 204) {
@@ -34,7 +42,7 @@ export function createApiService(endpoint) {
     try {
       data = text ? JSON.parse(text) : null
     } catch {
-      throw Object.assign(new Error(`API returned a non-JSON response: ${response.status}`), {
+      throw Object.assign(new Error('Servern skickade ett ogiltigt svar. Försök igen senare.'), {
         status: response.status,
         errors: [],
       })
@@ -42,7 +50,7 @@ export function createApiService(endpoint) {
 
     if (!response.ok || data?.status === 'error') {
       // status and errors (per-field validation messages) let forms show what went wrong.
-      throw Object.assign(new Error(data?.message || `Request failed: ${response.status}`), {
+      throw Object.assign(new Error(data?.message || 'Det gick inte att genomföra åtgärden.'), {
         status: response.status,
         errors: data?.errors || [],
       })

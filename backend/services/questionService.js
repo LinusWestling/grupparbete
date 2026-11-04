@@ -27,6 +27,7 @@ async function getQuestions(filters = {}, options = {}) {
       q.question_type,
       q.question_text,
       q.difficulty_level,
+      q.allow_typos,
       q.created_at
     FROM questions q
     JOIN topics t ON q.topic_id = t.id
@@ -41,6 +42,12 @@ async function getQuestions(filters = {}, options = {}) {
   if (filters.question_type) {
     sql += ' AND q.question_type = ?'
     params.push(filters.question_type)
+  }
+  if (Array.isArray(filters.question_types) && filters.question_types.length > 0) {
+    const placeholders = filters.question_types.map(() => '?').join(',')
+
+    sql += ` AND q.question_type IN (${placeholders})`
+    params.push(...filters.question_types)
   }
   if (filters.difficulty) {
     sql += ' AND q.difficulty_level = ?'
@@ -77,7 +84,7 @@ async function getQuestions(filters = {}, options = {}) {
   // Bulk fetch answers and sources for all question IDs
   const qIds = questions.map((q) => q.id)
   const [allAnswers] = await pool.query(
-    'SELECT id, question_id, answer_text, is_correct FROM answers WHERE question_id IN (?)',
+    'SELECT id, question_id, answer_text, match_text, is_correct FROM answers WHERE question_id IN (?)',
     [qIds],
   )
   const [allSources] = await pool.query(
@@ -120,7 +127,7 @@ async function getQuestionById(id, options = {}) {
   const question = rows[0]
 
   const [answers] = await pool.query(
-    'SELECT id, answer_text, is_correct FROM answers WHERE question_id = ?',
+    'SELECT id, answer_text, match_text, is_correct FROM answers WHERE question_id = ?',
     [id],
   )
   const [sources] = await pool.query(
@@ -145,14 +152,14 @@ async function getQuestionForEvaluation(id) {
 
 async function assertTopicExists(connection, topicId) {
   const [rows] = await connection.execute('SELECT id FROM topics WHERE id = ?', [topicId])
-  if (rows.length === 0) throw httpError(400, 'Choose a topic that exists')
+  if (rows.length === 0) throw httpError(400, 'Välj ett befintligt ämne.')
 }
 
 async function insertAnswers(connection, questionId, answers) {
   for (const ans of answers) {
     await connection.execute(
-      'INSERT INTO answers (question_id, answer_text, is_correct) VALUES (?, ?, ?)',
-      [questionId, ans.answer_text, ans.is_correct ? 1 : 0],
+      'INSERT INTO answers (question_id, answer_text, match_text, is_correct) VALUES (?, ?, ?, ?)',
+      [questionId, ans.answer_text, ans.match_text || null, ans.is_correct ? 1 : 0],
     )
   }
 }
@@ -177,14 +184,15 @@ async function createQuestion(data) {
     await assertTopicExists(connection, data.topic_id)
 
     const [qResult] = await connection.execute(
-      `INSERT INTO questions (topic_id, created_by, question_type, question_text, difficulty_level)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO questions (topic_id, created_by, question_type, question_text, difficulty_level, allow_typos)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         data.topic_id,
         data.created_by || null,
         data.question_type,
         data.question_text,
         data.difficulty_level,
+        data.allow_typos ? 1 : 0,
       ],
     )
     questionId = qResult.insertId
@@ -239,7 +247,7 @@ async function updateQuestion(id, data) {
     if (usage > 0 && questionRows[0].question_type !== data.question_type) {
       throw httpError(
         409,
-        'This question has been used in quizzes, so its type cannot change. Delete it and create a new question instead.',
+        'Frågan har använts i quiz, så frågetypen kan inte ändras. Ta bort den och skapa en ny fråga i stället.',
       )
     }
 
@@ -253,7 +261,7 @@ async function updateQuestion(id, data) {
     for (const ans of data.answers) {
       if (ans.id === null) continue
       if (!existingCorrect.has(ans.id)) {
-        throw httpError(400, `Answer ${ans.id} does not belong to this question`)
+        throw httpError(400, `Svar ${ans.id} tillhör inte den här frågan.`)
       }
       keptIds.add(ans.id)
       if (existingCorrect.get(ans.id) !== ans.is_correct) correctnessChangedIds.push(ans.id)
@@ -264,7 +272,7 @@ async function updateQuestion(id, data) {
     if (await isAnyAnswerChosen(connection, correctnessChangedIds)) {
       throw httpError(
         409,
-        'An answer whose correctness you changed has been chosen in quizzes. Delete the question and create a new one instead.',
+        'Ett svar vars korrekthet du ändrat har valts i quiz. Ta bort frågan och skapa en ny i stället.',
       )
     }
 
@@ -273,7 +281,7 @@ async function updateQuestion(id, data) {
       if (await isAnyAnswerChosen(connection, removedIds)) {
         throw httpError(
           409,
-          'An answer you removed has been chosen in quizzes. Edit its text instead of removing it.',
+          'Ett svar du försöker ta bort har valts i quiz. Ändra svarstexten i stället för att ta bort svaret.',
         )
       }
       await connection.query('DELETE FROM answers WHERE id IN (?)', [removedIds])
@@ -281,15 +289,22 @@ async function updateQuestion(id, data) {
 
     await connection.execute(
       `UPDATE questions
-       SET topic_id = ?, question_type = ?, question_text = ?, difficulty_level = ?
+       SET topic_id = ?, question_type = ?, question_text = ?, difficulty_level = ?, allow_typos = ?
        WHERE id = ?`,
-      [data.topic_id, data.question_type, data.question_text, data.difficulty_level, id],
+      [
+        data.topic_id,
+        data.question_type,
+        data.question_text,
+        data.difficulty_level,
+        data.allow_typos ? 1 : 0,
+        id,
+      ],
     )
 
     for (const ans of data.answers.filter((a) => a.id !== null)) {
       await connection.execute(
-        'UPDATE answers SET answer_text = ?, is_correct = ? WHERE id = ? AND question_id = ?',
-        [ans.answer_text, ans.is_correct ? 1 : 0, ans.id, id],
+        'UPDATE answers SET answer_text = ?, match_text = ?, is_correct = ? WHERE id = ? AND question_id = ?',
+        [ans.answer_text, ans.match_text || null, ans.is_correct ? 1 : 0, ans.id, id],
       )
     }
     await insertAnswers(
@@ -319,16 +334,25 @@ async function deleteQuestion(id) {
   return result.affectedRows > 0
 }
 
-async function getAvailableDifficulties(topic_id) {
-  const [rows] = await pool.execute(
-    `SELECT DISTINCT difficulty_level
+async function getAvailableDifficulties(topic_id, questionTypes) {
+  let sql = `
+    SELECT DISTINCT difficulty_level
     FROM questions
     WHERE topic_id = ?
       AND deleted_at IS NULL
       AND difficulty_level BETWEEN 1 AND 5
-    ORDER BY difficulty_level ASC`,
-    [topic_id],
-  )
+  `
+  const params = [topic_id]
+
+  if (Array.isArray(questionTypes) && questionTypes.length > 0) {
+    const placeholders = questionTypes.map(() => '?').join(',')
+    sql += ` AND question_type IN (${placeholders})`
+    params.push(...questionTypes)
+  }
+
+  sql += ' ORDER BY difficulty_level ASC'
+
+  const [rows] = await pool.execute(sql, params)
 
   return rows.map((row) => Number(row.difficulty_level))
 }

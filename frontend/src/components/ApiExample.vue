@@ -18,7 +18,7 @@ async function handleLoadExample() {
     exercises.value = await loadExample()
     loaded.value = true
   } catch (error) {
-    errorMessage.value = `Could not load exercises: ${error.message}`
+    errorMessage.value = `Det gick inte att hämta övningar: ${error.message}`
   } finally {
     loading.value = false
   }
@@ -27,20 +27,20 @@ async function handleLoadExample() {
 
 <template>
   <section class="api-example step-card" aria-labelledby="api-example-title">
-    <h2 id="api-example-title">Exercise API example</h2>
-    <p>Load two sample exercises from the backend.</p>
+    <h2 id="api-example-title">Exempelövningar</h2>
+    <p>Hämta två exempelövningar.</p>
     <button
       type="button"
       class="button button-accent"
       :disabled="loading"
       @click="handleLoadExample"
     >
-      {{ loading ? 'Loading…' : 'Load example exercises' }}
+      {{ loading ? 'Hämtar…' : 'Hämta exempelövningar' }}
     </button>
     <p v-if="errorMessage" role="alert">{{ errorMessage }}</p>
     <div role="status" aria-live="polite">
-      <p v-if="loading">Fetching exercises…</p>
-      <p v-else-if="loaded">Loaded {{ exercises.length }} exercises.</p>
+      <p v-if="loading">Hämtar övningar…</p>
+      <p v-else-if="loaded">Hämtade {{ exercises.length }} övningar.</p>
     </div>
     <ul v-if="loaded && exercises.length">
       <li v-for="exercise in exercises" :key="exercise.id">

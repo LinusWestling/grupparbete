@@ -17,6 +17,7 @@ function quizPayload(quiz, questions) {
       is_skipped: Boolean(question.is_skipped),
       chosen_answer_id: question.chosen_answer_id ?? null,
       free_text_answer: question.free_text_answer ?? null,
+      submitted_answer: question.submitted_answer ?? null,
     })),
   }
 }

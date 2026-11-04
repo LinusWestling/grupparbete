@@ -18,39 +18,42 @@ function retry() {
   <aside
     class="quiz-sync-status"
     :class="{ 'needs-saving': hasUnsyncedData }"
-    aria-label="Quiz connection and saving status"
+    aria-label="Anslutning och sparstatus för quizet"
   >
     <div class="sync-heading" role="status" aria-live="polite">
       <strong>{{ syncState }}</strong>
-      <span v-if="!browserOnline">Offline</span>
-      <span v-else-if="backendAvailable === false">Server unavailable</span>
+      <span v-if="!browserOnline">Ingen internetanslutning</span>
+      <span v-else-if="backendAvailable === false">Servern är inte tillgänglig</span>
     </div>
     <p v-if="unavailable">
-      {{ browserOnline ? 'We cannot reach the server right now.' : 'You are offline.' }}
-      You can continue this loaded quiz and view its summary. We’ll retry saving when the connection
-      returns.
+      {{ browserOnline ? 'Vi kan inte nå servern just nu.' : 'Du saknar internetanslutning.' }}
+      Du kan fortsätta med det inlästa quizet och se sammanfattningen. Vi försöker spara igen när
+      anslutningen återkommer.
     </p>
     <p v-if="needsLogin">
-      Your login expired. Sign in again to save your quiz. Your progress is still in this tab.
+      Din session har gått ut. Logga in igen för att spara quizet på ditt konto.
     </p>
     <p v-else-if="needsAttention">
-      We could not save your quiz: {{ syncError.message }}. Your progress is still in this tab.
+      Det gick inte att spara quizet på ditt konto: {{ syncError.message }}
     </p>
     <p v-else-if="syncError && !unavailable">
-      Saving failed. Your progress is still in this tab; you can retry.
+      Det gick inte att spara på ditt konto. Du kan försöka igen.
     </p>
-    <p v-if="hasUnsyncedData" class="tab-warning">
-      Keep this tab open. Do not refresh or close it until the status says Saved; unsaved progress
-      and results exist only in this tab.
+    <p v-if="quizStore.persistenceError.value" class="tab-warning">
+      {{ quizStore.persistenceError.value }}
     </p>
-    <p v-else>Your quiz progress is saved to your account.</p>
+    <p v-else-if="hasUnsyncedData">
+      Framsteg och resultat är sparade på den här enheten. Återvänd till appen för att synkronisera
+      dem när du har anslutning.
+    </p>
+    <p v-else>Dina quizframsteg är sparade på ditt konto. Du kan återvända senare och fortsätta.</p>
     <button
       v-if="hasUnsyncedData"
       class="button button-outline"
       :disabled="isSyncing"
       @click="retry"
     >
-      {{ isSyncing ? 'Syncing…' : 'Retry saving' }}
+      {{ isSyncing ? 'Synkroniserar…' : 'Försök spara igen' }}
     </button>
   </aside>
 </template>

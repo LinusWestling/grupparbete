@@ -14,7 +14,7 @@ async function requestProspectAccess(req, res, next) {
   try {
     const candidateId = Number(req.params.id)
     if (!Number.isInteger(candidateId)) {
-      return res.status(400).json({ message: 'Invalid candidate ID' })
+      return res.status(400).json({ message: 'Ogiltigt kandidat-ID.' })
     }
     const result = await organizationService.requestProspectAccess(req.user.id, candidateId)
     res.json(result)
@@ -27,7 +27,7 @@ async function getProspectDetails(req, res, next) {
   try {
     const prospect = await organizationService.getProspectDetails(req.user, req.params.id)
     if (!prospect) {
-      return res.status(404).json({ message: 'Prospect not found' })
+      return res.status(404).json({ message: 'Kandidaten hittades inte.' })
     }
     res.json(prospect)
   } catch (err) {
@@ -51,15 +51,15 @@ async function updateOrganizationRequestStatus(req, res, next) {
     if (!Number.isInteger(targetUserId) || !['approve', 'reject'].includes(action)) {
       return res
         .status(400)
-        .json({ message: 'Valid userId and action (approve/reject) are required' })
+        .json({ message: 'Ange en giltig användare och välj att godkänna eller avslå ansökan.' })
     }
     const updated = await userRepository.updateOrganizationRequestStatus(targetUserId, action)
     if (!updated) {
-      return res.status(404).json({ message: 'User not found or cannot be modified' })
+      return res.status(404).json({ message: 'Användaren hittades inte eller kan inte ändras.' })
     }
     res.json({
       status: 'success',
-      message: `Organization application ${action === 'approve' ? 'approved' : 'rejected'}.`,
+      message: `Organisationsansökan har ${action === 'approve' ? 'godkänts' : 'avslagits'}.`,
     })
   } catch (err) {
     next(err)
