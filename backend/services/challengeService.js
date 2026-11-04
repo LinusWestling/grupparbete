@@ -66,7 +66,15 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
   // Immediately start the challenger's quiz
   // Use challengeId as seed so both players get the same questions
   const seed = challengeId
-  const quiz = await quizService.startQuiz(challengerUserId, topicId, difficulty, 10, null, null, seed)
+  const quiz = await quizService.startQuiz(
+    challengerUserId,
+    topicId,
+    difficulty,
+    10,
+    null,
+    null,
+    seed,
+  )
 
   // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
   quiz.challenge_id = challengeId
