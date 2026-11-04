@@ -29,65 +29,98 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
     throw createError('Difficulty must be between 1 and 5', 400)
   }
 
-  // Check if challenged user exists
-  const [users] = await pool.query('SELECT id FROM users WHERE id = ?', [challengedUserId])
-  if (users.length === 0) {
-    throw createError('Challenged user not found', 404)
-  }
+  // Use a connection from the pool for the transaction
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
 
-  // Check if topic exists
-  const [topics] = await pool.query('SELECT id FROM topics WHERE id = ?', [topicId])
-  if (topics.length === 0) {
-    throw createError('Topic not found', 404)
-  }
+    // Check if challenged user exists
+    const [users] = await connection.query('SELECT id FROM users WHERE id = ?', [challengedUserId])
+    if (users.length === 0) {
+      throw createError('Challenged user not found', 404)
+    }
 
-  // Check for existing pending challenge between same users for same topic
-  const [existing] = await pool.query(
-    `SELECT id FROM challenges
-     WHERE ((challenger_user_id = ? AND challenged_user_id = ?)
-        OR (challenger_user_id = ? AND challenged_user_id = ?))
-       AND topic_id = ?
-       AND status IN ('pending', 'accepted', 'active')`,
-    [challengerUserId, challengedUserId, challengedUserId, challengerUserId, topicId],
-  )
+    // Check if topic exists
+    const [topics] = await connection.query('SELECT id FROM topics WHERE id = ?', [topicId])
+    if (topics.length === 0) {
+      throw createError('Topic not found', 404)
+    }
 
-  if (existing.length > 0) {
-    throw createError('A challenge already exists between you and this user for this topic', 409)
-  }
+    // Check for existing pending challenge between same users for same topic
+    // This check is now part of the transaction and uses SELECT ... FOR UPDATE to prevent race conditions
+    const [existing] = await connection.query(
+      `SELECT id FROM challenges
+       WHERE ((challenger_user_id = ? AND challenged_user_id = ?)
+          OR (challenger_user_id = ? AND challenged_user_id = ?))
+         AND topic_id = ?
+         AND status IN ('pending', 'accepted', 'active')
+       FOR UPDATE`,
+      [challengerUserId, challengedUserId, challengedUserId, challengerUserId, topicId],
+    )
 
-  // Create the challenge
-  const challengeId = await challengeRepository.createChallenge(
-    challengerUserId,
-    challengedUserId,
-    topicId,
-    difficulty,
-  )
+    if (existing.length > 0) {
+      throw createError('A challenge already exists between you and this user for this topic', 409)
+    }
 
-  // Immediately start the challenger's quiz
-  // Use challengeId as seed so both players get the same questions
-  const seed = challengeId
-  const quiz = await quizService.startQuiz(
-    challengerUserId,
-    topicId,
-    difficulty,
-    10,
-    null,
-    null,
-    seed,
-  )
+    // Create the challenge
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+    const [challengeResult] = await connection.execute(
+      `INSERT INTO challenges
+        (challenger_user_id, challenged_user_id, topic_id, difficulty, expires_at, current_turn_user_id, turn_number)
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [challengerUserId, challengedUserId, topicId, difficulty, expiresAt, challengerUserId],
+    )
+    const challengeId = challengeResult.insertId
 
-  // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
-  quiz.challenge_id = challengeId
+    // Immediately start the challenger's quiz
+    // Use challengeId as seed so both players get the same questions
+    const seed = challengeId
+    const quiz = await quizService.startQuiz(
+      challengerUserId,
+      topicId,
+      difficulty,
+      10,
+      null,
+      null,
+      seed,
+    )
 
-  // Link the quiz to the challenge and mark as active
-  await challengeRepository.linkQuizToChallenge(challengeId, challengerUserId, quiz.quiz_id)
+    // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
+    quiz.challenge_id = challengeId
 
-  const challenge = await challengeRepository.getChallengeById(challengeId)
+    // Link the quiz to the challenge and mark as active
+    const isChallenger = true
+    await connection.execute(
+      `UPDATE challenges
+       SET ${isChallenger ? 'challenger_quiz_id' : 'challenged_quiz_id'} = ?,
+           status = CASE
+             WHEN status = 'accepted'
+             THEN 'active'
+             ELSE status
+           END,
+           started_at = CASE
+             WHEN started_at IS NULL
+             THEN NOW()
+             ELSE started_at
+           END
+       WHERE id = ?`,
+      [quiz.quiz_id, challengeId],
+    )
 
-  // Return both challenge and quiz data
-  return {
-    challenge,
-    quiz,
+    await connection.commit()
+
+    const challenge = await challengeRepository.getChallengeById(challengeId)
+
+    // Return both challenge and quiz data
+    return {
+      challenge,
+      quiz,
+    }
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
   }
 }
 
@@ -196,11 +229,78 @@ async function startChallengeQuiz(challengeId, userId) {
 
   if (existingQuizId) {
     // Return existing quiz details
-    return quizService.getQuizDetails(existingQuizId, userId)
+    const quizDetails = await quizService.getQuizDetails(existingQuizId, userId)
+    quizDetails.challenge_id = challengeId
+    return quizDetails
   }
 
-  // Create a new quiz using the challenge's topic and difficulty
-  // Use challengeId as seed so both players get the same questions
+  // For challenged player, copy the challenger's quiz questions
+  if (!isChallenger && challenge.challenger_quiz_id) {
+    // Get the challenger's quiz questions
+    const [challengerQuestions] = await pool.query(
+      `SELECT question_id, position, question_snapshot
+       FROM quiz_questions
+       WHERE quiz_id = ?
+       ORDER BY position`,
+      [challenge.challenger_quiz_id],
+    )
+
+    if (challengerQuestions.length === 0) {
+      throw createError('Challenger quiz has no questions', 500)
+    }
+
+    // Create a new quiz for the challenged player
+    const connection = await pool.getConnection()
+    let quizId
+
+    try {
+      await connection.beginTransaction()
+
+      // Insert quiz session
+      const [qResult] = await connection.execute(
+        `INSERT INTO quizzes (user_id, topic_id, difficulty, total_cnt, status)
+         VALUES (?, ?, ?, ?, 'in_progress')`,
+        [userId, challenge.topic_id, challenge.difficulty, challengerQuestions.length],
+      )
+      quizId = qResult.insertId
+
+      // Copy question snapshots from challenger's quiz
+      for (const question of challengerQuestions) {
+        await connection.execute(
+          `INSERT INTO quiz_questions (quiz_id, question_id, position, question_snapshot)
+           VALUES (?, ?, ?, ?)`,
+          [quizId, question.question_id, question.position, question.question_snapshot],
+        )
+      }
+
+      await connection.commit()
+    } catch (err) {
+      await connection.rollback()
+      throw err
+    } finally {
+      connection.release()
+    }
+
+    // Link the quiz to the challenge
+    const linked = await challengeRepository.linkQuizToChallenge(challengeId, userId, quizId)
+
+    if (!linked) {
+      // If we couldn't link it, someone else might have just done it
+      const updatedChallenge = await challengeRepository.getChallengeById(challengeId)
+      const finalQuizId = isChallenger
+        ? updatedChallenge.challenger_quiz_id
+        : updatedChallenge.challenged_quiz_id
+      return quizService.getQuizDetails(finalQuizId, userId)
+    }
+
+    // Get and return the quiz details
+    const quiz = await quizService.getQuizDetails(quizId, userId)
+    quiz.challenge_id = challengeId
+    return quiz
+  }
+
+  // For challenger (creating challenge) - this shouldn't happen as challenger quiz is created in createChallenge
+  // But keeping this as fallback
   const seed = challenge.id
   const quiz = await quizService.startQuiz(
     userId,
@@ -216,7 +316,16 @@ async function startChallengeQuiz(challengeId, userId) {
   quiz.challenge_id = challengeId
 
   // Link the quiz to the challenge
-  await challengeRepository.linkQuizToChallenge(challengeId, userId, quiz.quiz_id)
+  const linked = await challengeRepository.linkQuizToChallenge(challengeId, userId, quiz.quiz_id)
+
+  if (!linked) {
+    // If we couldn't link it, someone else might have just done it
+    const updatedChallenge = await challengeRepository.getChallengeById(challengeId)
+    const finalQuizId = isChallenger
+      ? updatedChallenge.challenger_quiz_id
+      : updatedChallenge.challenged_quiz_id
+    return quizService.getQuizDetails(finalQuizId, userId)
+  }
 
   return quiz
 }
@@ -277,12 +386,24 @@ async function handleQuizCompletion(challengeId, userId) {
     throw createError('Challenge not found', 404)
   }
 
+  // User must be part of the challenge
+  validateUserInChallenge(challenge, userId)
+
+  // Challenge must be accepted or active
+  if (challenge.status !== 'accepted' && challenge.status !== 'active') {
+    throw createError('Challenge is not in a valid state for completion', 409)
+  }
+
   // Check if both players have completed their current turn
   const [quizzes] = await pool.query(
     `SELECT
       q.id,
       q.user_id,
-      q.status
+      q.status,
+      q.total_score,
+      q.created_at,
+      q.completed_at,
+      TIMESTAMPDIFF(SECOND, q.created_at, q.completed_at) AS time_taken_seconds
      FROM quizzes q
      WHERE q.id IN (?, ?)`,
     [challenge.challenger_quiz_id, challenge.challenged_quiz_id],
@@ -290,6 +411,15 @@ async function handleQuizCompletion(challengeId, userId) {
 
   const challengerQuiz = quizzes.find((q) => q.user_id === challenge.challenger_user_id)
   const challengedQuiz = quizzes.find((q) => q.user_id === challenge.challenged_user_id)
+
+  // Identify the caller's quiz
+  const callerQuiz =
+    userId === challenge.challenger_user_id ? challengerQuiz : challengedQuiz
+
+  // Validate that the caller's quiz is completed
+  if (!callerQuiz || callerQuiz.status !== 'completed') {
+    throw createError('Your quiz must be completed before proceeding', 400)
+  }
 
   // If both players have completed their quizzes for this turn, determine winner and switch turn
   if (challengerQuiz?.status === 'completed' && challengedQuiz?.status === 'completed') {
@@ -394,12 +524,14 @@ async function determineWinnerAndComplete(challengeId, challengerQuiz, challenge
   } else {
     // Tie on score, check time
     if (challengerQuiz.time_taken_seconds !== null && challengedQuiz.time_taken_seconds !== null) {
-      winnerId =
-        challengerQuiz.time_taken_seconds < challengedQuiz.time_taken_seconds
-          ? challengerQuiz.user_id
-          : challengedQuiz.user_id
+      if (challengerQuiz.time_taken_seconds < challengedQuiz.time_taken_seconds) {
+        winnerId = challengerQuiz.user_id
+      } else if (challengedQuiz.time_taken_seconds < challengerQuiz.time_taken_seconds) {
+        winnerId = challengedQuiz.user_id
+      }
+      // If times are equal, winnerId stays null (tie)
     }
-    // If time is equal or null, winnerId stays null (tie)
+    // If time is null, winnerId stays null (tie)
   }
 
   await challengeRepository.completeChallenge(challengeId, winnerId)
@@ -418,6 +550,11 @@ async function markResultViewed(challengeId, userId) {
   // User must be part of the challenge
   validateUserInChallenge(challenge, userId)
 
+  // Only allow marking result as viewed if challenge is completed
+  if (challenge.status !== 'completed') {
+    throw createError('Challenge must be completed before marking result as viewed', 409)
+  }
+
   await challengeRepository.markResultViewed(challengeId, userId)
 
   return { message: 'Result marked as viewed' }
@@ -432,7 +569,7 @@ async function searchUsers(query, excludeUserId) {
   }
 
   const [users] = await pool.query(
-    `SELECT id, username, email
+    `SELECT id, username
      FROM users
      WHERE username LIKE ?
        AND id != ?

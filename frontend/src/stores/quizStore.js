@@ -92,6 +92,7 @@ export function createQuizStore(
   const saving = ref(false)
   const pendingCompletion = ref(false)
   const syncingCompletion = ref(false)
+  const pendingTurnSwitch = ref(null)
   const syncError = ref(null)
   let revision = 0
   let flushPromise = null
@@ -106,6 +107,7 @@ export function createQuizStore(
     pendingChanges,
     confirmedProgress,
     pendingCompletion,
+    pendingTurnSwitch,
   }
   function restoreAccount() {
     const resolvedAccountId =
@@ -132,6 +134,7 @@ export function createQuizStore(
     revision = 0
     entryKey = null
     ancestors = []
+    pendingTurnSwitch.value = null
     try {
       if (accountId === null || (previousAccountId !== null && previousAccountId !== accountId)) {
         if (authState.value === 'signed-out') storage?.removeItem(storageKey)
@@ -258,6 +261,7 @@ export function createQuizStore(
     pendingChanges.value = {}
     quizResult.value = null
     syncError.value = null
+    pendingTurnSwitch.value = null
     revision = Math.max(0, ...payload.questions.map((question) => question.progress_revision || 0))
     for (const question of payload.questions) {
       if (question.is_answered) {
@@ -392,7 +396,8 @@ export function createQuizStore(
       pendingCompletion.value ||
       syncingCompletion.value ||
       saving.value ||
-      Object.keys(pendingChanges.value).length
+      Object.keys(pendingChanges.value).length ||
+      pendingTurnSwitch.value
     )
       return false
     activeQuizSession.value = null
@@ -416,20 +421,22 @@ export function createQuizStore(
   }
 
   async function syncCompletion() {
-    if (!pendingCompletion.value || syncingCompletion.value) return false
+    if (!pendingCompletion.value || syncingCompletion.value || !activeQuizSession.value)
+      return false
     syncingCompletion.value = true
     const generation = accountGeneration
+    const session = activeQuizSession.value
     try {
       // Finish any in-flight progress write, then send the complete local state
       // in one transaction. Do not discard pending changes before confirmation.
       if (flushPromise) await flushPromise
       if (generation !== accountGeneration) return false
-      const submissions = activeQuizSession.value.questions.map((question) => ({
+      const submissions = session.questions.map((question) => ({
         question_id: question.id,
         answer: question.is_skipped ? null : selectedAnswers.value[question.id],
         isSkipped: question.is_skipped,
       }))
-      const confirmed = await submitQuiz(activeQuizSession.value.quiz_id, submissions)
+      const confirmed = await submitQuiz(session.quiz_id, submissions)
       if (generation !== accountGeneration) return false
       // Preserve local result fields in case server response is incomplete
       quizResult.value = {
@@ -437,7 +444,7 @@ export function createQuizStore(
         ...confirmed,
         confirmation_status: 'confirmed',
       }
-      activeQuizSession.value.status = 'completed'
+      session.status = 'completed'
       pendingCompletion.value = false
       pendingChanges.value = {}
       confirmedProgress.value = Object.fromEntries(
@@ -449,25 +456,9 @@ export function createQuizStore(
       syncError.value = null
 
       // If this is a challenge quiz, notify the backend to switch turns
-      if (activeQuizSession.value.challenge_id) {
-        try {
-          const { api } = await import('../services/api.js')
-          await api.completeChallengeQuiz(activeQuizSession.value.challenge_id)
-
-          // Check if both players are done to determine redirect
-          const challengeResult = await api.getChallengeResult(activeQuizSession.value.challenge_id)
-
-          // If both players have completed, mark for redirect to result page
-          if (
-            challengeResult.challenger?.is_completed &&
-            challengeResult.challenged?.is_completed
-          ) {
-            activeQuizSession.value.redirect_to_challenge_result = true
-          }
-        } catch (err) {
-          console.error('Failed to switch challenge turn:', err)
-          // Don't fail the whole completion if turn switch fails
-        }
+      if (session.challenge_id) {
+        pendingTurnSwitch.value = session.challenge_id
+        await flushTurnSwitch()
       }
 
       return true
@@ -480,18 +471,53 @@ export function createQuizStore(
     }
   }
 
+  async function flushTurnSwitch() {
+    const challengeId = pendingTurnSwitch.value
+    if (!challengeId) return true
+    const generation = accountGeneration
+    try {
+      const { api } = await import('../services/api.js')
+      await api.completeChallengeQuiz(challengeId)
+      if (generation !== accountGeneration) return true
+
+      // Check if both players are done to determine redirect
+      const challengeResult = await api.getChallengeResult(challengeId)
+      if (generation !== accountGeneration) return true
+
+      if (
+        challengeResult.challenger?.is_completed &&
+        challengeResult.challenged?.is_completed &&
+        activeQuizSession.value?.challenge_id === challengeId
+      ) {
+        activeQuizSession.value.redirect_to_challenge_result = true
+      }
+
+      pendingTurnSwitch.value = null
+      return true
+    } catch (err) {
+      console.error('Failed to switch challenge turn:', err)
+      return false
+    }
+  }
+
   function startAutoSync(target = globalThis.window) {
     if (!target) return () => {}
     let timer
     let stopped = false
-    const hasPending = () => pendingCompletion.value || Object.keys(pendingChanges.value).length > 0
+    const hasPending = () =>
+      pendingCompletion.value ||
+      Object.keys(pendingChanges.value).length > 0 ||
+      pendingTurnSwitch.value
     const synchronize = async () => {
       if (stopped || !hasPending() || target.navigator?.onLine === false) return
       // Authentication and validation need user intervention; avoid polling
       // them continuously. Focus, reconnect, and manual retries try again.
       if ([400, 401, 403, 409].includes(syncError.value?.status)) return
       if (pendingCompletion.value) await syncCompletion()
-      else await flushPending()
+      else if (Object.keys(pendingChanges.value).length > 0) await flushPending()
+
+      if (pendingTurnSwitch.value) await flushTurnSwitch()
+
       if (hasPending()) schedule(15000)
     }
     // Local persistence is immediate; sync after two seconds without changes.
@@ -532,9 +558,13 @@ export function createQuizStore(
       ancestors = [...(newer.value.ancestors || []), newer.key]
       restoring = false
     }
-    const stopWatching = watch([pendingChanges, pendingCompletion], () => schedule(), {
-      deep: true,
-    })
+    const stopWatching = watch(
+      [pendingChanges, pendingCompletion, pendingTurnSwitch],
+      () => schedule(),
+      {
+        deep: true,
+      },
+    )
     target.addEventListener('online', reconnect)
     target.addEventListener('focus', reconnect)
     target.addEventListener('quiz-auth-restored', reconnect)
@@ -567,8 +597,10 @@ export function createQuizStore(
     clearQuiz,
     pendingCompletion,
     syncingCompletion,
+    pendingTurnSwitch,
     completeLocally,
     syncCompletion,
+    flushTurnSwitch,
     syncError,
     startAutoSync,
     hasUnsyncedData,

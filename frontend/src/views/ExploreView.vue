@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { api } from '../services/api'
 import { QUESTION_TYPE_LABELS } from '../services/questionTypes.js'
@@ -189,20 +189,24 @@ async function resumeQuiz(quizId) {
 onBeforeRouteLeave(() => confirmQuizNavigation(quizStore))
 onBeforeRouteUpdate(() => confirmQuizNavigation(quizStore))
 
+watch(
+  () => [
+    activeQuizSession.value?.redirect_to_challenge_result,
+    activeQuizSession.value?.challenge_id,
+  ],
+  ([redirect, challengeId]) => {
+    if (redirect && challengeId) {
+      router.push(`/challenges/${challengeId}/result`)
+    }
+  },
+)
+
 async function handleSubmitQuiz() {
   if (!activeQuizSession.value) return
   error.value = null
   quizStore.completeLocally()
   // Render the summary immediately; server requests never gate completion.
   await quizStore.syncCompletion()
-
-  // Check if we should redirect to challenge result
-  if (
-    activeQuizSession.value?.redirect_to_challenge_result &&
-    activeQuizSession.value?.challenge_id
-  ) {
-    router.push(`/challenges/${activeQuizSession.value.challenge_id}/result`)
-  }
 }
 
 async function exitQuiz() {

@@ -16,7 +16,11 @@ onMounted(async () => {
   try {
     result.value = await api.getChallengeResult(challengeId)
     // Mark that this user has viewed the result
-    await api.markChallengeResultViewed(challengeId)
+    try {
+      await api.markChallengeResultViewed(challengeId)
+    } catch (err) {
+      console.error('Failed to mark result viewed:', err)
+    }
   } catch (err) {
     error.value = 'Failed to load result: ' + err.message
   } finally {
@@ -25,7 +29,7 @@ onMounted(async () => {
 })
 
 const winner = computed(() => {
-  if (!result.value) return null
+  if (!result.value || result.value.status !== 'completed') return null
   if (!result.value.winner_id) return 'tie'
   return result.value.winner_id === result.value.challenger.user_id ? 'challenger' : 'challenged'
 })
@@ -47,8 +51,16 @@ function backToChallenges() {
       <span role="img" aria-label="Warning">⚠️</span> {{ error }}
     </div>
     <div v-else-if="result">
+      <!-- Waiting state for non-completed challenges -->
+      <div v-if="result.status !== 'completed'" class="waiting-banner">
+        <h1>
+          <span role="img" aria-label="Hourglass">⏳</span> Waiting for completion...
+        </h1>
+        <p>The final results will be available once both players have finished their quizzes.</p>
+      </div>
+
       <!-- Winner Banner -->
-      <div class="winner-banner" :class="winner">
+      <div v-else class="winner-banner" :class="winner">
         <h1 v-if="winner === 'tie'">
           <span role="img" aria-label="Handshake">🤝</span> It's a Tie!
         </h1>
@@ -60,10 +72,11 @@ function backToChallenges() {
         <div class="player-result" :class="{ winner: winner === 'challenger' }">
           <h2>{{ result.challenger?.username || 'Challenger' }}</h2>
           <div class="score-card">
-            <div class="score">
+            <div v-if="result.challenger?.is_completed" class="score">
               {{ result.challenger?.correct_answers || 0 }} /
               {{ result.challenger?.total_questions || 0 }}
             </div>
+            <div v-else class="score-placeholder">In progress...</div>
             <div class="stats">
               <p v-if="result.challenger?.time_taken_seconds">
                 <span role="img" aria-label="Timer">⏱️</span>
@@ -78,10 +91,11 @@ function backToChallenges() {
         <div class="player-result" :class="{ winner: winner === 'challenged' }">
           <h2>{{ result.challenged?.username || 'Challenged' }}</h2>
           <div class="score-card">
-            <div class="score">
+            <div v-if="result.challenged?.is_completed" class="score">
               {{ result.challenged?.correct_answers || 0 }} /
               {{ result.challenged?.total_questions || 0 }}
             </div>
+            <div v-else class="score-placeholder">In progress...</div>
             <div class="stats">
               <p v-if="result.challenged?.time_taken_seconds">
                 <span role="img" aria-label="Timer">⏱️</span>
@@ -229,6 +243,33 @@ function backToChallenges() {
 .button-accent:hover {
   background: var(--color-primary-hover);
   transform: scale(1.05);
+}
+
+.waiting-banner {
+  text-align: center;
+  padding: 3rem;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.waiting-banner h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-primary);
+}
+
+.waiting-banner p {
+  font-size: 1.2rem;
+  color: var(--color-text-muted);
+}
+
+.score-placeholder {
+  font-size: 1.5rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  padding: 1rem 0;
 }
 
 .loading {

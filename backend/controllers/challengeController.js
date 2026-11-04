@@ -33,11 +33,36 @@ async function createChallenge(req, res) {
       })
     }
 
+    const challengedUserId = Number(challenged_user_id)
+    const topicId = Number(topic_id)
+    const difficultyLevel = difficulty !== undefined && difficulty !== null ? Number(difficulty) : 1
+
+    if (!Number.isInteger(challengedUserId) || challengedUserId < 1) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'challenged_user_id must be a positive integer',
+      })
+    }
+
+    if (!Number.isInteger(topicId) || topicId < 1) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'topic_id must be a positive integer',
+      })
+    }
+
+    if (!Number.isInteger(difficultyLevel) || difficultyLevel < 1) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'difficulty must be a positive integer',
+      })
+    }
+
     const challenge = await challengeService.createChallenge(
       userId,
-      Number(challenged_user_id),
-      Number(topic_id),
-      Number(difficulty || 1),
+      challengedUserId,
+      topicId,
+      difficultyLevel,
     )
 
     res.status(201).json({ status: 'success', data: challenge })

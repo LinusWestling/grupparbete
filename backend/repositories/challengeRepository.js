@@ -190,21 +190,26 @@ async function linkQuizToChallenge(challengeId, userId, quizId) {
   if (!challenge) return false
 
   const isChallenger = challenge.challenger_user_id === userId
+  const column = isChallenger ? 'challenger_quiz_id' : 'challenged_quiz_id'
 
-  await pool.execute(
+  const [result] = await pool.execute(
     `UPDATE challenges
-     SET ${isChallenger ? 'challenger_quiz_id' : 'challenged_quiz_id'} = ?,
-         status = 'active',
+     SET ${column} = ?,
+         status = CASE
+           WHEN status = 'accepted'
+           THEN 'active'
+           ELSE status
+         END,
          started_at = CASE
            WHEN started_at IS NULL
            THEN NOW()
            ELSE started_at
          END
-     WHERE id = ?`,
+     WHERE id = ? AND ${column} IS NULL`,
     [quizId, challengeId],
   )
 
-  return true
+  return result.affectedRows > 0
 }
 
 /**
@@ -267,7 +272,7 @@ async function completeChallenge(challengeId, winnerUserId) {
      SET status = 'completed',
          completed_at = NOW(),
          winner_user_id = ?
-     WHERE id = ?`,
+     WHERE id = ? AND status != 'completed'`,
     [winnerUserId, challengeId],
   )
 }

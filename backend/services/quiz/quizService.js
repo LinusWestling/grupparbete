@@ -7,6 +7,7 @@ const { orderQuizAnswers, orderMatchOptions } = require('../../utils/quizAnswerO
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
 const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
+const { shuffleQuestionsForChallenge } = require('../../utils/deterministicShuffle')
 
 async function startQuiz(
   userId,
@@ -88,17 +89,7 @@ async function startQuiz(
   // Shuffle questions using seed if provided (for challenges), otherwise random
   if (seed !== null) {
     // Seeded shuffle for deterministic ordering in challenges
-    let seedValue = seed
-    const seededRandom = () => {
-      seedValue = (seedValue * 9301 + 49297) % 233280
-      return seedValue / 233280
-    }
-    for (let i = questions.length - 1; i > 0; i--) {
-      const j = Math.floor(seededRandom() * (i + 1))
-      const temporary = questions[i]
-      questions[i] = questions[j]
-      questions[j] = temporary
-    }
+    questions = shuffleQuestionsForChallenge(questions, seed)
   } else {
     // Random shuffle for regular quizzes
     for (let i = questions.length - 1; i > 0; i--) {
@@ -214,7 +205,7 @@ async function getUserQuizHistory(userId) {
 
 async function getQuizDetails(quizId, userId) {
   const [qRows] = await pool.query(
-    `SELECT q.*, t.name AS topic_name 
+    `SELECT q.*, t.name AS topic_name
      FROM quizzes q
      JOIN topics t ON q.topic_id = t.id
      WHERE q.id = ?`,
@@ -230,6 +221,14 @@ async function getQuizDetails(quizId, userId) {
   ) {
     throw httpError(403, 'Åtkomst nekad.')
   }
+
+  // Check if this quiz is associated with a challenge
+  const [challengeRows] = await pool.query(
+    `SELECT id FROM challenges
+     WHERE challenger_quiz_id = ? OR challenged_quiz_id = ?`,
+    [quizId, quizId],
+  )
+  const challengeId = challengeRows.length > 0 ? challengeRows[0].id : null
 
   const [rows] = await pool.query(
     'SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY position',
@@ -255,7 +254,14 @@ async function getQuizDetails(quizId, userId) {
     }
   })
   const { result_snapshot, ...metadata } = quiz
-  return quizPayload(metadata, questions)
+  const payload = quizPayload(metadata, questions)
+
+  // Add challenge_id to the payload if this quiz is part of a challenge
+  if (challengeId !== null) {
+    payload.challenge_id = challengeId
+  }
+
+  return payload
 }
 
 async function getUnfinishedQuizzes(userId) {

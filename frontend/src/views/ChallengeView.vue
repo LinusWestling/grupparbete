@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
 import { currentUser } from '../services/auth'
 import { SEARCH_MIN_LENGTH, formatDate } from '../utils/challengeHelpers'
+import { quizStore } from '../stores/quizStore'
 
 const router = useRouter()
 
@@ -25,9 +26,28 @@ const selectedTopic = ref(null)
 const selectedDifficulty = ref(3)
 const searching = ref(false)
 
+let pollingTimer = null
+let currentSearchId = 0
+
 onMounted(async () => {
   await loadChallenges()
   await loadTopics()
+
+  pollingTimer = setInterval(async () => {
+    try {
+      const active = await api.getActiveChallenges()
+      activeChallenges.value = active
+    } catch (err) {
+      console.error('Polling failed:', err)
+    }
+  }, 30000) // Poll every 30 seconds
+})
+
+onUnmounted(() => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
 })
 
 async function loadChallenges() {
@@ -58,22 +78,32 @@ async function loadTopics() {
 }
 
 async function searchUsers() {
+  const requestId = ++currentSearchId
   if (searchQuery.value.length < SEARCH_MIN_LENGTH) {
     searchResults.value = []
+    currentSearchId = requestId // Invalidate previous pending
     return
   }
 
   searching.value = true
   try {
-    searchResults.value = await api.searchUsers(searchQuery.value)
+    const results = await api.searchUsers(searchQuery.value)
+    if (requestId === currentSearchId) {
+      searchResults.value = results
+    }
   } catch (err) {
-    error.value = 'Search failed: ' + err.message
+    if (requestId === currentSearchId) {
+      error.value = 'Search failed: ' + err.message
+    }
   } finally {
-    searching.value = false
+    if (requestId === currentSearchId) {
+      searching.value = false
+    }
   }
 }
 
 function selectUser(user) {
+  currentSearchId++ // Invalidate pending requests
   selectedUser.value = user
   searchQuery.value = user.username
   searchResults.value = []
@@ -82,6 +112,13 @@ function selectUser(user) {
 async function createChallenge() {
   if (!selectedUser.value || !selectedTopic.value) {
     error.value = 'Please select a user and topic'
+    return
+  }
+
+  try {
+    quizStore.assertCanReplaceQuiz()
+  } catch (err) {
+    error.value = err.message
     return
   }
 
@@ -95,7 +132,6 @@ async function createChallenge() {
     )
 
     // Load the quiz into the store and navigate to quiz view
-    const { quizStore } = await import('../stores/quizStore')
     quizStore.loadQuiz(response.quiz)
 
     // Navigate to explore view to take the quiz
@@ -336,14 +372,15 @@ const activeCount = computed(() => activeChallenges.value.length)
             class="text-input"
           />
           <div v-if="searchResults.length > 0" class="search-results">
-            <div
+            <button
               v-for="user in searchResults"
               :key="user.id"
+              type="button"
               class="search-result-item"
               @click="selectUser(user)"
             >
-              {{ user.username }} ({{ user.email }})
-            </div>
+              {{ user.username }}
+            </button>
           </div>
           <p v-if="selectedUser" class="selected-user">
             Selected: <strong>{{ selectedUser.username }}</strong>

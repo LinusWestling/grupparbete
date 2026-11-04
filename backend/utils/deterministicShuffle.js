@@ -11,10 +11,13 @@ function createSeededRandom(seed) {
       ? seed
       : parseInt(createHash('sha256').update(String(seed)).digest('hex').slice(0, 8), 16)
 
+  // Normalize numeric seed to [0, 2^31)
+  const m = 2 ** 31
+  state = ((state % m) + m) % m
+
   // LCG parameters (same as used in glibc)
   const a = 1103515245
   const c = 12345
-  const m = 2 ** 31
 
   return function random() {
     state = (a * state + c) % m

@@ -17,28 +17,43 @@ const progress = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const completionMessage = ref(null)
+const isUnmounted = ref(false)
 let pollInterval = null
+let completionTimeout = null
 let switchedTurn = false
 
 onMounted(async () => {
   try {
     // Start the challenge quiz (or resume if already started)
     const quiz = await api.startChallengeQuiz(challengeId)
+
+    if (isUnmounted.value) return
+
     quizStore.loadQuiz(quiz)
 
     // Start polling for opponent progress
     await pollProgress()
+
+    if (isUnmounted.value) return
+
     pollInterval = setInterval(pollProgress, POLL_INTERVAL_MS)
   } catch (err) {
+    if (isUnmounted.value) return
     error.value = 'Failed to start challenge: ' + err.message
   } finally {
-    loading.value = false
+    if (!isUnmounted.value) {
+      loading.value = false
+    }
   }
 })
 
 onUnmounted(() => {
+  isUnmounted.value = true
   if (pollInterval) {
     clearInterval(pollInterval)
+  }
+  if (completionTimeout) {
+    clearTimeout(completionTimeout)
   }
 })
 
@@ -64,7 +79,7 @@ async function pollProgress() {
         completionMessage.value =
           "Great job! It's now your opponent's turn. You'll be notified when they complete their quiz."
         // Show message then redirect
-        setTimeout(() => {
+        completionTimeout = setTimeout(() => {
           clearInterval(pollInterval)
           router.push('/challenges')
         }, COMPLETION_MESSAGE_DELAY_MS)

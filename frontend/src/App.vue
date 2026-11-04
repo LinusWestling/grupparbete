@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
 import { navigation } from './router'
 import {
   currentUser,
@@ -12,6 +12,7 @@ import {
 import { api } from './services/api'
 
 const router = useRouter()
+const route = useRoute()
 
 const visibleNavigation = computed(() =>
   navigation.filter(
@@ -204,7 +205,9 @@ onMounted(loadCurrentUser)
           <span v-if="logoutError" class="error-banner" role="alert">{{ logoutError }}</span>
         </div>
       </header>
-      <main id="main-content" ref="mainContent" tabindex="-1"><RouterView /></main>
+      <main id="main-content" ref="mainContent" tabindex="-1">
+        <RouterView :key="route.path" />
+      </main>
       <footer class="page-footer">
         <span>SkillSwap</span><span>Bra saker händer när vi delar med oss.</span>
       </footer>
