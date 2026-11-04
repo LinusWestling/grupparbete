@@ -7,7 +7,7 @@ export const navigation = [
   { path: '/organization/prospects', label: 'Kandidatöversikt', icon: 'ϗ', orgOnly: true },
   { path: '/profile', label: 'Profil', icon: '◎' },
   { path: '/linus-experiment', label: 'Linus experimenting', icon: '⚗' },
-  { path: '/admin/questions', label: 'Hantera frågor', icon: '✎', adminOnly: true },
+  { path: '/admin/questions', label: 'Hantera frågor(na)', icon: '✎', adminOnly: true },
 ]
 
 // Hash URLs support direct links and refreshes on static hosting.
