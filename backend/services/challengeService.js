@@ -64,8 +64,9 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
   )
 
   // Immediately start the challenger's quiz
-  const seed = challengeId * 1000 + 1 // Turn 1
-  const quiz = await quizService.startQuiz(challengerUserId, topicId, difficulty, 10, null, seed)
+  // Use challengeId as seed so both players get the same questions
+  const seed = challengeId
+  const quiz = await quizService.startQuiz(challengerUserId, topicId, difficulty, 10, null, null, seed)
 
   // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
   quiz.challenge_id = challengeId
@@ -191,13 +192,14 @@ async function startChallengeQuiz(challengeId, userId) {
   }
 
   // Create a new quiz using the challenge's topic and difficulty
-  // Use challenge.id + turn_number as seed for deterministic but different questions each turn
-  const seed = challenge.id * 1000 + challenge.turn_number
+  // Use challengeId as seed so both players get the same questions
+  const seed = challenge.id
   const quiz = await quizService.startQuiz(
     userId,
     challenge.topic_id,
     challenge.difficulty,
     10,
+    null,
     null,
     seed,
   )

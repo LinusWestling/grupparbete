@@ -60,26 +60,29 @@ async function startQuiz(
     )
   }
 
-  const previousQuestionIds = await quizRepository.getLatestQuizQuestionIds(
-    userId,
-    topicId,
-    actualDifficulty,
-  )
-
-  if (previousQuestionIds.length > 0) {
-    questions = await questionService.getQuestions(
-      {
-        topic_id: topicId,
-        difficulty: actualDifficulty,
-        limit,
-        question_types: questionTypes,
-      },
-      {
-        includeCorrect: true,
-        previousQuestionIds,
-        seed,
-      },
+  // Skip previousQuestionIds filtering for challenges to ensure both players get same questions
+  if (seed === null) {
+    const previousQuestionIds = await quizRepository.getLatestQuizQuestionIds(
+      userId,
+      topicId,
+      actualDifficulty,
     )
+
+    if (previousQuestionIds.length > 0) {
+      questions = await questionService.getQuestions(
+        {
+          topic_id: topicId,
+          difficulty: actualDifficulty,
+          limit,
+          question_types: questionTypes,
+        },
+        {
+          includeCorrect: true,
+          previousQuestionIds,
+          seed,
+        },
+      )
+    }
   }
 
   // Shuffle questions using seed if provided (for challenges), otherwise random
