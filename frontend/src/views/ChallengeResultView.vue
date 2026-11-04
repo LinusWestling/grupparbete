@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../services/api'
+import { formatTime } from '../utils/challengeHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,9 +67,7 @@ function backToChallenges() {
             <div class="stats">
               <p v-if="result.challenger?.time_taken_seconds">
                 <span role="img" aria-label="Timer">⏱️</span>
-                {{ Math.floor(result.challenger.time_taken_seconds / 60) }}:{{
-                  String(result.challenger.time_taken_seconds % 60).padStart(2, '0')
-                }}
+                {{ formatTime(result.challenger.time_taken_seconds) }}
               </p>
             </div>
           </div>
@@ -86,9 +85,7 @@ function backToChallenges() {
             <div class="stats">
               <p v-if="result.challenged?.time_taken_seconds">
                 <span role="img" aria-label="Timer">⏱️</span>
-                {{ Math.floor(result.challenged.time_taken_seconds / 60) }}:{{
-                  String(result.challenged.time_taken_seconds % 60).padStart(2, '0')
-                }}
+                {{ formatTime(result.challenged.time_taken_seconds) }}
               </p>
             </div>
           </div>

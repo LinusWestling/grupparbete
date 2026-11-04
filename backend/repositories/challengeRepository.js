@@ -139,7 +139,15 @@ async function getChallengeHistoryForUser(userId) {
  * Update challenge status
  */
 async function updateChallengeStatus(challengeId, status, additionalFields = {}) {
+  const ALLOWED_FIELDS = ['status', 'accepted_at', 'started_at', 'completed_at', 'winner_user_id']
   const fields = { status, ...additionalFields }
+
+  // Validate all fields are in whitelist
+  const invalidFields = Object.keys(fields).filter((key) => !ALLOWED_FIELDS.includes(key))
+  if (invalidFields.length > 0) {
+    throw new Error(`Invalid fields for update: ${invalidFields.join(', ')}`)
+  }
+
   const setClause = Object.keys(fields)
     .map((key) => `${key} = ?`)
     .join(', ')

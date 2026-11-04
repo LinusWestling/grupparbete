@@ -15,6 +15,7 @@ async function startQuiz(
   limit = 10,
   organizationId = null,
   questionTypes,
+  seed = null,
 ) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
   let questions = await questionService.getQuestions(
@@ -80,12 +81,28 @@ async function startQuiz(
     )
   }
 
-  for (let i = questions.length - 1; i > 0; i--) {
-    const j = randomInt(i + 1)
-
-    const temporary = questions[i]
-    questions[i] = questions[j]
-    questions[j] = temporary
+  // Shuffle questions using seed if provided (for challenges), otherwise random
+  if (seed !== null) {
+    // Seeded shuffle for deterministic ordering in challenges
+    let seedValue = seed
+    const seededRandom = () => {
+      seedValue = (seedValue * 9301 + 49297) % 233280
+      return seedValue / 233280
+    }
+    for (let i = questions.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRandom() * (i + 1))
+      const temporary = questions[i]
+      questions[i] = questions[j]
+      questions[j] = temporary
+    }
+  } else {
+    // Random shuffle for regular quizzes
+    for (let i = questions.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1)
+      const temporary = questions[i]
+      questions[i] = questions[j]
+      questions[j] = temporary
+    }
   }
 
   const connection = await pool.getConnection()
@@ -120,16 +137,18 @@ async function startQuiz(
     quizId = qResult.insertId
 
     // Freeze the same ordered content used by the browser and server grading.
+    // Use seed for challenges to ensure both players get same answer order
+    const orderingSeed = seed !== null ? seed : quizId
     questions = questions.map((question) => {
       const orderedAnswers =
         question.question_type === 'multiple_choice' || question.question_type === 'matching'
-          ? orderQuizAnswers(question.answers, quizId, question.id)
+          ? orderQuizAnswers(question.answers, orderingSeed, question.id)
           : question.answers
       return {
         ...question,
         answers: orderedAnswers,
         ...(question.question_type === 'matching'
-          ? { match_options: orderMatchOptions(orderedAnswers, quizId, question.id) }
+          ? { match_options: orderMatchOptions(orderedAnswers, orderingSeed, question.id) }
           : {}),
       }
     })

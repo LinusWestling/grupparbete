@@ -1,16 +1,29 @@
 const challengeService = require('../services/challengeService')
 
+// Helper: Validate challenge ID parameter
+function validateChallengeId(id) {
+  const challengeId = Number(id)
+  if (!Number.isInteger(challengeId) || challengeId < 1) {
+    const error = new Error('Invalid challenge ID')
+    error.status = 400
+    throw error
+  }
+  return challengeId
+}
+
+// Helper: Handle controller errors
+function handleError(res, err) {
+  const status = err.status || 500
+  res.status(status).json({ status: 'error', message: err.message })
+}
+
 /**
  * Create a new challenge
  * POST /api/challenges
  */
 async function createChallenge(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
+    const userId = req.session.userId
     const { challenged_user_id, topic_id, difficulty } = req.body
 
     if (!challenged_user_id || !topic_id) {
@@ -29,8 +42,7 @@ async function createChallenge(req, res) {
 
     res.status(201).json({ status: 'success', data: challenge })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -40,15 +52,11 @@ async function createChallenge(req, res) {
  */
 async function getPendingChallenges(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
+    const userId = req.session.userId
     const challenges = await challengeService.getPendingChallenges(userId)
     res.json({ status: 'success', data: challenges })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -58,15 +66,11 @@ async function getPendingChallenges(req, res) {
  */
 async function getActiveChallenges(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
+    const userId = req.session.userId
     const challenges = await challengeService.getActiveChallenges(userId)
     res.json({ status: 'success', data: challenges })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -76,15 +80,11 @@ async function getActiveChallenges(req, res) {
  */
 async function getChallengeHistory(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
+    const userId = req.session.userId
     const challenges = await challengeService.getChallengeHistory(userId)
     res.json({ status: 'success', data: challenges })
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -94,21 +94,12 @@ async function getChallengeHistory(req, res) {
  */
 async function acceptChallenge(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
-    const challengeId = Number(req.params.id)
-    if (!Number.isInteger(challengeId) || challengeId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
-    }
-
+    const userId = req.session.userId
+    const challengeId = validateChallengeId(req.params.id)
     const challenge = await challengeService.acceptChallenge(challengeId, userId)
     res.json({ status: 'success', data: challenge })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -118,21 +109,12 @@ async function acceptChallenge(req, res) {
  */
 async function declineChallenge(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
-    const challengeId = Number(req.params.id)
-    if (!Number.isInteger(challengeId) || challengeId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
-    }
-
+    const userId = req.session.userId
+    const challengeId = validateChallengeId(req.params.id)
     const result = await challengeService.declineChallenge(challengeId, userId)
     res.json({ status: 'success', data: result })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -142,21 +124,12 @@ async function declineChallenge(req, res) {
  */
 async function startChallengeQuiz(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
-    const challengeId = Number(req.params.id)
-    if (!Number.isInteger(challengeId) || challengeId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
-    }
-
+    const userId = req.session.userId
+    const challengeId = validateChallengeId(req.params.id)
     const quiz = await challengeService.startChallengeQuiz(challengeId, userId)
     res.json({ status: 'success', data: quiz })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -166,21 +139,12 @@ async function startChallengeQuiz(req, res) {
  */
 async function getChallengeProgress(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
-    const challengeId = Number(req.params.id)
-    if (!Number.isInteger(challengeId) || challengeId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
-    }
-
+    const userId = req.session.userId
+    const challengeId = validateChallengeId(req.params.id)
     const progress = await challengeService.getChallengeProgress(challengeId, userId)
     res.json({ status: 'success', data: progress })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -190,21 +154,12 @@ async function getChallengeProgress(req, res) {
  */
 async function getChallengeResult(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
-    const challengeId = Number(req.params.id)
-    if (!Number.isInteger(challengeId) || challengeId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
-    }
-
+    const userId = req.session.userId
+    const challengeId = validateChallengeId(req.params.id)
     const result = await challengeService.getChallengeResult(challengeId, userId)
     res.json({ status: 'success', data: result })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -214,21 +169,12 @@ async function getChallengeResult(req, res) {
  */
 async function handleQuizCompletion(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
-    const challengeId = Number(req.params.id)
-    if (!Number.isInteger(challengeId) || challengeId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
-    }
-
+    const userId = req.session.userId
+    const challengeId = validateChallengeId(req.params.id)
     await challengeService.handleQuizCompletion(challengeId, userId)
     res.json({ status: 'success', message: 'Turn switched' })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -238,21 +184,12 @@ async function handleQuizCompletion(req, res) {
  */
 async function markResultViewed(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
-    const challengeId = Number(req.params.id)
-    if (!Number.isInteger(challengeId) || challengeId < 1) {
-      return res.status(400).json({ status: 'error', message: 'Invalid challenge ID' })
-    }
-
+    const userId = req.session.userId
+    const challengeId = validateChallengeId(req.params.id)
     const result = await challengeService.markResultViewed(challengeId, userId)
     res.json({ status: 'success', data: result })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 
@@ -262,11 +199,7 @@ async function markResultViewed(req, res) {
  */
 async function searchUsers(req, res) {
   try {
-    const userId = req.session?.userId
-    if (!userId) {
-      return res.status(401).json({ status: 'error', message: 'Unauthorized' })
-    }
-
+    const userId = req.session.userId
     const query = req.query.q
     if (!query) {
       return res.status(400).json({ status: 'error', message: 'Query parameter q is required' })
@@ -275,8 +208,7 @@ async function searchUsers(req, res) {
     const users = await challengeService.searchUsers(query, userId)
     res.json({ status: 'success', data: users })
   } catch (err) {
-    const status = err.status || 500
-    res.status(status).json({ status: 'error', message: err.message })
+    handleError(res, err)
   }
 }
 

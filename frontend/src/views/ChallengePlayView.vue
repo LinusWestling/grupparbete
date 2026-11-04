@@ -3,6 +3,11 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../services/api'
 import { quizStore } from '../stores/quizStore'
+import {
+  POLL_INTERVAL_MS,
+  COMPLETION_MESSAGE_DELAY_MS,
+  calculateProgressPercentage,
+} from '../utils/challengeHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,7 +28,7 @@ onMounted(async () => {
 
     // Start polling for opponent progress
     await pollProgress()
-    pollInterval = setInterval(pollProgress, 5000)
+    pollInterval = setInterval(pollProgress, POLL_INTERVAL_MS)
   } catch (err) {
     error.value = 'Failed to start challenge: ' + err.message
   } finally {
@@ -58,11 +63,11 @@ async function pollProgress() {
         switchedTurn = true
         completionMessage.value =
           "Great job! It's now your opponent's turn. You'll be notified when they complete their quiz."
-        // Show message for 3 seconds then redirect
+        // Show message then redirect
         setTimeout(() => {
           clearInterval(pollInterval)
           router.push('/challenges')
-        }, 3000)
+        }, COMPLETION_MESSAGE_DELAY_MS)
       } catch (err) {
         console.error('Failed to switch turn:', err)
       }
@@ -94,9 +99,10 @@ function goToQuiz() {
                 class="progress-fill"
                 :style="{
                   width:
-                    (progress.your_progress.answered_count / progress.your_progress.total_count) *
-                      100 +
-                    '%',
+                    calculateProgressPercentage(
+                      progress.your_progress.answered_count,
+                      progress.your_progress.total_count,
+                    ) + '%',
                 }"
               ></div>
             </div>
@@ -118,10 +124,10 @@ function goToQuiz() {
                 class="progress-fill opponent"
                 :style="{
                   width:
-                    (progress.opponent_progress.answered_count /
-                      progress.opponent_progress.total_count) *
-                      100 +
-                    '%',
+                    calculateProgressPercentage(
+                      progress.opponent_progress.answered_count,
+                      progress.opponent_progress.total_count,
+                    ) + '%',
                 }"
               ></div>
             </div>

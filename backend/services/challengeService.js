@@ -1,5 +1,20 @@
 const challengeRepository = require('../repositories/challengeRepository')
 const pool = require('../database/pool')
+const quizService = require('./quiz/quizService')
+
+// Helper: Create error with status code
+function createError(message, status) {
+  const error = new Error(message)
+  error.status = status
+  return error
+}
+
+// Helper: Validate user is part of challenge
+function validateUserInChallenge(challenge, userId) {
+  if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
+    throw createError('You are not part of this challenge', 403)
+  }
+}
 
 /**
  * Create a new challenge and start the challenger's quiz immediately
@@ -7,23 +22,23 @@ const pool = require('../database/pool')
 async function createChallenge(challengerUserId, challengedUserId, topicId, difficulty) {
   // Validation
   if (challengerUserId === challengedUserId) {
-    throw Object.assign(new Error('You cannot challenge yourself'), { status: 400 })
+    throw createError('You cannot challenge yourself', 400)
   }
 
   if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5) {
-    throw Object.assign(new Error('Difficulty must be between 1 and 5'), { status: 400 })
+    throw createError('Difficulty must be between 1 and 5', 400)
   }
 
   // Check if challenged user exists
   const [users] = await pool.query('SELECT id FROM users WHERE id = ?', [challengedUserId])
   if (users.length === 0) {
-    throw Object.assign(new Error('Challenged user not found'), { status: 404 })
+    throw createError('Challenged user not found', 404)
   }
 
   // Check if topic exists
   const [topics] = await pool.query('SELECT id FROM topics WHERE id = ?', [topicId])
   if (topics.length === 0) {
-    throw Object.assign(new Error('Topic not found'), { status: 404 })
+    throw createError('Topic not found', 404)
   }
 
   // Check for existing pending challenge between same users for same topic
@@ -37,10 +52,7 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
   )
 
   if (existing.length > 0) {
-    throw Object.assign(
-      new Error('A challenge already exists between you and this user for this topic'),
-      { status: 409 },
-    )
+    throw createError('A challenge already exists between you and this user for this topic', 409)
   }
 
   // Create the challenge
@@ -52,9 +64,8 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
   )
 
   // Immediately start the challenger's quiz
-  const quizService = require('./quiz/quizService')
   const seed = challengeId * 1000 + 1 // Turn 1
-  const quiz = await quizService.startQuiz(challengerUserId, topicId, difficulty, 10, seed)
+  const quiz = await quizService.startQuiz(challengerUserId, topicId, difficulty, 10, null, seed)
 
   // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
   quiz.challenge_id = challengeId
@@ -99,24 +110,22 @@ async function acceptChallenge(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+    throw createError('Challenge not found', 404)
   }
 
   // Only the challenged user can accept
   if (challenge.challenged_user_id !== userId) {
-    throw Object.assign(new Error('You are not authorized to accept this challenge'), {
-      status: 403,
-    })
+    throw createError('You are not authorized to accept this challenge', 403)
   }
 
   if (challenge.status !== 'pending') {
-    throw Object.assign(new Error('This challenge cannot be accepted'), { status: 409 })
+    throw createError('This challenge cannot be accepted', 409)
   }
 
   // Check if expired
   if (challenge.expires_at && new Date(challenge.expires_at) < new Date()) {
     await challengeRepository.updateChallengeStatus(challengeId, 'expired')
-    throw Object.assign(new Error('This challenge has expired'), { status: 410 })
+    throw createError('This challenge has expired', 410)
   }
 
   await challengeRepository.acceptChallenge(challengeId)
@@ -131,18 +140,16 @@ async function declineChallenge(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+    throw createError('Challenge not found', 404)
   }
 
   // Only the challenged user can decline
   if (challenge.challenged_user_id !== userId) {
-    throw Object.assign(new Error('You are not authorized to decline this challenge'), {
-      status: 403,
-    })
+    throw createError('You are not authorized to decline this challenge', 403)
   }
 
   if (challenge.status !== 'pending') {
-    throw Object.assign(new Error('This challenge cannot be declined'), { status: 409 })
+    throw createError('This challenge cannot be declined', 409)
   }
 
   await challengeRepository.declineChallenge(challengeId)
@@ -158,22 +165,20 @@ async function startChallengeQuiz(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+    throw createError('Challenge not found', 404)
   }
 
   // User must be part of the challenge
-  if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
-    throw Object.assign(new Error('You are not part of this challenge'), { status: 403 })
-  }
+  validateUserInChallenge(challenge, userId)
 
   // Challenge must be accepted or active
   if (challenge.status !== 'accepted' && challenge.status !== 'active') {
-    throw Object.assign(new Error('Challenge is not ready to start'), { status: 409 })
+    throw createError('Challenge is not ready to start', 409)
   }
 
   // Check if it's the user's turn
   if (challenge.current_turn_user_id !== userId) {
-    throw Object.assign(new Error('It is not your turn'), { status: 403 })
+    throw createError('It is not your turn', 403)
   }
 
   // Check if user already has a quiz for this challenge
@@ -182,19 +187,18 @@ async function startChallengeQuiz(challengeId, userId) {
 
   if (existingQuizId) {
     // Return existing quiz details
-    const quizService = require('./quiz/quizService')
     return quizService.getQuizDetails(existingQuizId, userId)
   }
 
   // Create a new quiz using the challenge's topic and difficulty
   // Use challenge.id + turn_number as seed for deterministic but different questions each turn
-  const quizService = require('./quiz/quizService')
   const seed = challenge.id * 1000 + challenge.turn_number
   const quiz = await quizService.startQuiz(
     userId,
     challenge.topic_id,
     challenge.difficulty,
     10,
+    null,
     seed,
   )
 
@@ -214,18 +218,16 @@ async function getChallengeProgress(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+    throw createError('Challenge not found', 404)
   }
 
   // User must be part of the challenge
-  if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
-    throw Object.assign(new Error('You are not part of this challenge'), { status: 403 })
-  }
+  validateUserInChallenge(challenge, userId)
 
   const progress = await challengeRepository.getChallengeProgress(challengeId)
 
   if (!progress) {
-    throw Object.assign(new Error('Challenge progress not found'), { status: 404 })
+    throw createError('Challenge progress not found', 404)
   }
 
   const isChallenger = challenge.challenger_user_id === userId
@@ -262,7 +264,7 @@ async function handleQuizCompletion(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+    throw createError('Challenge not found', 404)
   }
 
   // Check if both players have completed their current turn
@@ -295,13 +297,11 @@ async function getChallengeResult(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+    throw createError('Challenge not found', 404)
   }
 
   // User must be part of the challenge
-  if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
-    throw Object.assign(new Error('You are not part of this challenge'), { status: 403 })
-  }
+  validateUserInChallenge(challenge, userId)
 
   // Check if both quizzes are completed
   const [quizzes] = await pool.query(
@@ -402,13 +402,11 @@ async function markResultViewed(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw Object.assign(new Error('Challenge not found'), { status: 404 })
+    throw createError('Challenge not found', 404)
   }
 
   // User must be part of the challenge
-  if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
-    throw Object.assign(new Error('You are not part of this challenge'), { status: 403 })
-  }
+  validateUserInChallenge(challenge, userId)
 
   await challengeRepository.markResultViewed(challengeId, userId)
 
@@ -420,7 +418,7 @@ async function markResultViewed(challengeId, userId) {
  */
 async function searchUsers(query, excludeUserId) {
   if (!query || query.length < 2) {
-    throw Object.assign(new Error('Search query must be at least 2 characters'), { status: 400 })
+    throw createError('Search query must be at least 2 characters', 400)
   }
 
   const [users] = await pool.query(

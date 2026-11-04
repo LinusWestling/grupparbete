@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../services/api'
 import { currentUser } from '../services/auth'
+import { SEARCH_MIN_LENGTH, formatDate } from '../utils/challengeHelpers'
 
 const router = useRouter()
 
@@ -57,7 +58,7 @@ async function loadTopics() {
 }
 
 async function searchUsers() {
-  if (searchQuery.value.length < 2) {
+  if (searchQuery.value.length < SEARCH_MIN_LENGTH) {
     searchResults.value = []
     return
   }
@@ -206,9 +207,7 @@ const activeCount = computed(() => activeChallenges.value.length)
           <div class="challenge-info">
             <h3>{{ challenge.challenger_username }} challenges you!</h3>
             <p>Topic: {{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
-            <p class="text-muted">
-              Created {{ new Date(challenge.created_at).toLocaleDateString() }}
-            </p>
+            <p class="text-muted">Created {{ formatDate(challenge.created_at) }}</p>
           </div>
           <div class="challenge-actions">
             <button
@@ -311,9 +310,7 @@ const activeCount = computed(() => activeChallenges.value.length)
               <span role="img" aria-label="Trophy">🏆</span> Winner: {{ challenge.winner_username }}
             </p>
             <p v-else class="tie"><span role="img" aria-label="Handshake">🤝</span> Tie</p>
-            <p class="text-muted">
-              Completed {{ new Date(challenge.completed_at).toLocaleDateString() }}
-            </p>
+            <p class="text-muted">Completed {{ formatDate(challenge.completed_at) }}</p>
           </div>
           <div class="challenge-actions">
             <button class="button button-outline" @click="viewResult(challenge.id)">
