@@ -4,6 +4,7 @@ const multipleChoice = require('./multipleChoiceEngine')
 const yesNo = require('./yesNoEngine')
 const freeText = require('./freeTextEngine')
 const matching = require('./matchingEngine')
+const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
 
 function evaluate(question, item) {
   const engine =
@@ -143,6 +144,8 @@ async function submitQuizSession(quizId, userId, submissions) {
        xp_points = xp_points + VALUES(xp_points)`,
         [userId, quiz.topic_id, result.xp_earned, result.xp_earned],
       )
+    // This branch runs once per transition. Completed-submission retries return above.
+    await databaseMonitor(connection).log(MONITORING_EVENTS.QUIZ_FINISHED, { userId })
     await connection.commit()
     return result
   } catch (error) {

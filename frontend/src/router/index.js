@@ -6,6 +6,7 @@ export const navigation = [
   { path: '/explore', label: 'Utforska kunskap', icon: '⌕' },
   { path: '/organization/prospects', label: 'Kandidatöversikt', icon: 'ϗ', orgOnly: true },
   { path: '/profile', label: 'Profil', icon: '◎' },
+  { path: '/linus-experiment', label: 'Linus experimenting', icon: '⚗' },
   { path: '/admin/questions', label: 'Hantera frågor', icon: '✎', adminOnly: true },
 ]
 
@@ -44,6 +45,12 @@ const router = createRouter({
       name: 'profile',
       component: () => import('../views/ProfileView.vue'),
       meta: { title: 'Profil' },
+    },
+    {
+      path: '/linus-experiment',
+      name: 'linus-experiment',
+      component: () => import('../views/linusExperiment.vue'),
+      meta: { title: 'Linus experimenting' },
     },
     {
       path: '/:pathMatch(.*)*',

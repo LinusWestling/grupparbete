@@ -6,6 +6,7 @@ const { httpError, readJson, validateAnswer } = require('./quizSubmission')
 const { orderQuizAnswers, orderMatchOptions } = require('../../utils/quizAnswerOrder')
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
+const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
 
 async function startQuiz(
   userId,
@@ -141,6 +142,9 @@ async function startQuiz(
       )
     }
 
+    if (userId) {
+      await databaseMonitor(connection).log(MONITORING_EVENTS.QUIZ_STARTED, { userId })
+    }
     await connection.commit()
   } catch (err) {
     await connection.rollback()
