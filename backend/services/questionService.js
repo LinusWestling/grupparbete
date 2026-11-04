@@ -13,7 +13,12 @@ function formatAnswers(answers, includeCorrect = false) {
 }
 
 async function getQuestions(filters = {}, options = {}) {
-  const { includeCorrect = false, includeUsage = false, previousQuestionIds = [], seed = null } = options
+  const {
+    includeCorrect = false,
+    includeUsage = false,
+    previousQuestionIds = [],
+    seed = null,
+  } = options
   // usage_count tells the admin UI whether a question already appears in quizzes.
   const usageColumn = includeUsage
     ? '(SELECT COUNT(*) FROM quiz_questions qq WHERE qq.question_id = q.id) AS usage_count,'
