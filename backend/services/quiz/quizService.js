@@ -25,7 +25,7 @@ async function startQuiz(
       limit,
       question_types: questionTypes,
     },
-    { includeCorrect: true },
+    { includeCorrect: true, seed },
   )
 
   let actualDifficulty = Number(difficulty)
@@ -48,7 +48,7 @@ async function startQuiz(
           limit,
           question_types: questionTypes,
         },
-        { includeCorrect: true },
+        { includeCorrect: true, seed },
       )
     }
   }
@@ -77,6 +77,7 @@ async function startQuiz(
       {
         includeCorrect: true,
         previousQuestionIds,
+        seed,
       },
     )
   }

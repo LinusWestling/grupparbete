@@ -13,7 +13,7 @@ function formatAnswers(answers, includeCorrect = false) {
 }
 
 async function getQuestions(filters = {}, options = {}) {
-  const { includeCorrect = false, includeUsage = false, previousQuestionIds = [] } = options
+  const { includeCorrect = false, includeUsage = false, previousQuestionIds = [], seed = null } = options
   // usage_count tells the admin UI whether a question already appears in quizzes.
   const usageColumn = includeUsage
     ? '(SELECT COUNT(*) FROM quiz_questions qq WHERE qq.question_id = q.id) AS usage_count,'
@@ -62,15 +62,17 @@ async function getQuestions(filters = {}, options = {}) {
   if (filters.limit) {
     if (previousQuestionIds.length > 0) {
       const placeholders = previousQuestionIds.map(() => '?').join(',')
+      const randFunc = seed !== null ? `RAND(${Number(seed)})` : 'RAND()'
       sql += `
       ORDER BY
         CASE WHEN q.id IN (${placeholders}) THEN 1 ELSE 0 END,
-        RAND()
+        ${randFunc}
       LIMIT ?
     `
       params.push(...previousQuestionIds, Number(filters.limit))
     } else {
-      sql += ' ORDER BY RAND() LIMIT ?'
+      const randFunc = seed !== null ? `RAND(${Number(seed)})` : 'RAND()'
+      sql += ` ORDER BY ${randFunc} LIMIT ?`
       params.push(Number(filters.limit))
     }
   } else {
