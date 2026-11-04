@@ -23,7 +23,7 @@ router.post(
       ) {
         return res.status(400).json({
           message:
-            'Valid candidate, topic, difficulty (1–5) and question count (1–50) are required',
+            'Ange en giltig kandidat, ett ämne, en svårighetsgrad (1–5) och ett antal frågor (1–50).',
         })
       }
       const quiz = await quizService.startQuiz(
@@ -52,7 +52,7 @@ router.get(
       const candidateId = Number(req.params.id)
       const quizId = Number(req.params.quizId)
       if (![candidateId, quizId].every((id) => Number.isSafeInteger(id) && id > 0)) {
-        return res.status(400).json({ message: 'Invalid candidate or quiz ID' })
+        return res.status(400).json({ message: 'Ogiltigt kandidat- eller quiz-ID.' })
       }
       const [rows] = await pool.execute(
         `SELECT q.id FROM quizzes q JOIN users u ON u.id = q.user_id
@@ -64,7 +64,7 @@ router.get(
       if (!rows.length)
         return res
           .status(404)
-          .json({ message: 'Completed assigned test not found or access unavailable' })
+          .json({ message: 'Det slutförda tilldelade testet hittades inte eller kan inte visas.' })
       res.json(await quizService.getQuizDetails(quizId, candidateId))
     } catch (err) {
       next(err)

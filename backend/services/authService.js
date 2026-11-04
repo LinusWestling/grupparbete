@@ -21,22 +21,22 @@ function createError(status, message) {
 async function register({ username, email, password, requestOrganization = false } = {}) {
   // Kontrollera att alla fält är text.
   if (typeof username !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
-    throw createError(400, 'Användarnamn, e-post och lösenord krävs')
+    throw createError(400, 'Användarnamn, e-postadress och lösenord krävs.')
   }
 
   const cleanUsername = username.trim()
   const cleanEmail = email.trim().toLowerCase()
 
   if (cleanUsername.length < 3 || cleanUsername.length > 50) {
-    throw createError(400, 'Användarnamnet ska vara 3-50 tecken')
+    throw createError(400, 'Användarnamnet måste vara mellan 3 och 50 tecken långt.')
   }
 
   if (cleanEmail.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-    throw createError(400, 'Ange en giltig e-postadress')
+    throw createError(400, 'Ange en giltig e-postadress.')
   }
 
   if (password.length < 15 || password.length > 128) {
-    throw createError(400, 'Lösenordet ska vara 15-128 tecken')
+    throw createError(400, 'Lösenordet måste vara mellan 15 och 128 tecken långt.')
   }
 
   // Hasha lösenorder innan det sparas.
@@ -55,7 +55,7 @@ async function register({ username, email, password, requestOrganization = false
     return { id, org_request_status: orgRequestStatus }
   } catch (error) {
     if (error.code == 'ER_DUP_ENTRY') {
-      throw createError(409, 'Användarnamnet eller e-postadressen är upptaget')
+      throw createError(409, 'Användarnamnet eller e-postadressen används redan.')
     }
 
     throw error
@@ -69,7 +69,7 @@ async function login({ email, password } = {}) {
     email.length > 255 ||
     password.length > 128
   ) {
-    throw createError(400, 'Ange e-post och lösenord')
+    throw createError(400, 'Ange din e-postadress och ditt lösenord.')
   }
 
   // Hämta kontot från databasen.
@@ -79,7 +79,7 @@ async function login({ email, password } = {}) {
   const correctPassword = await argon2.verify(user ? user.password_hash : await dummyHash, password)
 
   if (!user || !correctPassword) {
-    throw createError(401, 'Fel e-post eller lösenord')
+    throw createError(401, 'Fel e-postadress eller lösenord.')
   }
 
   return {
@@ -93,13 +93,13 @@ async function login({ email, password } = {}) {
 
 async function getCurrentUser(userId) {
   if (!userId) {
-    throw createError(401, 'Du är inte inloggad')
+    throw createError(401, 'Du är inte inloggad.')
   }
 
   const user = await userRepository.findById(userId)
 
   if (!user) {
-    throw createError(401, 'Kontot finns inte längre')
+    throw createError(401, 'Kontot finns inte längre.')
   }
 
   return user

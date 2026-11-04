@@ -8,17 +8,29 @@ const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
 const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
 
-async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizationId = null) {
+async function startQuiz(
+  userId,
+  topicId,
+  difficulty = 1,
+  limit = 10,
+  organizationId = null,
+  questionTypes,
+) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
   let questions = await questionService.getQuestions(
-    { topic_id: topicId, difficulty: difficulty, limit: limit },
+    {
+      topic_id: topicId,
+      difficulty,
+      limit,
+      question_types: questionTypes,
+    },
     { includeCorrect: true },
   )
 
   let actualDifficulty = Number(difficulty)
 
   if (questions.length === 0 && topicId) {
-    const availableLevels = await questionService.getAvailableDifficulties(topicId)
+    const availableLevels = await questionService.getAvailableDifficulties(topicId, questionTypes)
 
     if (availableLevels.length > 0) {
       actualDifficulty = availableLevels.reduce((closest, level) => {
@@ -33,6 +45,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
           topic_id: topicId,
           difficulty: actualDifficulty,
           limit,
+          question_types: questionTypes,
         },
         { includeCorrect: true },
       )
@@ -40,7 +53,10 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
   }
 
   if (questions.length === 0) {
-    throw httpError(400, 'No questions found for the selected topic and difficulty level')
+    throw httpError(
+      400,
+      'Det finns inga frågor för det valda ämnet och den valda svårighetsgraden.',
+    )
   }
 
   const previousQuestionIds = await quizRepository.getLatestQuizQuestionIds(
@@ -55,6 +71,7 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
         topic_id: topicId,
         difficulty: actualDifficulty,
         limit,
+        question_types: questionTypes,
       },
       {
         includeCorrect: true,
@@ -84,7 +101,8 @@ async function startQuiz(userId, topicId, difficulty = 1, limit = 10, organizati
          AND par.organization_id = ? AND par.status = 'approved' FOR SHARE`,
         [userId, organizationId],
       )
-      if (!access.length) throw httpError(403, 'Candidate approval is required to assign a test')
+      if (!access.length)
+        throw httpError(403, 'Kandidaten måste godkänna åtkomst innan du kan tilldela ett test.')
     }
 
     // Insert quiz session into database
@@ -187,7 +205,7 @@ async function getQuizDetails(quizId, userId) {
     (quiz.user_id !== null && quiz.user_id !== userId) ||
     (quiz.status === 'in_progress' && !userId)
   ) {
-    throw new Error('Forbidden')
+    throw httpError(403, 'Åtkomst nekad.')
   }
 
   const [rows] = await pool.query(
@@ -196,7 +214,7 @@ async function getQuizDetails(quizId, userId) {
   )
   const questions = rows.map((row) => {
     const snapshot = readJson(row.question_snapshot)
-    if (!snapshot) throw httpError(409, 'Quiz content snapshot is unavailable')
+    if (!snapshot) throw httpError(409, 'Quizets sparade innehåll är inte tillgängligt.')
     const isFreeText = snapshot.question_type === 'free_text'
     const isMatching = snapshot.question_type === 'matching'
     const answer = isFreeText ? null : readJson(row.submitted_answer)
@@ -245,24 +263,24 @@ async function saveQuestionProgress(
       quizId,
     ])
     const quiz = quizzes[0]
-    if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 })
+    if (!quiz) throw Object.assign(new Error('Quizet hittades inte.'), { status: 404 })
     if (!userId || quiz.user_id !== userId)
-      throw Object.assign(new Error('Forbidden'), { status: 403 })
+      throw Object.assign(new Error('Åtkomst nekad.'), { status: 403 })
     if (quiz.status !== 'in_progress')
-      throw Object.assign(new Error('Quiz is already completed'), { status: 409 })
+      throw Object.assign(new Error('Quizet är redan slutfört.'), { status: 409 })
     const [rows] = await connection.query(
       'SELECT question_snapshot, progress_revision, is_answered, is_skipped FROM quiz_questions WHERE quiz_id = ? AND question_id = ?',
       [quizId, questionId],
     )
-    if (!rows.length) throw httpError(404, 'Question not in quiz')
+    if (!rows.length) throw httpError(404, 'Frågan ingår inte i quizet.')
     const question = readJson(rows[0].question_snapshot)
     validateAnswer(question, { answer, isSkipped })
     if (!Number.isSafeInteger(revision) || revision < 1 || revision > 4294967295) {
-      throw httpError(400, 'A valid progress revision is required')
+      throw httpError(400, 'En giltig version av quizets framsteg krävs.')
     }
     if (revision <= rows[0].progress_revision) {
       if (revision < rows[0].progress_revision)
-        throw httpError(409, 'Newer quiz progress is already saved')
+        throw httpError(409, 'En nyare version av quizets framsteg har redan sparats.')
       await connection.commit()
       return {
         question_id: questionId,

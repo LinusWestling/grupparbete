@@ -5,7 +5,7 @@ export function confirmQuizNavigation(store, target = globalThis.window) {
     !store.hasUnsyncedData.value ||
     !store.persistenceError?.value ||
     target.confirm(
-      'Your quiz has unsaved progress or results. Leave this page? Keep this tab open and return to Explore skills to finish saving. Refreshing or closing this tab will lose unsaved data.',
+      'Ditt quiz har osparade framsteg eller resultat. Vill du lämna sidan? Låt fliken vara öppen och återvänd till Utforska kunskap för att slutföra sparandet. Om du uppdaterar eller stänger fliken förloras osparade uppgifter.',
     )
   )
 }

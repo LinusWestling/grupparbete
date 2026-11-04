@@ -25,34 +25,36 @@ function isHttpUrl(value) {
 
 function validateAnswers(type, answers, errors) {
   if (!Array.isArray(answers)) {
-    errors.push('answers must be a list')
+    errors.push('Svaren måste vara en lista')
     return []
   }
 
   const cleaned = []
   answers.forEach((answer, index) => {
-    const label = `Answer ${index + 1}`
+    const label = `Svar ${index + 1}`
     if (!answer || typeof answer !== 'object') {
-      errors.push(`${label} is invalid`)
+      errors.push(`${label} är ogiltigt`)
       return
     }
     if (answer.id !== undefined && answer.id !== null && !isPositiveInteger(answer.id)) {
-      errors.push(`${label} has an invalid id`)
+      errors.push(`${label} har ett ogiltigt ID`)
     }
     const text = typeof answer.answer_text === 'string' ? answer.answer_text.trim() : ''
-    if (!text) errors.push(`${label} needs text`)
+    if (!text) errors.push(`${label} behöver en text`)
     else if (text.length > MAX_ANSWER_LENGTH) {
-      errors.push(`${label} can be at most ${MAX_ANSWER_LENGTH} characters`)
+      errors.push(`${label} får innehålla högst ${MAX_ANSWER_LENGTH} tecken`)
     }
     const matchText = typeof answer.match_text === 'string' ? answer.match_text.trim() : ''
     if (type === 'matching') {
-      if (!matchText) errors.push(`${label} needs a matching text`)
+      if (!matchText) errors.push(`${label} behöver en matchande text`)
       else if (matchText.length > MAX_ANSWER_LENGTH) {
-        errors.push(`${label} matching text can be at most ${MAX_ANSWER_LENGTH} characters`)
+        errors.push(
+          `Den matchande texten för ${label.toLowerCase()} får innehålla högst ${MAX_ANSWER_LENGTH} tecken`,
+        )
       }
     }
     if (type !== 'free_text' && type !== 'matching' && typeof answer.is_correct !== 'boolean') {
-      errors.push(`${label} must say whether it is correct (true/false)`)
+      errors.push(`Ange om ${label.toLowerCase()} är rätt eller fel`)
     }
     cleaned.push({
       id: answer.id ? Number(answer.id) : null,
@@ -66,34 +68,34 @@ function validateAnswers(type, answers, errors) {
   const correctCount = cleaned.filter((a) => a.is_correct).length
   if (type === 'multiple_choice') {
     if (cleaned.length < 2 || cleaned.length > MAX_ANSWERS) {
-      errors.push(`Multiple choice needs 2-${MAX_ANSWERS} answers`)
+      errors.push(`Flervalsfrågor behöver 2–${MAX_ANSWERS} svar`)
     }
-    if (correctCount !== 1) errors.push('Multiple choice needs exactly one correct answer')
+    if (correctCount !== 1) errors.push('Flervalsfrågor behöver exakt ett rätt svar')
   } else if (type === 'yes_no') {
-    if (cleaned.length !== 2) errors.push('Yes/no needs exactly two answers')
-    if (correctCount !== 1) errors.push('Yes/no needs exactly one correct answer')
+    if (cleaned.length !== 2) errors.push('Ja/nej-frågor behöver exakt två svar')
+    if (correctCount !== 1) errors.push('Ja/nej-frågor behöver exakt ett rätt svar')
   } else if (type === 'free_text') {
     if (cleaned.length < 1 || cleaned.length > MAX_ANSWERS) {
-      errors.push(`Free text needs 1-${MAX_ANSWERS} accepted answers`)
+      errors.push(`Fritextfrågor behöver 1–${MAX_ANSWERS} godkända svar`)
     }
   } else if (type === 'matching') {
     if (cleaned.length < 2 || cleaned.length > MAX_ANSWERS) {
-      errors.push(`Matching needs 2-${MAX_ANSWERS} pairs`)
+      errors.push(`Matchningsfrågor behöver 2–${MAX_ANSWERS} par`)
     }
     const matchTexts = cleaned.map((a) => (a.match_text || '').toLowerCase()).filter(Boolean)
     if (new Set(matchTexts).size !== matchTexts.length) {
-      errors.push('Matching targets must be different')
+      errors.push('De matchande alternativen måste vara olika')
     }
   }
 
   // Players pick between these options, so two with the same text make no sense.
   if (type !== 'free_text') {
     const texts = cleaned.map((a) => a.answer_text.toLowerCase()).filter(Boolean)
-    if (new Set(texts).size !== texts.length) errors.push('Answers must be different')
+    if (new Set(texts).size !== texts.length) errors.push('Svaren måste vara olika')
   }
 
   const ids = cleaned.map((a) => a.id).filter(Boolean)
-  if (new Set(ids).size !== ids.length) errors.push('The same answer id is used twice')
+  if (new Set(ids).size !== ids.length) errors.push('Samma svars-ID används två gånger')
 
   return cleaned
 }
@@ -101,7 +103,7 @@ function validateAnswers(type, answers, errors) {
 function validateSources(sources, errors) {
   if (sources === undefined || sources === null) return []
   if (!Array.isArray(sources)) {
-    errors.push('sources must be a list')
+    errors.push('Källorna måste vara en lista')
     return []
   }
 
@@ -112,18 +114,18 @@ function validateSources(sources, errors) {
       typeof s === 'object' &&
       (String(s.source_text ?? '').trim() || String(s.url ?? '').trim()),
   )
-  if (filled.length > MAX_SOURCES) errors.push(`At most ${MAX_SOURCES} sources`)
+  if (filled.length > MAX_SOURCES) errors.push(`Ange högst ${MAX_SOURCES} källor`)
 
   return filled.map((source, index) => {
-    const label = `Source ${index + 1}`
+    const label = `Källa ${index + 1}`
     const text = typeof source.source_text === 'string' ? source.source_text.trim() : ''
     const url = typeof source.url === 'string' ? source.url.trim() : ''
-    if (!text) errors.push(`${label} needs a description`)
+    if (!text) errors.push(`${label} behöver en beskrivning`)
     else if (text.length > MAX_SOURCE_TEXT_LENGTH) {
-      errors.push(`${label} can be at most ${MAX_SOURCE_TEXT_LENGTH} characters`)
+      errors.push(`${label} får innehålla högst ${MAX_SOURCE_TEXT_LENGTH} tecken`)
     }
     if (url && (url.length > MAX_URL_LENGTH || !isHttpUrl(url))) {
-      errors.push(`${label} needs a valid http(s) link`)
+      errors.push(`${label} behöver en giltig HTTP- eller HTTPS-länk`)
     }
     return { source_text: text, url: url || null }
   })
@@ -133,30 +135,30 @@ function validateQuestion(body) {
   const data = body && typeof body === 'object' ? body : {}
   const errors = []
 
-  if (!isPositiveInteger(data.topic_id)) errors.push('Choose a topic')
+  if (!isPositiveInteger(data.topic_id)) errors.push('Välj ett ämne')
 
   const type = data.question_type
   if (!QUESTION_TYPES.includes(type)) {
-    errors.push(`question_type must be one of: ${QUESTION_TYPES.join(', ')}`)
+    errors.push('Välj en frågetyp: flervalsfråga, ja/nej-fråga, fritextfråga eller matchningsfråga')
   }
 
   const text = typeof data.question_text === 'string' ? data.question_text.trim() : ''
-  if (!text) errors.push('The question needs text')
+  if (!text) errors.push('Frågan behöver en text')
   else if (text.length > MAX_QUESTION_LENGTH) {
-    errors.push(`The question can be at most ${MAX_QUESTION_LENGTH} characters`)
+    errors.push(`Frågan får innehålla högst ${MAX_QUESTION_LENGTH} tecken`)
   }
 
   const difficulty = Number(data.difficulty_level)
   if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5) {
-    errors.push('Difficulty must be a whole number from 1 to 5')
+    errors.push('Svårighetsgraden måste vara ett heltal mellan 1 och 5')
   }
 
   if (data.allow_typos !== undefined && typeof data.allow_typos !== 'boolean') {
-    errors.push('allow_typos must be true or false')
+    errors.push('Stavningstoleransen måste vara på eller av')
   }
 
   if (type !== 'free_text' && data.allow_typos === true) {
-    errors.push('Typo tolerance is only available for free text questions')
+    errors.push('Stavningstolerans kan bara användas för fritextfrågor')
   }
 
   const answers = QUESTION_TYPES.includes(type) ? validateAnswers(type, data.answers, errors) : []
