@@ -524,28 +524,18 @@ async function getChallengeResult(challengeId, userId) {
 }
 
 /**
- * Determine winner based on score and time, then mark challenge as completed
+ * Determine winner based on score only, then mark challenge as completed
  */
 async function determineWinnerAndComplete(challengeId, challengerQuiz, challengedQuiz) {
   let winnerId = null
 
-  // Winner = highest score, or if tied, fastest time
+  // Winner = highest score only, ignore time
   if (challengerQuiz.total_score > challengedQuiz.total_score) {
     winnerId = challengerQuiz.user_id
   } else if (challengedQuiz.total_score > challengerQuiz.total_score) {
     winnerId = challengedQuiz.user_id
-  } else {
-    // Tie on score, check time
-    if (challengerQuiz.time_taken_seconds !== null && challengedQuiz.time_taken_seconds !== null) {
-      if (challengerQuiz.time_taken_seconds < challengedQuiz.time_taken_seconds) {
-        winnerId = challengerQuiz.user_id
-      } else if (challengedQuiz.time_taken_seconds < challengerQuiz.time_taken_seconds) {
-        winnerId = challengedQuiz.user_id
-      }
-      // If times are equal, winnerId stays null (tie)
-    }
-    // If time is null, winnerId stays null (tie)
   }
+  // If scores are equal, winnerId stays null (tie)
 
   await challengeRepository.completeChallenge(challengeId, winnerId)
 }

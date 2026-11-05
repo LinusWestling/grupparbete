@@ -60,7 +60,7 @@ function backToChallenges() {
       <!-- Winner Banner -->
       <div v-else class="winner-banner" :class="winner">
         <h1 v-if="winner === 'tie'">
-          <span role="img" aria-label="Handshake">🤝</span> It's a Tie!
+          <span role="img" aria-label="Handshake">🤝</span> Oavgjort!
         </h1>
         <h1 v-else><span role="img" aria-label="Trophy">🏆</span> {{ winnerName }} Wins!</h1>
       </div>
