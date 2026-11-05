@@ -217,7 +217,10 @@ export function createQuizStore(
   // Save before navigation or shutdown, without waiting for a timer or the network.
   watch(Object.values(persistedState), persist, { deep: true, flush: 'sync' })
   const hasUnsyncedData = computed(
-    () => pendingCompletion.value || Object.keys(pendingChanges.value).length > 0,
+    () =>
+      pendingCompletion.value ||
+      Object.keys(pendingChanges.value).length > 0 ||
+      pendingTurnSwitch.value !== null,
   )
   const isSyncing = computed(() => saving.value || syncingCompletion.value)
   const syncState = computed(() =>

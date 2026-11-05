@@ -28,10 +28,13 @@ const searching = ref(false)
 
 let pollingTimer = null
 let currentSearchId = 0
+let isUnmounted = false
 
 onMounted(async () => {
   await loadChallenges()
   await loadTopics()
+
+  if (isUnmounted) return
 
   pollingTimer = setInterval(async () => {
     try {
@@ -44,6 +47,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  isUnmounted = true
   if (pollingTimer) {
     clearInterval(pollingTimer)
     pollingTimer = null
