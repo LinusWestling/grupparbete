@@ -404,7 +404,11 @@ async function handleQuizCompletion(challengeId, userId) {
   validateUserInChallenge(challenge, userId)
 
   // Challenge must be pending, accepted, or active
-  if (challenge.status !== 'pending' && challenge.status !== 'accepted' && challenge.status !== 'active') {
+  if (
+    challenge.status !== 'pending' &&
+    challenge.status !== 'accepted' &&
+    challenge.status !== 'active'
+  ) {
     throw createError('Challenge is not in a valid state for completion', 409)
   }
 
