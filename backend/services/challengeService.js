@@ -2,14 +2,18 @@ const challengeRepository = require('../repositories/challengeRepository')
 const pool = require('../database/pool')
 const quizService = require('./quiz/quizService')
 
-// Helper: Create error with status code
+/**
+ * Create an Error instance with an HTTP status code.
+ */
 function createError(message, status) {
   const error = new Error(message)
   error.status = status
   return error
 }
 
-// Helper: Validate user is part of challenge
+/**
+ * Validate that a user is either the challenger or challenged participant.
+ */
 function validateUserInChallenge(challenge, userId) {
   if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
     throw createError('Du är inte en del av den här utmaningen.', 403)
@@ -238,7 +242,7 @@ async function startChallengeQuiz(challengeId, userId) {
 
   if (existingQuizId) {
     // Return existing quiz details
-    return getQuizDetailsWithChallenge(existingQuizId, userId)
+    return quizService.getQuizDetails(existingQuizId, userId)
   }
 
   // For challenged player, copy the challenger's quiz questions
@@ -297,11 +301,11 @@ async function startChallengeQuiz(challengeId, userId) {
       const finalQuizId = isChallenger
         ? updatedChallenge.challenger_quiz_id
         : updatedChallenge.challenged_quiz_id
-      return getQuizDetailsWithChallenge(finalQuizId, userId)
+      return quizService.getQuizDetails(finalQuizId, userId)
     }
 
     // Get and return the quiz details
-    return getQuizDetailsWithChallenge(quizId, userId)
+    return quizService.getQuizDetails(quizId, userId)
   }
 
   // For challenger (creating challenge) - this shouldn't happen as challenger quiz is created in createChallenge
@@ -326,31 +330,12 @@ async function startChallengeQuiz(challengeId, userId) {
     const finalQuizId = isChallenger
       ? updatedChallenge.challenger_quiz_id
       : updatedChallenge.challenged_quiz_id
-    return getQuizDetailsWithChallenge(finalQuizId, userId)
+    return quizService.getQuizDetails(finalQuizId, userId)
   }
 
   // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
   quiz.challenge_id = challengeId
   return quiz
-}
-
-/**
- * Get quiz details with challenge context
- * Finds which challenge (if any) owns this quiz and adds challenge_id to payload
- */
-async function getQuizDetailsWithChallenge(quizId, userId) {
-  const quizDetails = await quizService.getQuizDetails(quizId, userId)
-
-  // Find if this quiz belongs to a challenge
-  const [challenges] = await pool.query(
-    `SELECT id FROM challenges
-     WHERE challenger_quiz_id = ? OR challenged_quiz_id = ?`,
-    [quizId, quizId],
-  )
-
-  quizDetails.challenge_id = challenges.length > 0 ? challenges[0].id : null
-
-  return quizDetails
 }
 
 /**

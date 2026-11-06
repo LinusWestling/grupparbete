@@ -3,7 +3,10 @@ import { rememberQuizAccount } from './quizIdentity.js'
 
 const { request } = createApiService('')
 
-// Drops empty filters so they aren't sent as e.g. "search=".
+/**
+ * Serialize non-empty filter parameters into a URL query string.
+ * Drops empty filters so they aren't sent as e.g. "search=".
+ */
 function toQuery(params) {
   const filled = Object.entries(params).filter(([, value]) => value !== '' && value != null)
   const query = new URLSearchParams(filled).toString()

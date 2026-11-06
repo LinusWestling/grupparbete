@@ -20,7 +20,7 @@ function createSeededRandom(seed) {
   const c = 12345
 
   return function random() {
-    state = (a * state + c) % m
+    state = Number((BigInt(a) * BigInt(Math.trunc(state)) + BigInt(c)) % BigInt(m))
     return state / m
   }
 }

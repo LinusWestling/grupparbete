@@ -80,6 +80,9 @@ onMounted(async () => {
   }
 })
 
+/**
+ * Start a new quiz session for the selected topic, difficulty, and question types.
+ */
 async function startQuizSession(topic) {
   if (selectedQuestionTypes.value.length === 0) {
     error.value = 'Välj minst en frågetyp för att starta ett quiz.'
@@ -103,11 +106,17 @@ async function startQuizSession(topic) {
   }
 }
 
+/**
+ * Record a selected answer option for a question and trigger background sync.
+ */
 function selectAnswer(questionId, answerVal) {
   quizStore.recordProgress(questionId, answerVal)
   void quizStore.flushPending()
 }
 
+/**
+ * Record a selected matching pair for a matching question and trigger background sync.
+ */
 function selectMatchPair(questionId, answerId, matchValue) {
   const existing = selectedAnswers.value[questionId]
   const currentMap =
@@ -121,6 +130,9 @@ function selectMatchPair(questionId, answerId, matchValue) {
   void quizStore.flushPending()
 }
 
+/**
+ * Return the list of selectable match options for a matching question.
+ */
 function getMatchOptions(question) {
   if (Array.isArray(question?.match_options) && question.match_options.length > 0) {
     return question.match_options
@@ -128,6 +140,9 @@ function getMatchOptions(question) {
   return (question?.answers || []).map((a) => a.match_text).filter(Boolean)
 }
 
+/**
+ * Save progress for the currently displayed question.
+ */
 function saveCurrentQuestion(isSkipped = false) {
   const question = activeQuizSession.value?.questions[currentQuestionIndex.value]
   if (!question) return Promise.resolve(false)
@@ -135,6 +150,9 @@ function saveCurrentQuestion(isSkipped = false) {
   return quizStore.flushPending()
 }
 
+/**
+ * Navigate forward or backward between quiz questions, optionally skipping the current one.
+ */
 async function navigateQuestion(direction, skip = false) {
   if (submitting.value) return
   const question = activeQuizSession.value.questions[currentQuestionIndex.value]
@@ -171,6 +189,9 @@ async function navigateQuestion(direction, skip = false) {
   )
 }
 
+/**
+ * Resume an unfinished quiz session by its ID.
+ */
 async function resumeQuiz(quizId) {
   loading.value = true
   error.value = null
@@ -201,6 +222,9 @@ watch(
   },
 )
 
+/**
+ * Complete the active quiz locally and synchronize results with the server.
+ */
 async function handleSubmitQuiz() {
   if (!activeQuizSession.value) return
   error.value = null
@@ -209,6 +233,9 @@ async function handleSubmitQuiz() {
   await quizStore.syncCompletion()
 }
 
+/**
+ * Exit the active quiz view and refresh the unfinished quizzes list.
+ */
 async function exitQuiz() {
   if (!quizResult.value) {
     const question = activeQuizSession.value?.questions[currentQuestionIndex.value]
@@ -250,7 +277,7 @@ async function exitQuiz() {
           fysiologi.
         </p>
       </div>
-      <RouterLink to="/challenges" class="button button-accent">🏆 Challenges</RouterLink>
+      <RouterLink to="/challenges" class="button button-accent">🏆 Utmaningar</RouterLink>
     </div>
 
     <!-- Difficulty Level Selector Bar -->

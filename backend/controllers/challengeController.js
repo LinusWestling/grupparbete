@@ -1,6 +1,8 @@
 const challengeService = require('../services/challengeService')
 
-// Helper: Validate challenge ID parameter
+/**
+ * Validate and parse a challenge ID route parameter.
+ */
 function validateChallengeId(id) {
   const challengeId = Number(id)
   if (!Number.isInteger(challengeId) || challengeId < 1) {
@@ -11,7 +13,9 @@ function validateChallengeId(id) {
   return challengeId
 }
 
-// Helper: Handle controller errors
+/**
+ * Format and send controller error responses.
+ */
 function handleError(res, err) {
   const status =
     Number.isInteger(err.status) && err.status >= 400 && err.status < 500 ? err.status : 500

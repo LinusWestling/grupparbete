@@ -54,6 +54,9 @@ onUnmounted(() => {
   }
 })
 
+/**
+ * Fetch pending, active, and completed challenges for the current user.
+ */
 async function loadChallenges() {
   loading.value = true
   error.value = null
@@ -73,6 +76,9 @@ async function loadChallenges() {
   }
 }
 
+/**
+ * Fetch available quiz topics for challenge creation.
+ */
 async function loadTopics() {
   try {
     topics.value = await api.getTopics()
@@ -81,6 +87,9 @@ async function loadTopics() {
   }
 }
 
+/**
+ * Search users by username when selecting an opponent.
+ */
 async function searchUsers() {
   const requestId = ++currentSearchId
   if (searchQuery.value.length < SEARCH_MIN_LENGTH) {
@@ -106,6 +115,9 @@ async function searchUsers() {
   }
 }
 
+/**
+ * Select a user from the search results as the challenge opponent.
+ */
 function selectUser(user) {
   currentSearchId++ // Invalidate pending requests
   selectedUser.value = user
@@ -113,6 +125,9 @@ function selectUser(user) {
   searchResults.value = []
 }
 
+/**
+ * Create a new challenge and navigate to the quiz session.
+ */
 async function createChallenge() {
   if (!selectedUser.value || !selectedTopic.value) {
     error.value = 'Välj både en användare och ett ämne.'
@@ -146,6 +161,9 @@ async function createChallenge() {
   }
 }
 
+/**
+ * Accept an incoming challenge invitation.
+ */
 async function acceptChallenge(challengeId) {
   loading.value = true
   error.value = null
@@ -159,6 +177,9 @@ async function acceptChallenge(challengeId) {
   }
 }
 
+/**
+ * Decline an incoming challenge invitation.
+ */
 async function declineChallenge(challengeId) {
   loading.value = true
   error.value = null
@@ -172,20 +193,32 @@ async function declineChallenge(challengeId) {
   }
 }
 
+/**
+ * Navigate to the challenge play view for the given challenge.
+ */
 function startChallenge(challengeId) {
   error.value = null
   router.push(`/challenges/${challengeId}/play`)
 }
 
+/**
+ * Navigate to the challenge result view for the given challenge.
+ */
 function viewResult(challengeId) {
   router.push(`/challenges/${challengeId}/result`)
 }
 
+/**
+ * Check whether it is currently the logged-in user's turn in the challenge.
+ */
 function isMyTurn(challenge) {
   if (!currentUser.value || !challenge.current_turn_user_id) return false
   return challenge.current_turn_user_id === currentUser.value.id
 }
 
+/**
+ * Return the username of the player whose turn it currently is.
+ */
 function getTurnUsername(challenge) {
   if (challenge.current_turn_user_id === challenge.challenger_user_id) {
     return challenge.challenger_username

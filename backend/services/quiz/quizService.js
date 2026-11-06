@@ -9,6 +9,9 @@ const { randomInt } = require('node:crypto')
 const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
 const { shuffleQuestionsForChallenge } = require('../../utils/deterministicShuffle')
 
+/**
+ * Create and start a new quiz session with selected questions and answer ordering.
+ */
 async function startQuiz(
   userId,
   topicId,
@@ -191,6 +194,9 @@ async function startQuiz(
   )
 }
 
+/**
+ * Retrieve completed quiz history for a user.
+ */
 async function getUserQuizHistory(userId) {
   const sql = `
     SELECT 
@@ -213,6 +219,9 @@ async function getUserQuizHistory(userId) {
   return rows
 }
 
+/**
+ * Retrieve full quiz details and question snapshots for a given quiz ID.
+ */
 async function getQuizDetails(quizId, userId) {
   const [qRows] = await pool.query(
     `SELECT q.*, t.name AS topic_name
@@ -274,6 +283,9 @@ async function getQuizDetails(quizId, userId) {
   return payload
 }
 
+/**
+ * Retrieve in-progress non-challenge quizzes for a user.
+ */
 async function getUnfinishedQuizzes(userId) {
   const [rows] = await pool.query(
     `SELECT q.id AS quiz_id, q.difficulty, q.total_cnt, t.name AS topic_name,
@@ -290,6 +302,9 @@ async function getUnfinishedQuizzes(userId) {
   return rows
 }
 
+/**
+ * Save progress for a single question within an active quiz session.
+ */
 async function saveQuestionProgress(
   quizId,
   userId,

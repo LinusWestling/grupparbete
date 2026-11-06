@@ -39,6 +39,9 @@ const winnerName = computed(() => {
   return result.value.winner_username
 })
 
+/**
+ * Navigate back to the main challenges overview page.
+ */
 function backToChallenges() {
   router.push('/challenges')
 }

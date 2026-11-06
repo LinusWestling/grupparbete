@@ -3,6 +3,9 @@ import { gradeQuizLocally } from '../services/localQuizGrading.js'
 import { startQuizUnloadWarning } from '../services/quizNavigationSafety.js'
 import { currentUser, authResolved, authState, offlineAccountId } from '../services/auth.js'
 
+/**
+ * Create a reactive quiz store instance with local persistence and background synchronization.
+ */
 export function createQuizStore(
   saveProgress = async (...args) => {
     const { api } = await import('../services/api.js')
@@ -21,6 +24,9 @@ export function createQuizStore(
   let ancestors = []
   let savedAt = 0
   let hasAccountEntries = false
+  /**
+   * Check whether a persisted storage entry has valid version and lineage metadata.
+   */
   function hasValidEntryMetadata(saved) {
     return (
       saved?.version === 1 &&
@@ -30,6 +36,9 @@ export function createQuizStore(
       (saved.savedAt === undefined || (Number.isFinite(saved.savedAt) && saved.savedAt >= 0))
     )
   }
+  /**
+   * Validate the full schema of a persisted active quiz entry.
+   */
   function isValidQuizEntry(saved) {
     return (
       hasValidEntryMetadata(saved) &&
@@ -50,6 +59,9 @@ export function createQuizStore(
       )
     )
   }
+  /**
+   * Read and filter all non-superseded quiz entries for the current account from storage.
+   */
   function readEntries() {
     const entries = []
     hasAccountEntries = false
@@ -109,6 +121,9 @@ export function createQuizStore(
     pendingCompletion,
     pendingTurnSwitch,
   }
+  /**
+   * Restore persisted quiz state for the active user account.
+   */
   function restoreAccount() {
     const resolvedAccountId =
       currentUser.value?.id ?? (authState.value === 'unavailable' ? offlineAccountId.value : null)
@@ -168,6 +183,7 @@ export function createQuizStore(
         }
         if (!isValidQuizEntry(saved)) throw new Error('Det sparade quizet är ogiltigt.')
         for (const [key, state] of Object.entries(persistedState)) state.value = saved[key]
+        pendingTurnSwitch.value = saved.pendingTurnSwitch || null
         revision = saved.revision
         ancestors = candidate ? [...(saved.ancestors || []), candidate.key] : []
         savedAt = saved.savedAt || 0
@@ -189,6 +205,9 @@ export function createQuizStore(
     },
     { immediate: true, flush: 'sync' },
   )
+  /**
+   * Persist the current quiz store state to local storage.
+   */
   function persist() {
     if (restoring || !authResolved.value) return
     try {
@@ -220,7 +239,7 @@ export function createQuizStore(
     () =>
       pendingCompletion.value ||
       Object.keys(pendingChanges.value).length > 0 ||
-      pendingTurnSwitch.value !== null,
+      Boolean(pendingTurnSwitch.value),
   )
   const isSyncing = computed(() => saving.value || syncingCompletion.value)
   const syncState = computed(() =>
@@ -240,6 +259,9 @@ export function createQuizStore(
         : 'Sparat på ditt konto',
   )
 
+  /**
+   * Load a quiz session payload into the store and initialize progress state.
+   */
   function loadQuiz(payload) {
     if (!authResolved.value || accountId === null)
       throw new Error('Logga in innan du hämtar ett quiz.')
@@ -287,6 +309,9 @@ export function createQuizStore(
     persist()
   }
 
+  /**
+   * Throw an error if the current quiz has unsynced or in-flight changes.
+   */
   function assertCanReplaceQuiz() {
     if (hasUnsyncedData.value || isSyncing.value) {
       throw new Error(
@@ -295,6 +320,9 @@ export function createQuizStore(
     }
   }
 
+  /**
+   * Check whether a user answer is complete for the given question type.
+   */
   function isAnswerComplete(question, answer) {
     if (!question || answer === undefined || answer === null) return false
     if (question.question_type === 'matching') {
@@ -310,6 +338,9 @@ export function createQuizStore(
     return String(answer).trim() !== ''
   }
 
+  /**
+   * Record local answer progress or skip state for a question.
+   */
   function recordProgress(questionId, answer, isSkipped = false) {
     const question = activeQuizSession.value?.questions.find((q) => q.id === questionId)
     if (!question || pendingCompletion.value || quizResult.value) return
@@ -340,8 +371,10 @@ export function createQuizStore(
     }
   }
 
-  // Serialize writes and only acknowledge the revision actually sent. Editing
-  // while a request is running must never clear or overwrite newer local data.
+  /**
+   * Serialize writes and only acknowledge the revision actually sent.
+   * Editing while a request is running must never clear or overwrite newer local data.
+   */
   function flushPending() {
     if (pendingCompletion.value || syncingCompletion.value) return Promise.resolve(false)
     if (flushPromise) return flushPromise
@@ -389,6 +422,9 @@ export function createQuizStore(
     return flushPromise
   }
 
+  /**
+   * Clear the active quiz session if no unsynced changes remain.
+   */
   function clearQuiz() {
     for (const [questionId, change] of Object.entries(pendingChanges.value)) {
       if (!change.isSkipped && !change.isComplete) {
@@ -410,6 +446,9 @@ export function createQuizStore(
     return true
   }
 
+  /**
+   * Grade and mark the active quiz as completed locally before server confirmation.
+   */
   function completeLocally() {
     const quiz = activeQuizSession.value
     if (!quiz || quizResult.value) return
@@ -423,6 +462,9 @@ export function createQuizStore(
     pendingCompletion.value = true
   }
 
+  /**
+   * Submit locally completed quiz answers to the server for final grading.
+   */
   async function syncCompletion() {
     if (!pendingCompletion.value || syncingCompletion.value || !activeQuizSession.value)
       return false
@@ -474,6 +516,9 @@ export function createQuizStore(
     }
   }
 
+  /**
+   * Flush a pending challenge turn switch to the server after quiz completion.
+   */
   async function flushTurnSwitch() {
     const challengeId = pendingTurnSwitch.value
     if (!challengeId) return true
@@ -482,27 +527,38 @@ export function createQuizStore(
       const { api } = await import('../services/api.js')
       await api.completeChallengeQuiz(challengeId)
       if (generation !== accountGeneration) return true
+      pendingTurnSwitch.value = null
 
-      // Check if both players are done to determine redirect
-      const challengeResult = await api.getChallengeResult(challengeId)
-      if (generation !== accountGeneration) return true
+      // Check if both players are done to determine redirect (best effort)
+      try {
+        const challengeResult = await api.getChallengeResult(challengeId)
+        if (generation !== accountGeneration) return true
 
-      if (
-        challengeResult.challenger?.is_completed &&
-        challengeResult.challenged?.is_completed &&
-        activeQuizSession.value?.challenge_id === challengeId
-      ) {
-        activeQuizSession.value.redirect_to_challenge_result = true
+        if (
+          challengeResult.challenger?.is_completed &&
+          challengeResult.challenged?.is_completed &&
+          activeQuizSession.value?.challenge_id === challengeId
+        ) {
+          activeQuizSession.value.redirect_to_challenge_result = true
+        }
+      } catch (resultErr) {
+        console.error('Failed to fetch challenge result after turn switch:', resultErr)
       }
 
-      pendingTurnSwitch.value = null
       return true
     } catch (err) {
+      if (generation !== accountGeneration) return false
+      if (err?.status >= 400 && err?.status < 500 && ![401, 408, 429].includes(err.status)) {
+        pendingTurnSwitch.value = null
+      }
       console.error('Failed to switch challenge turn:', err)
       return false
     }
   }
 
+  /**
+   * Start automatic background synchronization of pending quiz progress and completion.
+   */
   function startAutoSync(target = globalThis.window) {
     if (!target) return () => {}
     let timer
@@ -510,7 +566,7 @@ export function createQuizStore(
     const hasPending = () =>
       pendingCompletion.value ||
       Object.keys(pendingChanges.value).length > 0 ||
-      pendingTurnSwitch.value
+      Boolean(pendingTurnSwitch.value)
     const synchronize = async () => {
       if (stopped || !hasPending() || target.navigator?.onLine === false) return
       // Authentication and validation need user intervention; avoid polling
@@ -556,6 +612,7 @@ export function createQuizStore(
       if (!newer) return
       restoring = true
       for (const [key, state] of Object.entries(persistedState)) state.value = newer.value[key]
+      pendingTurnSwitch.value = newer.value.pendingTurnSwitch || null
       revision = newer.value.revision
       savedAt = newer.value.savedAt
       ancestors = [...(newer.value.ancestors || []), newer.key]

@@ -57,6 +57,9 @@ onUnmounted(() => {
   }
 })
 
+/**
+ * Poll the server for challenge progress and handle turn switching or completion redirects.
+ */
 async function pollProgress() {
   try {
     progress.value = await api.getChallengeProgress(challengeId)
@@ -92,6 +95,9 @@ async function pollProgress() {
   }
 }
 
+/**
+ * Navigate to the explore quiz view to answer challenge questions.
+ */
 function goToQuiz() {
   router.push('/explore')
 }
