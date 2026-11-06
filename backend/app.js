@@ -75,6 +75,7 @@ const userRoutes = require('./routes/userRoutes')
 const authRoutes = require('./routes/authRoutes')
 const exampleRoutes = require('./routes/exampleRoutes')
 const organizationRoutes = require('./routes/organizationRoutes')
+const challengeRoutes = require('./routes/challengeRoutes')
 
 // Mount API routes
 app.use(exampleRoutes)
@@ -85,6 +86,7 @@ app.use(quizRoutes)
 app.use(userRoutes)
 app.use(authRoutes)
 app.use(organizationRoutes)
+app.use(challengeRoutes)
 app.use(require('./routes/monitoringRoutes'))
 
 app.get('/api/health', (req, res) => {

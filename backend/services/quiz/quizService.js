@@ -7,7 +7,11 @@ const { orderQuizAnswers, orderMatchOptions } = require('../../utils/quizAnswerO
 const quizRepository = require('../../repositories/quizRepository')
 const { randomInt } = require('node:crypto')
 const { databaseMonitor, MONITORING_EVENTS } = require('../monitoringService')
+const { shuffleQuestionsForChallenge } = require('../../utils/deterministicShuffle')
 
+/**
+ * Create and start a new quiz session with selected questions and answer ordering.
+ */
 async function startQuiz(
   userId,
   topicId,
@@ -15,6 +19,8 @@ async function startQuiz(
   limit = 10,
   organizationId = null,
   questionTypes,
+  seed = null,
+  existingConnection = null,
 ) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
   let questions = await questionService.getQuestions(
@@ -24,7 +30,7 @@ async function startQuiz(
       limit,
       question_types: questionTypes,
     },
-    { includeCorrect: true },
+    { includeCorrect: true, seed },
   )
 
   let actualDifficulty = Number(difficulty)
@@ -47,7 +53,7 @@ async function startQuiz(
           limit,
           question_types: questionTypes,
         },
-        { includeCorrect: true },
+        { includeCorrect: true, seed },
       )
     }
   }
@@ -59,40 +65,53 @@ async function startQuiz(
     )
   }
 
-  const previousQuestionIds = await quizRepository.getLatestQuizQuestionIds(
-    userId,
-    topicId,
-    actualDifficulty,
-  )
-
-  if (previousQuestionIds.length > 0) {
-    questions = await questionService.getQuestions(
-      {
-        topic_id: topicId,
-        difficulty: actualDifficulty,
-        limit,
-        question_types: questionTypes,
-      },
-      {
-        includeCorrect: true,
-        previousQuestionIds,
-      },
+  // Skip previousQuestionIds filtering for challenges to ensure both players get same questions
+  if (seed === null) {
+    const previousQuestionIds = await quizRepository.getLatestQuizQuestionIds(
+      userId,
+      topicId,
+      actualDifficulty,
     )
+
+    if (previousQuestionIds.length > 0) {
+      questions = await questionService.getQuestions(
+        {
+          topic_id: topicId,
+          difficulty: actualDifficulty,
+          limit,
+          question_types: questionTypes,
+        },
+        {
+          includeCorrect: true,
+          previousQuestionIds,
+          seed,
+        },
+      )
+    }
   }
 
-  for (let i = questions.length - 1; i > 0; i--) {
-    const j = randomInt(i + 1)
-
-    const temporary = questions[i]
-    questions[i] = questions[j]
-    questions[j] = temporary
+  // Shuffle questions using seed if provided (for challenges), otherwise random
+  if (seed !== null) {
+    // Seeded shuffle for deterministic ordering in challenges
+    questions = shuffleQuestionsForChallenge(questions, seed)
+  } else {
+    // Random shuffle for regular quizzes
+    for (let i = questions.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1)
+      const temporary = questions[i]
+      questions[i] = questions[j]
+      questions[j] = temporary
+    }
   }
 
-  const connection = await pool.getConnection()
+  const connection = existingConnection || (await pool.getConnection())
+  const managesTransaction = !existingConnection
   let quizId
 
   try {
-    await connection.beginTransaction()
+    if (managesTransaction) {
+      await connection.beginTransaction()
+    }
 
     if (organizationId !== null) {
       const [access] = await connection.execute(
@@ -120,16 +139,18 @@ async function startQuiz(
     quizId = qResult.insertId
 
     // Freeze the same ordered content used by the browser and server grading.
+    // Use seed for challenges to ensure both players get same answer order
+    const orderingSeed = seed !== null ? seed : quizId
     questions = questions.map((question) => {
       const orderedAnswers =
         question.question_type === 'multiple_choice' || question.question_type === 'matching'
-          ? orderQuizAnswers(question.answers, quizId, question.id)
+          ? orderQuizAnswers(question.answers, orderingSeed, question.id)
           : question.answers
       return {
         ...question,
         answers: orderedAnswers,
         ...(question.question_type === 'matching'
-          ? { match_options: orderMatchOptions(orderedAnswers, quizId, question.id) }
+          ? { match_options: orderMatchOptions(orderedAnswers, orderingSeed, question.id) }
           : {}),
       }
     })
@@ -145,12 +166,18 @@ async function startQuiz(
     if (userId) {
       await databaseMonitor(connection).log(MONITORING_EVENTS.QUIZ_STARTED, { userId })
     }
-    await connection.commit()
+    if (managesTransaction) {
+      await connection.commit()
+    }
   } catch (err) {
-    await connection.rollback()
+    if (managesTransaction) {
+      await connection.rollback()
+    }
     throw err
   } finally {
-    connection.release()
+    if (managesTransaction) {
+      connection.release()
+    }
   }
 
   return quizPayload(
@@ -167,6 +194,9 @@ async function startQuiz(
   )
 }
 
+/**
+ * Retrieve completed quiz history for a user.
+ */
 async function getUserQuizHistory(userId) {
   const sql = `
     SELECT 
@@ -189,9 +219,12 @@ async function getUserQuizHistory(userId) {
   return rows
 }
 
+/**
+ * Retrieve full quiz details and question snapshots for a given quiz ID.
+ */
 async function getQuizDetails(quizId, userId) {
   const [qRows] = await pool.query(
-    `SELECT q.*, t.name AS topic_name 
+    `SELECT q.*, t.name AS topic_name
      FROM quizzes q
      JOIN topics t ON q.topic_id = t.id
      WHERE q.id = ?`,
@@ -207,6 +240,14 @@ async function getQuizDetails(quizId, userId) {
   ) {
     throw httpError(403, 'Åtkomst nekad.')
   }
+
+  // Check if this quiz is associated with a challenge
+  const [challengeRows] = await pool.query(
+    `SELECT id FROM challenges
+     WHERE challenger_quiz_id = ? OR challenged_quiz_id = ?`,
+    [quizId, quizId],
+  )
+  const challengeId = challengeRows.length > 0 ? challengeRows[0].id : null
 
   const [rows] = await pool.query(
     'SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY position',
@@ -232,9 +273,19 @@ async function getQuizDetails(quizId, userId) {
     }
   })
   const { result_snapshot, ...metadata } = quiz
-  return quizPayload(metadata, questions)
+  const payload = quizPayload(metadata, questions)
+
+  // Add challenge_id to the payload if this quiz is part of a challenge
+  if (challengeId !== null) {
+    payload.challenge_id = challengeId
+  }
+
+  return payload
 }
 
+/**
+ * Retrieve in-progress non-challenge quizzes for a user.
+ */
 async function getUnfinishedQuizzes(userId) {
   const [rows] = await pool.query(
     `SELECT q.id AS quiz_id, q.difficulty, q.total_cnt, t.name AS topic_name,
@@ -242,14 +293,18 @@ async function getUnfinishedQuizzes(userId) {
       SUM(qq.is_answered) AS answered_count, SUM(qq.is_skipped) AS skipped_count
      FROM quizzes q JOIN topics t ON t.id = q.topic_id
      LEFT JOIN users org ON org.id = q.organization_id
+     LEFT JOIN challenges c ON (c.challenger_quiz_id = q.id OR c.challenged_quiz_id = q.id)
      JOIN quiz_questions qq ON qq.quiz_id = q.id
-     WHERE q.user_id = ? AND q.status = 'in_progress'
+     WHERE q.user_id = ? AND q.status = 'in_progress' AND c.id IS NULL
      GROUP BY q.id, q.difficulty, q.total_cnt, t.name, org.username ORDER BY q.created_at DESC`,
     [userId],
   )
   return rows
 }
 
+/**
+ * Save progress for a single question within an active quiz session.
+ */
 async function saveQuestionProgress(
   quizId,
   userId,

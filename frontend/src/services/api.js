@@ -3,7 +3,10 @@ import { rememberQuizAccount } from './quizIdentity.js'
 
 const { request } = createApiService('')
 
-// Drops empty filters so they aren't sent as e.g. "search=".
+/**
+ * Serialize non-empty filter parameters into a URL query string.
+ * Drops empty filters so they aren't sent as e.g. "search=".
+ */
 function toQuery(params) {
   const filled = Object.entries(params).filter(([, value]) => value !== '' && value != null)
   const query = new URLSearchParams(filled).toString()
@@ -107,6 +110,39 @@ export const api = {
     }),
   getAssignedTestReport: (prospectId, quizId) =>
     request(`/organization/prospects/${prospectId}/tests/${quizId}`),
+
+  // Challenges
+  getPendingChallenges: () => request('/challenges/pending'),
+  getActiveChallenges: () => request('/challenges/active'),
+  getChallengeHistory: () => request('/challenges/history'),
+  createChallenge: (challengedUserId, topicId, difficulty) =>
+    request('/challenges', {
+      method: 'POST',
+      body: JSON.stringify({ challenged_user_id: challengedUserId, topic_id: topicId, difficulty }),
+    }),
+  acceptChallenge: (challengeId) =>
+    request(`/challenges/${challengeId}/accept`, {
+      method: 'POST',
+    }),
+  declineChallenge: (challengeId) =>
+    request(`/challenges/${challengeId}/decline`, {
+      method: 'POST',
+    }),
+  startChallengeQuiz: (challengeId) =>
+    request(`/challenges/${challengeId}/start`, {
+      method: 'POST',
+    }),
+  completeChallengeQuiz: (challengeId) =>
+    request(`/challenges/${challengeId}/complete`, {
+      method: 'POST',
+    }),
+  getChallengeProgress: (challengeId) => request(`/challenges/${challengeId}/progress`),
+  getChallengeResult: (challengeId) => request(`/challenges/${challengeId}/result`),
+  markChallengeResultViewed: (challengeId) =>
+    request(`/challenges/${challengeId}/mark-viewed`, {
+      method: 'POST',
+    }),
+  searchUsers: (query) => request(`/challenges/users/search?q=${encodeURIComponent(query)}`),
 
   // Auth
   register: (username, email, password, requestOrganization = false) =>

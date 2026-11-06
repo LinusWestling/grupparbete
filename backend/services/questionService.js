@@ -1,9 +1,15 @@
 const pool = require('../database/pool')
 
+/**
+ * Create an Error instance with an HTTP status code.
+ */
 function httpError(status, message) {
   return Object.assign(new Error(message), { status })
 }
 
+/**
+ * Format question answers, optionally stripping the is_correct flag.
+ */
 function formatAnswers(answers, includeCorrect = false) {
   return answers.map((a) => {
     if (includeCorrect) return a
@@ -12,8 +18,16 @@ function formatAnswers(answers, includeCorrect = false) {
   })
 }
 
+/**
+ * Fetch questions matching the provided filters and options.
+ */
 async function getQuestions(filters = {}, options = {}) {
-  const { includeCorrect = false, includeUsage = false, previousQuestionIds = [] } = options
+  const {
+    includeCorrect = false,
+    includeUsage = false,
+    previousQuestionIds = [],
+    seed = null,
+  } = options
   // usage_count tells the admin UI whether a question already appears in quizzes.
   const usageColumn = includeUsage
     ? '(SELECT COUNT(*) FROM quiz_questions qq WHERE qq.question_id = q.id) AS usage_count,'
@@ -62,15 +76,17 @@ async function getQuestions(filters = {}, options = {}) {
   if (filters.limit) {
     if (previousQuestionIds.length > 0) {
       const placeholders = previousQuestionIds.map(() => '?').join(',')
+      const randFunc = seed !== null ? `RAND(${Number(seed)})` : 'RAND()'
       sql += `
       ORDER BY
         CASE WHEN q.id IN (${placeholders}) THEN 1 ELSE 0 END,
-        RAND()
+        ${randFunc}
       LIMIT ?
     `
       params.push(...previousQuestionIds, Number(filters.limit))
     } else {
-      sql += ' ORDER BY RAND() LIMIT ?'
+      const randFunc = seed !== null ? `RAND(${Number(seed)})` : 'RAND()'
+      sql += ` ORDER BY ${randFunc} LIMIT ?`
       params.push(Number(filters.limit))
     }
   } else {
@@ -119,7 +135,10 @@ async function getQuestions(filters = {}, options = {}) {
   return questions
 }
 
-// Also returns soft-deleted questions, so quiz history and started quizzes still load.
+/**
+ * Fetch a single question by ID.
+ * Also returns soft-deleted questions, so quiz history and started quizzes still load.
+ */
 async function getQuestionById(id, options = {}) {
   const { includeCorrect = false, includeUsage = false } = options
   const [rows] = await pool.query('SELECT * FROM questions WHERE id = ?', [id])
@@ -146,15 +165,24 @@ async function getQuestionById(id, options = {}) {
   return question
 }
 
+/**
+ * Fetch a question by ID including correct answer flags for grading.
+ */
 async function getQuestionForEvaluation(id) {
   return await getQuestionById(id, { includeCorrect: true })
 }
 
+/**
+ * Verify that the given topic ID exists in the database.
+ */
 async function assertTopicExists(connection, topicId) {
   const [rows] = await connection.execute('SELECT id FROM topics WHERE id = ?', [topicId])
   if (rows.length === 0) throw httpError(400, 'Välj ett befintligt ämne.')
 }
 
+/**
+ * Insert answer rows for a question within an active transaction.
+ */
 async function insertAnswers(connection, questionId, answers) {
   for (const ans of answers) {
     await connection.execute(
@@ -164,6 +192,9 @@ async function insertAnswers(connection, questionId, answers) {
   }
 }
 
+/**
+ * Replace all source citations for a question within an active transaction.
+ */
 async function replaceSources(connection, questionId, sources) {
   // Nothing references sources, so replacing them all is safe.
   await connection.execute('DELETE FROM sources WHERE question_id = ?', [questionId])
@@ -175,7 +206,10 @@ async function replaceSources(connection, questionId, sources) {
   }
 }
 
-// Expects data already checked by questionValidation.
+/**
+ * Create a new question with its answers and sources.
+ * Expects data already checked by questionValidation.
+ */
 async function createQuestion(data) {
   const connection = await pool.getConnection()
   let questionId
@@ -211,6 +245,9 @@ async function createQuestion(data) {
   return await getQuestionById(questionId, { includeCorrect: true })
 }
 
+/**
+ * Check whether any of the specified answer IDs have been selected in quiz attempts.
+ */
 async function isAnyAnswerChosen(connection, answerIds) {
   if (answerIds.length === 0) return false
   const [[{ chosen }]] = await connection.query(
@@ -222,9 +259,11 @@ async function isAnyAnswerChosen(connection, answerIds) {
   return chosen > 0
 }
 
-// Expects data already checked by questionValidation. Answers are updated in
-// place by id, so quiz history that points at an answer keeps pointing at it.
-// Answers sent without an id are added; existing answers left out are removed.
+/**
+ * Expects data already checked by questionValidation. Answers are updated in
+ * place by id, so quiz history that points at an answer keeps pointing at it.
+ * Answers sent without an id are added; existing answers left out are removed.
+ */
 async function updateQuestion(id, data) {
   const connection = await pool.getConnection()
   try {
@@ -325,7 +364,9 @@ async function updateQuestion(id, data) {
   return await getQuestionById(id, { includeCorrect: true })
 }
 
-// Soft delete: completed quizzes still reference the question and its answers.
+/**
+ * Soft delete: completed quizzes still reference the question and its answers.
+ */
 async function deleteQuestion(id) {
   const [result] = await pool.execute(
     'UPDATE questions SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL',
@@ -334,6 +375,9 @@ async function deleteQuestion(id) {
   return result.affectedRows > 0
 }
 
+/**
+ * Retrieve distinct available difficulty levels for a topic and optional question types.
+ */
 async function getAvailableDifficulties(topic_id, questionTypes) {
   let sql = `
     SELECT DISTINCT difficulty_level
