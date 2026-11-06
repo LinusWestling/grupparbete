@@ -12,7 +12,7 @@ function createError(message, status) {
 // Helper: Validate user is part of challenge
 function validateUserInChallenge(challenge, userId) {
   if (challenge.challenger_user_id !== userId && challenge.challenged_user_id !== userId) {
-    throw createError('You are not part of this challenge', 403)
+    throw createError('Du är inte en del av den här utmaningen.', 403)
   }
 }
 
@@ -22,11 +22,11 @@ function validateUserInChallenge(challenge, userId) {
 async function createChallenge(challengerUserId, challengedUserId, topicId, difficulty) {
   // Validation
   if (challengerUserId === challengedUserId) {
-    throw createError('You cannot challenge yourself', 400)
+    throw createError('Du kan inte utmana dig själv.', 400)
   }
 
   if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5) {
-    throw createError('Difficulty must be between 1 and 5', 400)
+    throw createError('Svårighetsgraden måste vara mellan 1 och 5.', 400)
   }
 
   // Use a connection from the pool for the transaction
@@ -37,13 +37,13 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
     // Check if challenged user exists
     const [users] = await connection.query('SELECT id FROM users WHERE id = ?', [challengedUserId])
     if (users.length === 0) {
-      throw createError('Challenged user not found', 404)
+      throw createError('Den utmanade användaren hittades inte.', 404)
     }
 
     // Check if topic exists
     const [topics] = await connection.query('SELECT id FROM topics WHERE id = ?', [topicId])
     if (topics.length === 0) {
-      throw createError('Topic not found', 404)
+      throw createError('Ämnet hittades inte.', 404)
     }
 
     // Check for existing pending challenge between same users for same topic
@@ -59,7 +59,10 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
     )
 
     if (existing.length > 0) {
-      throw createError('A challenge already exists between you and this user for this topic', 409)
+      throw createError(
+        'Det finns redan en aktiv utmaning mellan dig och den här användaren i det valda ämnet.',
+        409,
+      )
     }
 
     // Create the challenge
@@ -72,7 +75,7 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
     )
     const challengeId = challengeResult.insertId
 
-    // Immediately start the challenger's quiz
+    // Immediately start the challenger's quiz within the same transaction
     // Use challengeId as seed so both players get the same questions
     const seed = challengeId
     const quiz = await quizService.startQuiz(
@@ -83,6 +86,7 @@ async function createChallenge(challengerUserId, challengedUserId, topicId, diff
       null,
       null,
       seed,
+      connection,
     )
 
     // Add challenge_id to the quiz payload so frontend knows it's a challenge quiz
@@ -152,22 +156,22 @@ async function acceptChallenge(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw createError('Challenge not found', 404)
+    throw createError('Utmaningen hittades inte.', 404)
   }
 
   // Only the challenged user can accept
   if (challenge.challenged_user_id !== userId) {
-    throw createError('You are not authorized to accept this challenge', 403)
+    throw createError('Du har inte behörighet att acceptera den här utmaningen.', 403)
   }
 
   if (challenge.status !== 'pending') {
-    throw createError('This challenge cannot be accepted', 409)
+    throw createError('Den här utmaningen kan inte accepteras.', 409)
   }
 
   // Check if expired
   if (challenge.expires_at && new Date(challenge.expires_at) < new Date()) {
     await challengeRepository.updateChallengeStatus(challengeId, 'expired')
-    throw createError('This challenge has expired', 410)
+    throw createError('Den här utmaningen har löpt ut.', 410)
   }
 
   await challengeRepository.acceptChallenge(challengeId)
@@ -182,21 +186,21 @@ async function declineChallenge(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw createError('Challenge not found', 404)
+    throw createError('Utmaningen hittades inte.', 404)
   }
 
   // Only the challenged user can decline
   if (challenge.challenged_user_id !== userId) {
-    throw createError('You are not authorized to decline this challenge', 403)
+    throw createError('Du har inte behörighet att avböja den här utmaningen.', 403)
   }
 
   if (challenge.status !== 'pending') {
-    throw createError('This challenge cannot be declined', 409)
+    throw createError('Den här utmaningen kan inte avböjas.', 409)
   }
 
   await challengeRepository.declineChallenge(challengeId)
 
-  return { message: 'Challenge declined' }
+  return { message: 'Utmaningen har avböjts.' }
 }
 
 /**
@@ -207,24 +211,29 @@ async function startChallengeQuiz(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw createError('Challenge not found', 404)
+    throw createError('Utmaningen hittades inte.', 404)
   }
 
   // User must be part of the challenge
   validateUserInChallenge(challenge, userId)
 
-  // Challenge must be accepted or active
-  if (challenge.status !== 'accepted' && challenge.status !== 'active') {
-    throw createError('Challenge is not ready to start', 409)
+  const isChallenger = challenge.challenger_user_id === userId
+
+  // Challenger can start immediately while pending; challenged user requires accepted/active
+  if (isChallenger) {
+    if (!['pending', 'accepted', 'active'].includes(challenge.status)) {
+      throw createError('Utmaningen är inte redo att startas.', 409)
+    }
+  } else if (challenge.status !== 'accepted' && challenge.status !== 'active') {
+    throw createError('Utmaningen är inte redo att startas.', 409)
   }
 
   // Check if it's the user's turn
   if (challenge.current_turn_user_id !== userId) {
-    throw createError('It is not your turn', 403)
+    throw createError('Det är inte din tur.', 403)
   }
 
   // Check if user already has a quiz for this challenge
-  const isChallenger = challenge.challenger_user_id === userId
   const existingQuizId = isChallenger ? challenge.challenger_quiz_id : challenge.challenged_quiz_id
 
   if (existingQuizId) {
@@ -244,7 +253,7 @@ async function startChallengeQuiz(challengeId, userId) {
     )
 
     if (challengerQuestions.length === 0) {
-      throw createError('Challenger quiz has no questions', 500)
+      throw createError('Motståndarens quiz saknar frågor.', 500)
     }
 
     // Create a new quiz for the challenged player
@@ -351,7 +360,7 @@ async function getChallengeProgress(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw createError('Challenge not found', 404)
+    throw createError('Utmaningen hittades inte.', 404)
   }
 
   // User must be part of the challenge
@@ -360,7 +369,7 @@ async function getChallengeProgress(challengeId, userId) {
   const progress = await challengeRepository.getChallengeProgress(challengeId)
 
   if (!progress) {
-    throw createError('Challenge progress not found', 404)
+    throw createError('Utmaningens framsteg hittades inte.', 404)
   }
 
   const isChallenger = challenge.challenger_user_id === userId
@@ -397,7 +406,7 @@ async function handleQuizCompletion(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw createError('Challenge not found', 404)
+    throw createError('Utmaningen hittades inte.', 404)
   }
 
   // User must be part of the challenge
@@ -409,7 +418,7 @@ async function handleQuizCompletion(challengeId, userId) {
     challenge.status !== 'accepted' &&
     challenge.status !== 'active'
   ) {
-    throw createError('Challenge is not in a valid state for completion', 409)
+    throw createError('Utmaningen kan inte slutföras i sitt nuvarande läge.', 409)
   }
 
   // Check if both players have completed their current turn
@@ -435,7 +444,7 @@ async function handleQuizCompletion(challengeId, userId) {
 
   // Validate that the caller's quiz is completed
   if (!callerQuiz || callerQuiz.status !== 'completed') {
-    throw createError('Your quiz must be completed before proceeding', 400)
+    throw createError('Ditt quiz måste vara slutfört innan du kan gå vidare.', 400)
   }
 
   // If both players have completed their quizzes for this turn, determine winner and switch turn
@@ -454,7 +463,7 @@ async function getChallengeResult(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw createError('Challenge not found', 404)
+    throw createError('Utmaningen hittades inte.', 404)
   }
 
   // User must be part of the challenge
@@ -551,7 +560,7 @@ async function markResultViewed(challengeId, userId) {
   const challenge = await challengeRepository.getChallengeById(challengeId)
 
   if (!challenge) {
-    throw createError('Challenge not found', 404)
+    throw createError('Utmaningen hittades inte.', 404)
   }
 
   // User must be part of the challenge
@@ -559,21 +568,27 @@ async function markResultViewed(challengeId, userId) {
 
   // Only allow marking result as viewed if challenge is completed
   if (challenge.status !== 'completed') {
-    throw createError('Challenge must be completed before marking result as viewed', 409)
+    throw createError(
+      'Utmaningen måste vara slutförd innan resultatet kan markeras som visat.',
+      409,
+    )
   }
 
   await challengeRepository.markResultViewed(challengeId, userId)
 
-  return { message: 'Result marked as viewed' }
+  return { message: 'Resultatet har markerats som visat.' }
 }
 
 /**
  * Search users by username (for finding opponents)
  */
 async function searchUsers(query, excludeUserId) {
-  if (!query || query.length < 2) {
-    throw createError('Search query must be at least 2 characters', 400)
+  const trimmed = typeof query === 'string' ? query.trim() : ''
+  if (trimmed.length < 2) {
+    throw createError('Sökfrågan måste innehålla minst 2 tecken.', 400)
   }
+
+  const escaped = trimmed.replace(/[\\%_]/g, '\\$&')
 
   const [users] = await pool.query(
     `SELECT id, username
@@ -581,7 +596,7 @@ async function searchUsers(query, excludeUserId) {
      WHERE username LIKE ?
        AND id != ?
      LIMIT 20`,
-    [`%${query}%`, excludeUserId],
+    [`%${escaped}%`, excludeUserId],
   )
 
   return users

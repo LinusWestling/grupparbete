@@ -67,7 +67,7 @@ async function loadChallenges() {
     activeChallenges.value = active
     challengeHistory.value = history
   } catch (err) {
-    error.value = 'Failed to load challenges: ' + err.message
+    error.value = 'Det gick inte att hämta utmaningar: ' + err.message
   } finally {
     loading.value = false
   }
@@ -97,7 +97,7 @@ async function searchUsers() {
     }
   } catch (err) {
     if (requestId === currentSearchId) {
-      error.value = 'Search failed: ' + err.message
+      error.value = 'Sökningen misslyckades: ' + err.message
     }
   } finally {
     if (requestId === currentSearchId) {
@@ -115,7 +115,7 @@ function selectUser(user) {
 
 async function createChallenge() {
   if (!selectedUser.value || !selectedTopic.value) {
-    error.value = 'Please select a user and topic'
+    error.value = 'Välj både en användare och ett ämne.'
     return
   }
 
@@ -141,7 +141,7 @@ async function createChallenge() {
     // Navigate to explore view to take the quiz
     router.push('/explore')
   } catch (err) {
-    error.value = 'Failed to create challenge: ' + err.message
+    error.value = 'Det gick inte att skapa utmaningen: ' + err.message
     loading.value = false
   }
 }
@@ -153,7 +153,7 @@ async function acceptChallenge(challengeId) {
     await api.acceptChallenge(challengeId)
     await loadChallenges()
   } catch (err) {
-    error.value = 'Failed to accept challenge: ' + err.message
+    error.value = 'Det gick inte att acceptera utmaningen: ' + err.message
   } finally {
     loading.value = false
   }
@@ -166,24 +166,15 @@ async function declineChallenge(challengeId) {
     await api.declineChallenge(challengeId)
     await loadChallenges()
   } catch (err) {
-    error.value = 'Failed to decline challenge: ' + err.message
+    error.value = 'Det gick inte att avböja utmaningen: ' + err.message
   } finally {
     loading.value = false
   }
 }
 
-async function startChallenge(challengeId) {
-  loading.value = true
+function startChallenge(challengeId) {
   error.value = null
-  try {
-    const quiz = await api.startChallengeQuiz(challengeId)
-    // Navigate to explore view with the quiz loaded
-    router.push(`/challenges/${challengeId}/play`)
-  } catch (err) {
-    error.value = 'Failed to start challenge: ' + err.message
-  } finally {
-    loading.value = false
-  }
+  router.push(`/challenges/${challengeId}/play`)
 }
 
 function viewResult(challengeId) {
@@ -207,47 +198,62 @@ const activeCount = computed(() => activeChallenges.value.length)
 </script>
 
 <template>
-  <div class="challenge-view">
+  <div class="challenge-page">
     <div class="page-heading">
-      <h1><span role="img" aria-label="Trophy">🏆</span> Challenges</h1>
-      <p>Challenge your friends to head-to-head quiz battles!</p>
+      <div>
+        <p class="eyebrow">TÄVLA MED VÄNNER</p>
+        <h1><span role="img" aria-label="Pokal">🏆</span> Utmaningar</h1>
+        <p class="heading-description">Utmana dina vänner i kunskapsdueller!</p>
+      </div>
     </div>
 
-    <div v-if="error" class="error-banner">
-      <span role="img" aria-label="Warning">⚠️</span> {{ error }}
+    <div v-if="error" class="error-banner" role="alert">
+      <span role="img" aria-label="Varning">⚠️</span> {{ error }}
     </div>
 
     <!-- Tabs -->
-    <div class="tabs">
-      <button :class="['tab', { active: activeTab === 'pending' }]" @click="activeTab = 'pending'">
-        Invitations
+    <div class="auth-tabs">
+      <button
+        :class="['auth-tab-btn', { active: activeTab === 'pending' }]"
+        @click="activeTab = 'pending'"
+      >
+        Inbjudningar
         <span v-if="pendingCount > 0" class="badge">{{ pendingCount }}</span>
       </button>
-      <button :class="['tab', { active: activeTab === 'active' }]" @click="activeTab = 'active'">
-        Active
+      <button
+        :class="['auth-tab-btn', { active: activeTab === 'active' }]"
+        @click="activeTab = 'active'"
+      >
+        Pågående
         <span v-if="activeCount > 0" class="badge">{{ activeCount }}</span>
       </button>
-      <button :class="['tab', { active: activeTab === 'history' }]" @click="activeTab = 'history'">
-        History
+      <button
+        :class="['auth-tab-btn', { active: activeTab === 'history' }]"
+        @click="activeTab = 'history'"
+      >
+        Historik
       </button>
-      <button :class="['tab', { active: activeTab === 'create' }]" @click="activeTab = 'create'">
-        + Create Challenge
+      <button
+        :class="['auth-tab-btn', { active: activeTab === 'create' }]"
+        @click="activeTab = 'create'"
+      >
+        + Skapa utmaning
       </button>
     </div>
 
     <!-- Pending Challenges -->
-    <div v-if="activeTab === 'pending'" class="tab-content">
-      <h2>Pending Invitations</h2>
-      <div v-if="loading" class="loading">Loading...</div>
+    <div v-if="activeTab === 'pending'" class="challenge-section">
+      <h2>Väntande inbjudningar</h2>
+      <div v-if="loading" class="loading-state">Läser in…</div>
       <div v-else-if="pendingChallenges.length === 0" class="empty-state">
-        <p>No pending challenges</p>
+        <p>Inga väntande utmaningar</p>
       </div>
       <div v-else class="challenge-list">
         <div v-for="challenge in pendingChallenges" :key="challenge.id" class="challenge-card">
           <div class="challenge-info">
-            <h3>{{ challenge.challenger_username }} challenges you!</h3>
-            <p>Topic: {{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
-            <p class="text-muted">Created {{ formatDate(challenge.created_at) }}</p>
+            <h3>{{ challenge.challenger_username }} utmanar dig!</h3>
+            <p>Ämne: {{ challenge.topic_name }} · Nivå {{ challenge.difficulty }}</p>
+            <p class="text-muted">Skapad {{ formatDate(challenge.created_at) }}</p>
           </div>
           <div class="challenge-actions">
             <button
@@ -255,14 +261,14 @@ const activeCount = computed(() => activeChallenges.value.length)
               @click="acceptChallenge(challenge.id)"
               :disabled="loading"
             >
-              Accept
+              Acceptera
             </button>
             <button
               class="button button-outline"
               @click="declineChallenge(challenge.id)"
               :disabled="loading"
             >
-              Decline
+              Avböj
             </button>
           </div>
         </div>
@@ -270,11 +276,11 @@ const activeCount = computed(() => activeChallenges.value.length)
     </div>
 
     <!-- Active Challenges -->
-    <div v-if="activeTab === 'active'" class="tab-content">
-      <h2>Active Challenges</h2>
-      <div v-if="loading" class="loading">Loading...</div>
+    <div v-if="activeTab === 'active'" class="challenge-section">
+      <h2>Pågående utmaningar</h2>
+      <div v-if="loading" class="loading-state">Läser in…</div>
       <div v-else-if="activeChallenges.length === 0" class="empty-state">
-        <p>No active challenges</p>
+        <p>Inga pågående utmaningar</p>
       </div>
       <div v-else class="challenge-list">
         <div
@@ -283,25 +289,31 @@ const activeCount = computed(() => activeChallenges.value.length)
           class="challenge-card active"
         >
           <div class="challenge-info">
-            <h3>{{ challenge.challenger_username }} vs {{ challenge.challenged_username }}</h3>
-            <p>{{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
+            <h3>{{ challenge.challenger_username }} mot {{ challenge.challenged_username }}</h3>
+            <p>{{ challenge.topic_name }} · Nivå {{ challenge.difficulty }}</p>
             <p class="turn-info" v-if="challenge.current_turn_user_id">
-              <span role="img" aria-label="Turn">🔄</span>
-              <strong v-if="isMyTurn(challenge)">Your turn!</strong>
-              <span v-else>{{ getTurnUsername(challenge) }}'s turn</span>
+              <span role="img" aria-label="Tur">🔄</span>
+              <strong v-if="isMyTurn(challenge)">Din tur!</strong>
+              <span v-else>{{ getTurnUsername(challenge) }}s tur</span>
             </p>
             <div class="status-badges">
-              <span v-if="challenge.challenger_quiz_status === 'completed'" class="badge success">
-                {{ challenge.challenger_username }} finished
+              <span
+                v-if="challenge.challenger_quiz_status === 'completed'"
+                class="status-pill approved"
+              >
+                {{ challenge.challenger_username }} klar
               </span>
-              <span v-else class="badge warning">
-                {{ challenge.challenger_username }} waiting
+              <span v-else class="status-pill pending">
+                {{ challenge.challenger_username }} väntar
               </span>
-              <span v-if="challenge.challenged_quiz_status === 'completed'" class="badge success">
-                {{ challenge.challenged_username }} finished
+              <span
+                v-if="challenge.challenged_quiz_status === 'completed'"
+                class="status-pill approved"
+              >
+                {{ challenge.challenged_username }} klar
               </span>
-              <span v-else class="badge warning">
-                {{ challenge.challenged_username }} waiting
+              <span v-else class="status-pill pending">
+                {{ challenge.challenged_username }} väntar
               </span>
             </div>
           </div>
@@ -314,16 +326,20 @@ const activeCount = computed(() => activeChallenges.value.length)
               class="button button-accent"
               @click="viewResult(challenge.id)"
             >
-              View Results!
+              Visa resultat!
             </button>
             <button
               v-else
               class="button button-accent"
               @click="startChallenge(challenge.id)"
-              :disabled="loading || !isMyTurn(challenge)"
-              :title="!isMyTurn(challenge) ? 'Wait for your turn' : ''"
+              :disabled="
+                loading ||
+                !isMyTurn(challenge) ||
+                (challenge.status === 'pending' && challenge.challenged_user_id === currentUser?.id)
+              "
+              :title="!isMyTurn(challenge) ? 'Vänta på din tur' : ''"
             >
-              {{ isMyTurn(challenge) ? 'Start Quiz' : 'Waiting...' }}
+              {{ isMyTurn(challenge) ? 'Starta quiz' : 'Väntar…' }}
             </button>
           </div>
         </div>
@@ -331,11 +347,11 @@ const activeCount = computed(() => activeChallenges.value.length)
     </div>
 
     <!-- History -->
-    <div v-if="activeTab === 'history'" class="tab-content">
-      <h2>Challenge History</h2>
-      <div v-if="loading" class="loading">Loading...</div>
+    <div v-if="activeTab === 'history'" class="challenge-section">
+      <h2>Utmaningshistorik</h2>
+      <div v-if="loading" class="loading-state">Läser in…</div>
       <div v-else-if="challengeHistory.length === 0" class="empty-state">
-        <p>No completed challenges yet</p>
+        <p>Inga avslutade utmaningar ännu</p>
       </div>
       <div v-else class="challenge-list">
         <div
@@ -344,17 +360,19 @@ const activeCount = computed(() => activeChallenges.value.length)
           class="challenge-card history"
         >
           <div class="challenge-info">
-            <h3>{{ challenge.challenger_username }} vs {{ challenge.challenged_username }}</h3>
-            <p>{{ challenge.topic_name }} · Level {{ challenge.difficulty }}</p>
-            <p v-if="challenge.winner_username" class="winner">
-              <span role="img" aria-label="Trophy">🏆</span> Winner: {{ challenge.winner_username }}
+            <h3>{{ challenge.challenger_username }} mot {{ challenge.challenged_username }}</h3>
+            <p>{{ challenge.topic_name }} · Nivå {{ challenge.difficulty }}</p>
+            <p v-if="challenge.winner_username" class="text-success">
+              <span role="img" aria-label="Pokal">🏆</span> Vinnare: {{ challenge.winner_username }}
             </p>
-            <p v-else class="tie"><span role="img" aria-label="Handshake">🤝</span> Tie</p>
-            <p class="text-muted">Completed {{ formatDate(challenge.completed_at) }}</p>
+            <p v-else class="text-muted">
+              <span role="img" aria-label="Handslag">🤝</span> Oavgjort
+            </p>
+            <p class="text-muted">Slutförd {{ formatDate(challenge.completed_at) }}</p>
           </div>
           <div class="challenge-actions">
             <button class="button button-outline" @click="viewResult(challenge.id)">
-              View Details
+              Visa detaljer
             </button>
           </div>
         </div>
@@ -362,17 +380,17 @@ const activeCount = computed(() => activeChallenges.value.length)
     </div>
 
     <!-- Create Challenge -->
-    <div v-if="activeTab === 'create'" class="tab-content">
-      <h2>Create New Challenge</h2>
+    <div v-if="activeTab === 'create'" class="challenge-section">
+      <h2>Skapa ny utmaning</h2>
       <div class="create-form">
         <!-- User Search -->
         <div class="form-group">
-          <label>Challenge User</label>
+          <label>Utmana användare</label>
           <input
             v-model="searchQuery"
             @input="searchUsers"
             type="text"
-            placeholder="Search by username..."
+            placeholder="Sök efter användarnamn…"
             class="text-input"
           />
           <div v-if="searchResults.length > 0" class="search-results">
@@ -386,16 +404,16 @@ const activeCount = computed(() => activeChallenges.value.length)
               {{ user.username }}
             </button>
           </div>
-          <p v-if="selectedUser" class="selected-user">
-            Selected: <strong>{{ selectedUser.username }}</strong>
+          <p v-if="selectedUser" class="text-success">
+            Vald användare: <strong>{{ selectedUser.username }}</strong>
           </p>
         </div>
 
         <!-- Topic Selection -->
         <div class="form-group">
-          <label>Topic</label>
-          <select v-model="selectedTopic" class="select-input">
-            <option :value="null">Select a topic...</option>
+          <label>Ämne</label>
+          <select v-model="selectedTopic" class="form-select">
+            <option :value="null">Välj ett ämne…</option>
             <option v-for="topic in topics" :key="topic.id" :value="topic.id">
               {{ topic.name }}
             </option>
@@ -404,15 +422,16 @@ const activeCount = computed(() => activeChallenges.value.length)
 
         <!-- Difficulty Selection -->
         <div class="form-group">
-          <label>Difficulty Level</label>
-          <div class="difficulty-buttons">
+          <label>Svårighetsgrad</label>
+          <div class="difficulty-options">
             <button
               v-for="lvl in [1, 2, 3, 4, 5]"
               :key="lvl"
+              type="button"
               :class="['diff-btn', { active: selectedDifficulty === lvl }]"
               @click="selectedDifficulty = lvl"
             >
-              <span role="img" aria-label="Star">⭐</span> {{ lvl }}
+              <span role="img" aria-label="Stjärna">⭐</span> Nivå {{ lvl }}
             </button>
           </div>
         </div>
@@ -422,285 +441,9 @@ const activeCount = computed(() => activeChallenges.value.length)
           @click="createChallenge"
           :disabled="loading || !selectedUser || !selectedTopic"
         >
-          Start Challenge
+          Starta utmaning
         </button>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.challenge-view {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.page-heading h1 {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.tabs {
-  display: flex;
-  gap: 1rem;
-  border-bottom: 2px solid var(--color-border);
-  margin-bottom: 2rem;
-}
-
-.tab {
-  padding: 0.75rem 1.5rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  color: var(--color-text);
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.tab:hover {
-  color: var(--color-primary);
-}
-
-.tab.active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-}
-
-.tab .badge {
-  background: #103c35;
-  color: white;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  margin-left: 0.5rem;
-}
-
-.tab-content {
-  animation: fadeIn 0.3s;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.challenge-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.challenge-card {
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: transform 0.2s;
-}
-
-.challenge-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.challenge-info h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.25rem;
-}
-
-.challenge-info p {
-  margin: 0.25rem 0;
-}
-
-.challenge-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.status-badges {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.status-badges .badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
-}
-
-.badge.success {
-  background: #2d7a3d;
-  color: white;
-}
-
-.badge.warning {
-  background: #c7940a;
-  color: white;
-}
-
-.winner {
-  color: #2d7a3d;
-  font-weight: bold;
-}
-
-.tie {
-  color: var(--color-text-muted);
-  font-weight: bold;
-}
-
-.create-form {
-  max-width: 500px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  position: relative;
-}
-
-.form-group label {
-  font-weight: 600;
-}
-
-.search-results {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 10;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.search-result-item {
-  padding: 0.75rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.search-result-item:hover {
-  background: var(--color-background-soft);
-}
-
-.selected-user {
-  color: #2d7a3d;
-}
-
-.difficulty-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.diff-btn {
-  flex: 1;
-  padding: 0.75rem;
-  border: 2px solid var(--color-border);
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.diff-btn:hover {
-  border-color: var(--color-accent);
-}
-
-.diff-btn.active {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: white;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: var(--color-text-muted);
-}
-
-.error-banner {
-  background: var(--color-error-soft);
-  color: var(--color-error);
-  padding: 1rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-}
-
-.loading {
-  text-align: center;
-  padding: 2rem;
-  color: var(--color-text-muted);
-}
-
-.text-muted {
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
-}
-
-.button {
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.button-accent {
-  background: var(--color-primary);
-  color: white;
-}
-
-.button-accent:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
-
-.button-outline {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-}
-
-.button-outline:hover:not(:disabled) {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.text-input,
-.select-input {
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-.text-input:focus,
-.select-input:focus {
-  outline: none;
-  border-color: var(--color-accent);
-}
-</style>

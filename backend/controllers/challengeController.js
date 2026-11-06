@@ -4,7 +4,7 @@ const challengeService = require('../services/challengeService')
 function validateChallengeId(id) {
   const challengeId = Number(id)
   if (!Number.isInteger(challengeId) || challengeId < 1) {
-    const error = new Error('Invalid challenge ID')
+    const error = new Error('Ogiltigt utmanings-ID.')
     error.status = 400
     throw error
   }
@@ -13,8 +13,13 @@ function validateChallengeId(id) {
 
 // Helper: Handle controller errors
 function handleError(res, err) {
-  const status = err.status || 500
-  res.status(status).json({ status: 'error', message: err.message })
+  const status =
+    Number.isInteger(err.status) && err.status >= 400 && err.status < 500 ? err.status : 500
+  if (status === 500) console.error(err)
+  res.status(status).json({
+    status: 'error',
+    message: status === 500 ? 'Ett serverfel uppstod. Försök igen senare.' : err.message,
+  })
 }
 
 /**
@@ -29,7 +34,7 @@ async function createChallenge(req, res) {
     if (!challenged_user_id || !topic_id) {
       return res.status(400).json({
         status: 'error',
-        message: 'challenged_user_id and topic_id are required',
+        message: 'Välj både en motståndare och ett ämne.',
       })
     }
 
@@ -40,21 +45,21 @@ async function createChallenge(req, res) {
     if (!Number.isInteger(challengedUserId) || challengedUserId < 1) {
       return res.status(400).json({
         status: 'error',
-        message: 'challenged_user_id must be a positive integer',
+        message: 'Ogiltigt användar-ID för motståndaren.',
       })
     }
 
     if (!Number.isInteger(topicId) || topicId < 1) {
       return res.status(400).json({
         status: 'error',
-        message: 'topic_id must be a positive integer',
+        message: 'Ogiltigt ämnes-ID.',
       })
     }
 
     if (!Number.isInteger(difficultyLevel) || difficultyLevel < 1) {
       return res.status(400).json({
         status: 'error',
-        message: 'difficulty must be a positive integer',
+        message: 'Svårighetsgraden måste vara ett positivt heltal.',
       })
     }
 
@@ -197,7 +202,7 @@ async function handleQuizCompletion(req, res) {
     const userId = req.session.userId
     const challengeId = validateChallengeId(req.params.id)
     await challengeService.handleQuizCompletion(challengeId, userId)
-    res.json({ status: 'success', message: 'Turn switched' })
+    res.json({ status: 'success', message: 'Turen har gått vidare.' })
   } catch (err) {
     handleError(res, err)
   }
@@ -227,7 +232,7 @@ async function searchUsers(req, res) {
     const userId = req.session.userId
     const query = req.query.q
     if (!query) {
-      return res.status(400).json({ status: 'error', message: 'Query parameter q is required' })
+      return res.status(400).json({ status: 'error', message: 'Sökfrågan q krävs.' })
     }
 
     const users = await challengeService.searchUsers(query, userId)

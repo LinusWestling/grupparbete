@@ -1,0 +1,298 @@
+/*
+ * SkillSwap — Challenges Stylesheet
+ * ------------------------------------------------------------
+ * Styling for Head-to-Head Challenges, Play Progress, and Result Views.
+ */
+
+.challenge-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.challenge-page .auth-tabs {
+  flex-wrap: wrap;
+}
+
+.challenge-page .auth-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.challenge-section {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.challenge-card {
+  background: var(--color-surface-muted);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  transition: border-color var(--transition-fast);
+}
+
+.challenge-card:hover {
+  border-color: var(--color-primary);
+}
+
+.challenge-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.challenge-info h3 {
+  font-size: var(--font-size-h3);
+  margin-bottom: var(--space-1);
+}
+
+.challenge-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.status-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.turn-info {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  margin-top: var(--space-1);
+}
+
+/* Create Challenge Form */
+.create-form {
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.create-form .form-group {
+  position: relative;
+}
+
+.create-form .form-group label {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: var(--shadow-md);
+  margin-top: var(--space-1);
+  display: flex;
+  flex-direction: column;
+}
+
+.search-result-item {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: none;
+  border-bottom: var(--border-width) solid var(--color-surface-muted);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: var(--color-surface-soft);
+}
+
+/* Challenge Play View */
+.progress-header {
+  background: var(--color-surface-muted);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.progress-header h2 {
+  text-align: center;
+}
+
+.progress-comparison,
+.score-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.player-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+}
+
+.player-progress .progress-bar {
+  width: 100%;
+}
+
+.progress-fill.opponent {
+  background: var(--color-warning-text);
+}
+
+.vs-divider {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.challenge-instructions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+}
+
+/* Challenge Result View */
+.winner-banner,
+.waiting-banner {
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  border-radius: var(--radius-xl);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.winner-banner.challenger,
+.winner-banner.challenged {
+  background: var(--color-surface-soft);
+  border-color: var(--color-success-text);
+  color: var(--color-success-text);
+}
+
+.winner-banner.tie {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border-strong);
+}
+
+.winner-banner h1,
+.waiting-banner h1 {
+  margin: 0;
+}
+
+.player-result {
+  text-align: center;
+  padding: var(--space-6);
+  background: var(--color-surface-muted);
+  border: var(--border-width-strong) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: border-color var(--transition-fast);
+}
+
+.player-result.winner {
+  border-color: var(--color-success-text);
+  background: var(--color-surface-soft);
+}
+
+.score-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.score-placeholder {
+  font-size: var(--font-size-lg);
+  font-style: italic;
+  color: var(--color-text-muted);
+  padding: var(--space-3) 0;
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.challenge-result-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .challenge-section {
+    padding: var(--space-5);
+  }
+
+  .challenge-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .challenge-actions {
+    width: 100%;
+  }
+
+  .challenge-actions .button {
+    flex: 1;
+  }
+
+  .progress-comparison,
+  .score-comparison {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+  }
+}

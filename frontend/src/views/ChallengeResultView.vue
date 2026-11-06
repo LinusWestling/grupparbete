@@ -22,7 +22,7 @@ onMounted(async () => {
       console.error('Failed to mark result viewed:', err)
     }
   } catch (err) {
-    error.value = 'Failed to load result: ' + err.message
+    error.value = 'Det gick inte att hämta resultatet: ' + err.message
   } finally {
     loading.value = false
   }
@@ -35,7 +35,7 @@ const winner = computed(() => {
 })
 
 const winnerName = computed(() => {
-  if (winner.value === 'tie') return 'Tie'
+  if (winner.value === 'tie') return 'Oavgjort'
   return result.value.winner_username
 })
 
@@ -45,56 +45,56 @@ function backToChallenges() {
 </script>
 
 <template>
-  <div class="challenge-result-view">
-    <div v-if="loading" class="loading">Loading results...</div>
-    <div v-else-if="error" class="error-banner">
-      <span role="img" aria-label="Warning">⚠️</span> {{ error }}
+  <div class="challenge-page">
+    <div v-if="loading" class="loading-state">Läser in resultat…</div>
+    <div v-else-if="error" class="error-banner" role="alert">
+      <span role="img" aria-label="Varning">⚠️</span> {{ error }}
     </div>
-    <div v-else-if="result">
+    <div v-else-if="result" class="challenge-section">
       <!-- Waiting state for non-completed challenges -->
       <div v-if="result.status !== 'completed'" class="waiting-banner">
-        <h1><span role="img" aria-label="Hourglass">⏳</span> Waiting for completion...</h1>
-        <p>The final results will be available once both players have finished their quizzes.</p>
+        <h1><span role="img" aria-label="Timglas">⏳</span> Väntar på att utmaningen slutförs…</h1>
+        <p class="text-muted">Slutresultatet visas när båda spelarna har slutfört sina quiz.</p>
       </div>
 
       <!-- Winner Banner -->
       <div v-else class="winner-banner" :class="winner">
-        <h1 v-if="winner === 'tie'"><span role="img" aria-label="Handshake">🤝</span> Oavgjort!</h1>
-        <h1 v-else><span role="img" aria-label="Trophy">🏆</span> {{ winnerName }} Wins!</h1>
+        <h1 v-if="winner === 'tie'"><span role="img" aria-label="Handslag">🤝</span> Oavgjort!</h1>
+        <h1 v-else><span role="img" aria-label="Pokal">🏆</span> {{ winnerName }} vinner!</h1>
       </div>
 
       <!-- Score Comparison -->
       <div class="score-comparison">
         <div class="player-result" :class="{ winner: winner === 'challenger' }">
-          <h2>{{ result.challenger?.username || 'Challenger' }}</h2>
+          <h2>{{ result.challenger?.username || 'Utmanare' }}</h2>
           <div class="score-card">
-            <div v-if="result.challenger?.is_completed" class="score">
+            <div v-if="result.challenger?.is_completed" class="stat-value">
               {{ result.challenger?.correct_answers || 0 }} /
               {{ result.challenger?.total_questions || 0 }}
             </div>
-            <div v-else class="score-placeholder">In progress...</div>
+            <div v-else class="score-placeholder">Pågår…</div>
             <div class="stats">
-              <p v-if="result.challenger?.time_taken_seconds">
-                <span role="img" aria-label="Timer">⏱️</span>
+              <p v-if="result.challenger?.time_taken_seconds != null" class="text-muted">
+                <span role="img" aria-label="Tidtagarur">⏱️</span>
                 {{ formatTime(result.challenger.time_taken_seconds) }}
               </p>
             </div>
           </div>
         </div>
 
-        <div class="vs-divider">VS</div>
+        <div class="vs-divider">MOT</div>
 
         <div class="player-result" :class="{ winner: winner === 'challenged' }">
-          <h2>{{ result.challenged?.username || 'Challenged' }}</h2>
+          <h2>{{ result.challenged?.username || 'Utmanad' }}</h2>
           <div class="score-card">
-            <div v-if="result.challenged?.is_completed" class="score">
+            <div v-if="result.challenged?.is_completed" class="stat-value">
               {{ result.challenged?.correct_answers || 0 }} /
               {{ result.challenged?.total_questions || 0 }}
             </div>
-            <div v-else class="score-placeholder">In progress...</div>
+            <div v-else class="score-placeholder">Pågår…</div>
             <div class="stats">
-              <p v-if="result.challenged?.time_taken_seconds">
-                <span role="img" aria-label="Timer">⏱️</span>
+              <p v-if="result.challenged?.time_taken_seconds != null" class="text-muted">
+                <span role="img" aria-label="Tidtagarur">⏱️</span>
                 {{ formatTime(result.challenged.time_taken_seconds) }}
               </p>
             </div>
@@ -103,182 +103,11 @@ function backToChallenges() {
       </div>
 
       <!-- Actions -->
-      <div class="actions">
-        <button class="button button-accent" @click="backToChallenges">Back to Challenges</button>
+      <div class="challenge-result-actions">
+        <button class="button button-accent" @click="backToChallenges">
+          Tillbaka till utmaningar
+        </button>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.challenge-result-view {
-  max-width: 1000px;
-  margin: 2rem auto;
-  padding: 2rem;
-}
-
-.winner-banner {
-  text-align: center;
-  padding: 3rem;
-  border-radius: 12px;
-  margin-bottom: 2rem;
-  animation: fadeIn 0.5s;
-}
-
-.winner-banner.challenger {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.winner-banner.challenged {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-}
-
-.winner-banner.tie {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: white;
-}
-
-.winner-banner h1 {
-  font-size: 3rem;
-  margin: 0;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.score-comparison {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.player-result {
-  flex: 1;
-  text-align: center;
-  padding: 2rem;
-  background: var(--color-background-soft);
-  border: 2px solid var(--color-border);
-  border-radius: 8px;
-  transition: all 0.3s;
-}
-
-.player-result.winner {
-  border-color: var(--color-success);
-  box-shadow: 0 0 20px rgba(72, 187, 120, 0.3);
-}
-
-.player-result h2 {
-  margin-bottom: 1.5rem;
-  font-size: 1.5rem;
-}
-
-.score-card {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.score {
-  font-size: 4rem;
-  font-weight: bold;
-  color: var(--color-primary);
-}
-
-.player-result.winner .score {
-  color: #2d7a3d;
-}
-
-.stats {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.stats p {
-  margin: 0;
-  font-size: 1.1rem;
-  color: var(--color-text-muted);
-}
-
-.vs-divider {
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: var(--color-text-muted);
-}
-
-.actions {
-  text-align: center;
-  padding: 2rem;
-}
-
-.button {
-  padding: 1rem 2rem;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  font-size: 1.1rem;
-  transition: all 0.2s;
-}
-
-.button-accent {
-  background: var(--color-primary);
-  color: white;
-}
-
-.button-accent:hover {
-  background: var(--color-primary-hover);
-  transform: scale(1.05);
-}
-
-.waiting-banner {
-  text-align: center;
-  padding: 3rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  animation: fadeIn 0.5s ease-out;
-}
-
-.waiting-banner h1 {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-  color: var(--color-primary);
-}
-
-.waiting-banner p {
-  font-size: 1.2rem;
-  color: var(--color-text-muted);
-}
-
-.score-placeholder {
-  font-size: 1.5rem;
-  font-style: italic;
-  color: var(--color-text-muted);
-  padding: 1rem 0;
-}
-
-.loading {
-  text-align: center;
-  padding: 3rem;
-  font-size: 1.2rem;
-}
-
-.error-banner {
-  background: var(--color-error-soft);
-  color: var(--color-error);
-  padding: 1rem;
-  border-radius: 4px;
-  text-align: center;
-}
-</style>

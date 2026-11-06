@@ -96,14 +96,19 @@ async function getActiveChallengesForUser(userId) {
      LEFT JOIN quizzes challenger_quiz ON c.challenger_quiz_id = challenger_quiz.id
      LEFT JOIN quizzes challenged_quiz ON c.challenged_quiz_id = challenged_quiz.id
      WHERE (c.challenger_user_id = ? OR c.challenged_user_id = ?)
-       AND c.status IN ('accepted', 'active', 'completed')
        AND (
-         (c.challenger_user_id = ? AND c.challenger_result_viewed = FALSE)
-         OR (c.challenged_user_id = ? AND c.challenged_result_viewed = FALSE)
-         OR c.status IN ('accepted', 'active')
+         c.status IN ('accepted', 'active')
+         OR (c.challenger_user_id = ? AND c.status = 'pending')
+         OR (
+           c.status = 'completed'
+           AND (
+             (c.challenger_user_id = ? AND c.challenger_result_viewed = FALSE)
+             OR (c.challenged_user_id = ? AND c.challenged_result_viewed = FALSE)
+           )
+         )
        )
      ORDER BY c.created_at DESC`,
-    [userId, userId, userId, userId],
+    [userId, userId, userId, userId, userId],
   )
 
   return rows

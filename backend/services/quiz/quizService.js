@@ -17,6 +17,7 @@ async function startQuiz(
   organizationId = null,
   questionTypes,
   seed = null,
+  existingConnection = null,
 ) {
   // Fetch questions matching topic and difficulty level (or fallback to topic)
   let questions = await questionService.getQuestions(
@@ -100,11 +101,14 @@ async function startQuiz(
     }
   }
 
-  const connection = await pool.getConnection()
+  const connection = existingConnection || (await pool.getConnection())
+  const managesTransaction = !existingConnection
   let quizId
 
   try {
-    await connection.beginTransaction()
+    if (managesTransaction) {
+      await connection.beginTransaction()
+    }
 
     if (organizationId !== null) {
       const [access] = await connection.execute(
@@ -159,12 +163,18 @@ async function startQuiz(
     if (userId) {
       await databaseMonitor(connection).log(MONITORING_EVENTS.QUIZ_STARTED, { userId })
     }
-    await connection.commit()
+    if (managesTransaction) {
+      await connection.commit()
+    }
   } catch (err) {
-    await connection.rollback()
+    if (managesTransaction) {
+      await connection.rollback()
+    }
     throw err
   } finally {
-    connection.release()
+    if (managesTransaction) {
+      connection.release()
+    }
   }
 
   return quizPayload(
@@ -271,8 +281,9 @@ async function getUnfinishedQuizzes(userId) {
       SUM(qq.is_answered) AS answered_count, SUM(qq.is_skipped) AS skipped_count
      FROM quizzes q JOIN topics t ON t.id = q.topic_id
      LEFT JOIN users org ON org.id = q.organization_id
+     LEFT JOIN challenges c ON (c.challenger_quiz_id = q.id OR c.challenged_quiz_id = q.id)
      JOIN quiz_questions qq ON qq.quiz_id = q.id
-     WHERE q.user_id = ? AND q.status = 'in_progress'
+     WHERE q.user_id = ? AND q.status = 'in_progress' AND c.id IS NULL
      GROUP BY q.id, q.difficulty, q.total_cnt, t.name, org.username ORDER BY q.created_at DESC`,
     [userId],
   )

@@ -6,13 +6,14 @@ export const CHALLENGE_EXPIRY_HOURS = 24
 
 // Formatting helpers
 export function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString()
+  return new Date(dateString).toLocaleDateString('sv-SE')
 }
 
 export function formatTime(seconds) {
-  if (!seconds) return ''
-  const minutes = Math.floor(seconds / 60)
-  const secs = seconds % 60
+  if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return ''
+  const totalSeconds = Math.max(0, Math.floor(Number(seconds)))
+  const minutes = Math.floor(totalSeconds / 60)
+  const secs = totalSeconds % 60
   return `${minutes}:${String(secs).padStart(2, '0')}`
 }
 

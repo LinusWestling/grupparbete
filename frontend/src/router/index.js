@@ -4,6 +4,7 @@ import { currentUser, isAdmin, isOrganization, loadCurrentUser } from '../servic
 export const navigation = [
   { path: '/', label: 'Översikt', icon: '◫' },
   { path: '/explore', label: 'Utforska kunskap', icon: '⌕' },
+  { path: '/challenges', label: 'Utmaningar', icon: '🏆' },
   { path: '/organization/prospects', label: 'Kandidatöversikt', icon: 'ϗ', orgOnly: true },
   { path: '/profile', label: 'Profil', icon: '◎' },
   { path: '/linus-experiment', label: 'Linus experimenting', icon: '⚗' },
@@ -56,19 +57,19 @@ const router = createRouter({
       path: '/challenges',
       name: 'challenges',
       component: () => import('../views/ChallengeView.vue'),
-      meta: { title: 'Challenges' },
+      meta: { title: 'Utmaningar', requiresAuth: true },
     },
     {
       path: '/challenges/:id/play',
       name: 'challenge-play',
       component: () => import('../views/ChallengePlayView.vue'),
-      meta: { title: 'Challenge Quiz' },
+      meta: { title: 'Utmaningsquiz', requiresAuth: true },
     },
     {
       path: '/challenges/:id/result',
       name: 'challenge-result',
       component: () => import('../views/ChallengeResultView.vue'),
-      meta: { title: 'Challenge Result' },
+      meta: { title: 'Utmaningsresultat', requiresAuth: true },
     },
     {
       path: '/:pathMatch(.*)*',
@@ -79,6 +80,10 @@ const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
 })
 router.beforeEach(async (to) => {
+  if (to.meta.requiresAuth) {
+    await loadCurrentUser()
+    if (!currentUser.value) return { name: 'profile' }
+  }
   if (to.meta.requiresAdmin) {
     await loadCurrentUser()
     if (!currentUser.value) return { name: 'profile' }
